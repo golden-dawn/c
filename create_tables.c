@@ -104,7 +104,6 @@ int main() {
     create_index_if_missing(cnx, "holidays", "holidays_holiday_type_idx",
 			    create_holis_holiday_type_idx);
 
-
     char* create_spots = "CREATE TABLE opt_spots( "	 \
 	"stk VARCHAR(16) NOT NULL, "			 \
 	"dt DATE NOT NULL, "				 \
@@ -115,6 +114,24 @@ int main() {
 	"opt_spots(dt)";
     create_index_if_missing(cnx, "opt_spots", "opt_spots_dt_idx",
 			    create_spots_dt_idx);
+
+
+    char* create_opts = "CREATE TABLE options( "	 \
+	"expiry DATE NOT NULL, "			 \
+	"und VARCHAR(16) NOT NULL, "			 \
+	"cp VARCHAR(1) NOT NULL, "			 \
+	"strike INTEGER NOT NULL, "			 \
+	"dt DATE NOT NULL, "				 \
+	"bid INTEGER, "					 \
+	"ask INTEGER, "					 \
+	"v INTEGER, "					 \
+	"oi INTEGER, "					 \
+	"PRIMARY KEY(expiry, und, cp, strike, dt))";
+    create_table_if_missing(cnx, "options", create_opts);
+    char* create_opts_und_dt_idx = "CREATE INDEX optionss_und_dt_idx ON " \
+	"options(und, dt)";
+    create_index_if_missing(cnx, "options", "options_und_dt_idx",
+			    create_opts_und_dt_idx);
 
     PQfinish(cnx);
     return 0;
