@@ -80,6 +80,21 @@ int main() {
     create_table_if_missing(cnx, "eods", create_eods);
     char* create_eods_dt_idx = "CREATE INDEX eods_dt_idx ON eods(dt)";
     create_index_if_missing(cnx, "eods", "eods_dt_idx", create_eods_dt_idx);
+
+    char* create_divis = "CREATE TABLE dividends( "	 \
+	"stk VARCHAR(16) NOT NULL, "			 \
+	"dt DATE NOT NULL, "				 \
+	"ratio DOUBLE PRECISION NOT NULL, "		 \
+	"divi_type INTEGER NOT NULL, "			 \
+	"PRIMARY KEY(stk, dt))";
+    create_table_if_missing(cnx, "dividends", create_divis);
+    char* create_divis_dt_idx = "CREATE INDEX dividends_dt_idx ON " \
+	"dividends(dt)";
+    create_index_if_missing(cnx, "dividends", "dividends_dt_idx",
+			    create_divis_dt_idx);
+
+
+
     PQfinish(cnx);
     return 0;
 }
