@@ -93,6 +93,17 @@ int main() {
     create_index_if_missing(cnx, "dividends", "dividends_dt_idx",
 			    create_divis_dt_idx);
 
+    char* create_holis = "CREATE TABLE holidays( "	 \
+	"dt DATE NOT NULL, "				 \
+	"holiday_type INTEGER NOT NULL, "		 \
+	"holiday_name VARCHAR(128), "			 \
+	"PRIMARY KEY(dt))";
+    create_table_if_missing(cnx, "holidays", create_holis);
+    char* create_holis_holiday_type_idx = "CREATE INDEX " \
+	"holidays_holiday_type_idx ON holidays(holiday_type)";
+    create_index_if_missing(cnx, "holidays", "holidays_holiday_type_idx",
+			    create_holis_holiday_type_idx);
+
 
 
     PQfinish(cnx);
