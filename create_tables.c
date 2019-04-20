@@ -105,6 +105,16 @@ int main() {
 			    create_holis_holiday_type_idx);
 
 
+    char* create_spots = "CREATE TABLE opt_spots( "	 \
+	"stk VARCHAR(16) NOT NULL, "			 \
+	"dt DATE NOT NULL, "				 \
+	"spot INTEGER NOT NULL, "			 \
+	"PRIMARY KEY(stk, dt))";
+    create_table_if_missing(cnx, "opt_spots", create_spots);
+    char* create_spots_dt_idx = "CREATE INDEX opt_spots_dt_idx ON " \
+	"opt_spots(dt)";
+    create_index_if_missing(cnx, "opt_spots", "opt_spots_dt_idx",
+			    create_spots_dt_idx);
 
     PQfinish(cnx);
     return 0;
