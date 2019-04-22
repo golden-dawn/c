@@ -128,7 +128,7 @@ int main() {
 	"oi INTEGER, "					 \
 	"PRIMARY KEY(expiry, und, cp, strike, dt))";
     create_table_if_missing(cnx, "options", create_opts);
-    char* create_opts_und_dt_idx = "CREATE INDEX optionss_und_dt_idx ON " \
+    char* create_opts_und_dt_idx = "CREATE INDEX options_und_dt_idx ON " \
 	"options(und, dt)";
     create_index_if_missing(cnx, "options", "options_und_dt_idx",
 			    create_opts_und_dt_idx);
