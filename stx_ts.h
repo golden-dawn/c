@@ -41,8 +41,7 @@ daily_record_ptr load_stk(char* stk, int* num_recs) {
     if((*num_recs = PQntuples(res)) <= 0) 
 	return result;
     int num = *num_recs;
-    result = (daily_record_ptr) malloc(num * sizeof(daily_record));
-    memset(result, 0, num * sizeof(daily_record));
+    result = (daily_record_ptr) calloc(num, sizeof(daily_record));
     for(int ix = 0; ix < num; ix++) {
 	result[ix].open = atoi(PQgetvalue(res, ix, 0));
 	result[ix].high = atoi(PQgetvalue(res, ix, 1));
@@ -64,8 +63,7 @@ divi_ptr load_splits(char* stk, int* num_recs) {
     if((*num_recs = PQntuples(res)) <= 0) 
 	return result;
     int num = *num_recs;
-    result = (daily_record_ptr) malloc(num * sizeof(daily_record));
-    memset(result, 0, num * sizeof(daily_record));
+    result = (divi_ptr) calloc(num, sizeof(divi));
     for(int ix = 0; ix < num; ix++) {
 	result[ix].ratio = atof(PQgetvalue(res, ix, 0));
 	strcpy(result[ix].date, PQgetvalue(res, ix, 1));
@@ -75,28 +73,28 @@ divi_ptr load_splits(char* stk, int* num_recs) {
 
 }
 
-int find_date_record(daily_record_ptr data, int lines, char* date) {
+/* int find_date_record(daily_record_ptr data, int lines, char* date) { */
 
-    time_t date_time;
-    time_t crs_time;
-    int i = 0, j = lines- 1, mid = (i + j) / 2;
+/*     time_t date_time; */
+/*     time_t crs_time; */
+/*     int i = 0, j = lines- 1, mid = (i + j) / 2; */
 
-    if( !strcmp( data[ j].date, date))
-	return j;
+/*     if( !strcmp( data[ j].date, date)) */
+/* 	return j; */
 
-    date_time= get_time_from_date(date);
-    while( i<= j) {
-	crs_time= get_time_from_date( data[ mid].date);
-	if( crs_time< date_time)
-	    i= mid+ 1;
-	else if( crs_time> date_time)
-	    j= mid- 1;
-	else
-	    return mid;
-	mid= ( i+ j)/ 2;
-    }
-    return -1;
-}
+/*     date_time= get_time_from_date(date); */
+/*     while( i<= j) { */
+/* 	crs_time= get_time_from_date( data[ mid].date); */
+/* 	if( crs_time< date_time) */
+/* 	    i= mid+ 1; */
+/* 	else if( crs_time> date_time) */
+/* 	    j= mid- 1; */
+/* 	else */
+/* 	    return mid; */
+/* 	mid= ( i+ j)/ 2; */
+/*     } */
+/*     return -1; */
+/* } */
 
 /* data_fragment_ptr get_fragment( daily_record_ptr data, int nb_lines, */
 /* 				time_frame_ptr tf) { */
