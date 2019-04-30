@@ -6,6 +6,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include "stx_db.h"
+#include "stx_ht.h"
 
 /** BEGIN: macros */
 #define module( x) (( x>  0)? x: -x)
@@ -21,18 +22,13 @@ typedef struct daily_record_t {
     char date[ 16];
 } daily_record, *daily_record_ptr;
 
-typedef struct divi_t {
-    float ratio;
-    char date[ 16];
-} divi, *divi_ptr;
 
 float wprice( daily_record_ptr data, int ix) {
-
     return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
 }
 
-daily_record_ptr load_stk(char* stk, int* num_recs) {
 
+daily_record_ptr load_stk(char* stk, int* num_recs) {
     daily_record_ptr result = NULL;
     char sql_cmd[80];
     sprintf(sql_cmd, "select o, hi, lo, c, v, dt from eods where stk='%s' "
@@ -54,24 +50,17 @@ daily_record_ptr load_stk(char* stk, int* num_recs) {
     return result;
 }
 
-divi_ptr load_splits(char* stk, int* num_recs) {
-    divi_ptr result = NULL;
+
+hashtable_ptr load_splits(char* stk, int* num_recs) {
     char sql_cmd[80];
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
 	    "order by dt", stk);
     PGresult *res = db_query(sql_cmd);
-    if((*num_recs = PQntuples(res)) <= 0) 
-	return result;
-    int num = *num_recs;
-    result = (divi_ptr) calloc(num, sizeof(divi));
-    for(int ix = 0; ix < num; ix++) {
-	result[ix].ratio = atof(PQgetvalue(res, ix, 0));
-	strcpy(result[ix].date, PQgetvalue(res, ix, 1));
-    }
+    hashtable_ptr result = ht_divis(res);
     PQclear(res);
     return result;
-
 }
+
 
 /* int find_date_record(daily_record_ptr data, int lines, char* date) { */
 
