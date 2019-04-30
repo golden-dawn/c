@@ -14,6 +14,7 @@ Need this:
 7. Need a function to return the key values for the indices returned in 6.
 **/
 
+#include <libpq-fe.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,7 +129,28 @@ hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
     return ht;
 }
 
-void ht_delete(hashtable_ptr ht) {
+hashtable_ptr ht_divis(PGresult* res) {
+    hashtable_ptr ht = calloc((size_t)1, sizeof(hashtable));
+    ht->count = 0;
+    ht->size = 0;
+    int num = PQntuples(res);
+    if (num <= 0)
+	return ht;
+    ht->list = calloc((size_t)num, sizeof(ht_item));
+    ht->size = next_prime(2 * num);
+    ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
+    for(int ix = 0; ix < num; ix++) {
+	ht->list[ix].value = atof(PQgetvalue(res, ix, 0));
+	strcpy(ht->list[ix].key, PQgetvalue(res, ix, 1));
+	ht_insert(ht, ht->list + ix);
+    }
+    return ht;
+}
+
+void ht_print(hashtable_ptr ht) {}
+
+
+void ht_free(hashtable_ptr ht) {
     free(ht->items);
     free(ht->list);
     free(ht);
