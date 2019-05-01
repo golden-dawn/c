@@ -83,9 +83,15 @@ int ht_hash(const char* s, const int a, const int m) {
 }
 
 int ht_get_hash(const char* s, const int num_buckets, const int attempt) {
-    const int hash_a = ht_hash(s, HT_PRIME_1, num_buckets);
-    const int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
-    return (hash_a + (attempt * (hash_b + 1))) % num_buckets;
+    int hash_a = ht_hash(s, HT_PRIME_1, num_buckets);
+    int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
+#ifdef DEBUG
+    printf("hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
+    	   hash_a, hash_b, num_buckets, attempt);
+#endif
+    if (hash_b % num_buckets == 0)
+	hash_b = 1;
+    return (hash_a + attempt * hash_b) % num_buckets;
 }
 
 void ht_insert(hashtable_ptr ht, ht_item_ptr crs) {
@@ -97,6 +103,9 @@ void ht_insert(hashtable_ptr ht, ht_item_ptr crs) {
     int i = 1;
     while (crt_item != NULL) {
         index = ht_get_hash(item->key, ht->size, i);
+#ifdef DEBUG
+	printf("i= %d, index = %d\n", i, index);
+#endif
         crt_item = ht->items[index];
         i++;
     } 
@@ -134,20 +143,46 @@ hashtable_ptr ht_divis(PGresult* res) {
     ht->count = 0;
     ht->size = 0;
     int num = PQntuples(res);
+#ifdef DEBUG
+    printf("Found %d records\n", num);
+#endif
     if (num <= 0)
 	return ht;
     ht->list = calloc((size_t)num, sizeof(ht_item));
     ht->size = next_prime(2 * num);
+#ifdef DEBUG
+    printf("ht->size is: %d\n", ht->size);
+#endif
     ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
     for(int ix = 0; ix < num; ix++) {
+#ifdef DEBUG
+	printf("ix = %d\n", ix);
+#endif
 	ht->list[ix].value = atof(PQgetvalue(res, ix, 0));
+#ifdef DEBUG
+	printf("value = %12.6f\n", ht->list[ix].value);
+#endif
 	strcpy(ht->list[ix].key, PQgetvalue(res, ix, 1));
+#ifdef DEBUG
+	printf("Inserting %s, %12.6f into the hashtable\n",
+	       ht->list[ix].key, ht->list[ix].value);
+#endif
 	ht_insert(ht, ht->list + ix);
+#ifdef DEBUG
+	printf("Inserted %s, %12.6f into the hashtable\n",
+	       ht->list[ix].key, ht->list[ix].value);
+#endif	
     }
     return ht;
 }
 
-void ht_print(hashtable_ptr ht) {}
+void ht_print(hashtable_ptr ht) {
+    printf("Hashtable: \n");
+    if(ht->size == 0)
+	return;
+    for(int ix = 0; ix < ht->count; ix++)
+	printf("  %s, %12.6f\n", ht->list[ix].key, ht->list[ix].value);
+}
 
 
 void ht_free(hashtable_ptr ht) {
