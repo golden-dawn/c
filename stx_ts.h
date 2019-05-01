@@ -51,7 +51,7 @@ daily_record_ptr load_stk(char* stk, int* num_recs) {
 }
 
 
-hashtable_ptr load_splits(char* stk, int* num_recs) {
+hashtable_ptr load_splits(char* stk) {
     char sql_cmd[80];
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
 	    "order by dt", stk);
