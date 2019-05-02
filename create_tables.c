@@ -67,6 +67,7 @@ int main() {
         PQfinish(cnx);
         exit(1);
     }
+    
     char* create_eods = "CREATE TABLE eods( "	 \
 	"stk VARCHAR(16) NOT NULL, "		 \
 	"dt DATE NOT NULL, "			 \
@@ -115,7 +116,6 @@ int main() {
     create_index_if_missing(cnx, "opt_spots", "opt_spots_dt_idx",
 			    create_spots_dt_idx);
 
-
     char* create_opts = "CREATE TABLE options( "	 \
 	"expiry DATE NOT NULL, "			 \
 	"und VARCHAR(16) NOT NULL, "			 \
@@ -132,6 +132,45 @@ int main() {
 	"options(und, dt)";
     create_index_if_missing(cnx, "options", "options_und_dt_idx",
 			    create_opts_und_dt_idx);
+
+    char* create_ldrs = "CREATE TABLE leaders( "	 \
+	"expiry DATE NOT NULL, "			 \
+	"stk VARCHAR(16) NOT NULL, "			 \
+	"dt DATE NOT NULL, "				 \
+	"activity INTEGER, "				 \
+	"opt_spread INTEGER, "				 \
+	"atm_price INTEGER, "				 \
+	"PRIMARY KEY(expiry, stk, dt))";
+    create_table_if_missing(cnx, "leaders", create_ldrs);
+    char* create_ldrs_stk_idx = "CREATE INDEX leaders_stk_idx ON " \
+	"leaders(stk)";
+    create_index_if_missing(cnx, "leaders", "leaders_stk_idx",
+			    create_ldrs_stk_idx);
+
+    char* create_setups = "CREATE TABLE setups( "	 \
+	"dt DATE NOT NULL, "				 \
+	"stk VARCHAR(16) NOT NULL, "			 \
+	"setup VARCHAR(16) NOT NULL, "			 \
+	"description VARCHAR(80), "			 \
+	"PRIMARY KEY(dt, stk, setup))";
+    create_table_if_missing(cnx, "setups", create_setups);
+    char* create_setups_stk_idx = "CREATE INDEX setups_stk_idx ON " \
+	"setups(stk)";
+    create_index_if_missing(cnx, "setups", "setups_stk_idx",
+			    create_setups_stk_idx);
+    char* create_setups_dt_idx = "CREATE INDEX setups_dt_idx ON " \
+	"setups(dt)";
+    create_index_if_missing(cnx, "setups", "setups_dt_idx",
+			    create_setups_dt_idx);
+    char* create_setups_setup_idx = "CREATE INDEX setups_setup_idx ON " \
+	"setups(setup)";
+    create_index_if_missing(cnx, "setups", "setups_setup_idx",
+			    create_setups_setup_idx);
+
+    char* create_excludes = "CREATE TABLE excludes( "	 \
+	"stk VARCHAR(16) NOT NULL, "			 \
+	"PRIMARY KEY(stk))";
+    create_table_if_missing(cnx, "excludes", create_excludes);
 
     PQfinish(cnx);
     return 0;
