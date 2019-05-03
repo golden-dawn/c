@@ -12,7 +12,11 @@ void expiry_analysis(char* dt) {
 
 
 void eod_analysis(char* dt) {
-
+    /** this runs at the end of the trading day.
+     * 1. Get prices and options for hte leaders
+     * 2. calculate eod setups
+     * 3. email the results
+     **/
 }
 
 
