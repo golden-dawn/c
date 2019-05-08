@@ -8,6 +8,13 @@ void expiry_analysis(char* dt) {
      * 4. calculate option spread leaders
      * 5. populate leaders table
      **/
+    /* 1. Get all the stocks as of a given date */
+    /* 2. For each stock, get the data */
+    /* 3. Set the time series to a specific date (dt) */
+    /* 4. Get all the splits up to dt */
+    /* 5. Adjust the data accordingly */
+    /* 6. Run JL on the adjusted data */
+    /* 7. Run the setups */
 }
 
 
