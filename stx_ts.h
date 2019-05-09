@@ -23,31 +23,15 @@ typedef struct daily_record_t {
 } daily_record, *daily_record_ptr;
 
 
+typedef struct stx_data_t {
+    daily_record_ptr data;
+    int num_recs;
+    hashtable_ptr splits;
+} stx_data, *stx_data_ptr;
+
+
 float wprice( daily_record_ptr data, int ix) {
     return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
-}
-
-
-daily_record_ptr load_stk(char* stk, int* num_recs) {
-    daily_record_ptr result = NULL;
-    char sql_cmd[80];
-    sprintf(sql_cmd, "select o, hi, lo, c, v, dt from eods where stk='%s' "
-	    "order by dt", stk);
-    PGresult *res = db_query(sql_cmd);
-    if((*num_recs = PQntuples(res)) <= 0) 
-	return result;
-    int num = *num_recs;
-    result = (daily_record_ptr) calloc(num, sizeof(daily_record));
-    for(int ix = 0; ix < num; ix++) {
-	result[ix].open = atoi(PQgetvalue(res, ix, 0));
-	result[ix].high = atoi(PQgetvalue(res, ix, 1));
-	result[ix].low = atoi(PQgetvalue(res, ix, 2));
-	result[ix].close = atoi(PQgetvalue(res, ix, 3));
-	result[ix].volume = atoi(PQgetvalue(res, ix, 4));
-	strcpy(result[ix].date, PQgetvalue(res, ix, 5)); 
-    }
-    PQclear(res);
-    return result;
 }
 
 
@@ -59,6 +43,32 @@ hashtable_ptr load_splits(char* stk) {
     hashtable_ptr result = ht_divis(res);
     PQclear(res);
     return result;
+}
+
+
+stx_data_ptr load_stk(char* stk) {
+    stx_data_ptr data = (stx_data_ptr) malloc(sizeof(stx_data));
+    data->data = NULL;
+    data->num_recs = 0;
+    char sql_cmd[80];
+    sprintf(sql_cmd, "select o, hi, lo, c, v, dt from eods where stk='%s' "
+	    "order by dt", stk);
+    PGresult *res = db_query(sql_cmd);
+    if((data->num_recs = PQntuples(res)) <= 0) 
+	return data;
+    int num = data->num_recs;
+    data->data = (daily_record_ptr) calloc(num, sizeof(daily_record));
+    for(int ix = 0; ix < num; ix++) {
+	data->data[ix].open = atoi(PQgetvalue(res, ix, 0));
+	data->data[ix].high = atoi(PQgetvalue(res, ix, 1));
+	data->data[ix].low = atoi(PQgetvalue(res, ix, 2));
+	data->data[ix].close = atoi(PQgetvalue(res, ix, 3));
+	data->data[ix].volume = atoi(PQgetvalue(res, ix, 4));
+	strcpy(data->data[ix].date, PQgetvalue(res, ix, 5)); 
+    }
+    PQclear(res);
+    data->splits = load_splits(stk);
+    return data;
 }
 
 
