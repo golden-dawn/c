@@ -20,9 +20,9 @@ void expiry_analysis(char* dt) {
     char sql_cmd[80];
     print_timestamp();
     fprintf(stderr, "started expiry_analysis\n");
-/*     strcpy(sql_cmd, "explain analyze select * from eods"); */
-/*     PGresult *all_res = db_query(sql_cmd); */
-/*     PQclear(all_res); */
+    strcpy(sql_cmd, "explain analyze select * from eods");
+    PGresult *all_res = db_query(sql_cmd);
+    PQclear(all_res);
     print_timestamp();
     fprintf(stderr, "got all records from eods\n");
     sprintf(sql_cmd, "select distinct stk from eods where dt='%s'", dt);
