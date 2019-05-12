@@ -16,13 +16,28 @@ Need this:
 
 #include <libpq-fe.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct cal_info_t {
+    int day_number;
+    int busday_number;
+    bool is_busday;
+} cal_info, *cal_info_ptr;
+
+typedef enum { DIVI_HT, CAL_HT } ht_type;
+
+union item_value {
+    float ratio;
+    cal_info_ptr cal;
+};
+
 typedef struct ht_item_t {
     char key[16];
-    float value;
+    ht_type item_type;
+    union item_value val;
 } ht_item, *ht_item_ptr;
 
 typedef struct hashtable_t {
@@ -65,12 +80,24 @@ int next_prime(int x) {
     return x;
 }
 
-ht_item_ptr ht_new_item(const char* k, float v) {
-    ht_item* i = malloc(sizeof(ht_item));
+
+void ht_new_divi(ht_item_ptr i, const char* k, float v) {
     strcpy(i->key, k);
-    i->value = v;
-    return i;
+    i->item_type = DIVI_HT;
+    i->val.ratio = v;
 }
+
+
+void ht_new_cal(ht_item_ptr i, const char* k, int num_day, int num_busday, 
+		bool is_busday) {
+    strcpy(i->key, k);
+    i->item_type = CAL_HT;
+    i->val.cal = (cal_info_ptr) malloc(sizeof(cal_info));
+    i->val.cal->day_number = num_day;
+    i->val.cal->busday_number = num_busday;
+    i->val.cal->is_busday = is_busday;
+}
+
 
 int ht_hash(const char* s, const int a, const int m) {
     long hash = 0;
@@ -86,25 +113,25 @@ int ht_get_hash(const char* s, const int num_buckets, const int attempt) {
     int hash_a = ht_hash(s, HT_PRIME_1, num_buckets);
     int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
 #ifdef DEBUG
-    printf("hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
-    	   hash_a, hash_b, num_buckets, attempt);
+    if (attempt <= 999) 
+	fprintf(stderr, 
+		"hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
+		hash_a, hash_b, num_buckets, attempt);
 #endif
     if (hash_b % num_buckets == 0)
 	hash_b = 1;
     return (hash_a + attempt * hash_b) % num_buckets;
 }
 
-void ht_insert(hashtable_ptr ht, ht_item_ptr crs) {
-    char* key = crs->key;
-    float value = crs->value;
-    ht_item_ptr item = ht_new_item(key, value);
-    int index = ht_get_hash(item->key, ht->size, 0);
+void ht_insert(hashtable_ptr ht, ht_item_ptr item) {
+    char* key = item->key;
+    int index = ht_get_hash(key, ht->size, 0);
     ht_item_ptr crt_item = ht->items[index];
     int i = 1;
     while (crt_item != NULL) {
         index = ht_get_hash(item->key, ht->size, i);
 #ifdef DEBUG
-	printf("i= %d, index = %d\n", i, index);
+	fprintf(stderr, "i= %d, index = %d\n", i, index);
 #endif
         crt_item = ht->items[index];
         i++;
@@ -133,59 +160,56 @@ hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
     ht->list = list;
     ht->size = next_prime(2 * num_elts);
     ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
-    for (ht_item_ptr crs = list; crs != NULL; ++crs)
-	ht_insert(ht, crs);
+    for (int ix = 0; ix < num_elts; ++ix)
+	ht_insert(ht, &list[ix]);
     return ht;
 }
 
 hashtable_ptr ht_divis(PGresult* res) {
-    hashtable_ptr ht = calloc((size_t)1, sizeof(hashtable));
-    ht->count = 0;
-    ht->size = 0;
     int num = PQntuples(res);
 #ifdef DEBUG
-    printf("Found %d records\n", num);
+    fprintf(stderr, "Found %d records\n", num);
 #endif
-    if (num <= 0)
-	return ht;
-    ht->list = calloc((size_t)num, sizeof(ht_item));
-    ht->size = next_prime(2 * num);
+    ht_item_ptr list = NULL;
+    if (num > 0) {
+	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
+	for(int ix = 0; ix < num; ix++) {
 #ifdef DEBUG
-    printf("ht->size is: %d\n", ht->size);
+	    fprintf(stderr, "ix = %d\n", ix);
 #endif
-    ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
-    for(int ix = 0; ix < num; ix++) {
+	    float ratio = atof(PQgetvalue(res, ix, 0));
+	    char* dt = PQgetvalue(res, ix, 1);
+	    ht_new_divi(list + ix, dt, ratio);
 #ifdef DEBUG
-	printf("ix = %d\n", ix);
+	    fprintf(stderr, "value = %12.6f\n", ratio);
 #endif
-	ht->list[ix].value = atof(PQgetvalue(res, ix, 0));
-#ifdef DEBUG
-	printf("value = %12.6f\n", ht->list[ix].value);
-#endif
-	strcpy(ht->list[ix].key, PQgetvalue(res, ix, 1));
-#ifdef DEBUG
-	printf("Inserting %s, %12.6f into the hashtable\n",
-	       ht->list[ix].key, ht->list[ix].value);
-#endif
-	ht_insert(ht, ht->list + ix);
-#ifdef DEBUG
-	printf("Inserted %s, %12.6f into the hashtable\n",
-	       ht->list[ix].key, ht->list[ix].value);
-#endif	
+	}
     }
-    return ht;
+    return ht_new(list, num);
 }
 
 void ht_print(hashtable_ptr ht) {
-    printf("Hashtable: \n");
+    fprintf(stderr, "Hashtable: \n");
     if(ht->size == 0)
 	return;
-    for(int ix = 0; ix < ht->count; ix++)
-	printf("  %s, %12.6f\n", ht->list[ix].key, ht->list[ix].value);
+    for(int ix = 0; ix < ht->count; ix++) {
+	ht_item_ptr crs = ht->list + ix;
+	if (crs->item_type == DIVI_HT)
+	    fprintf(stderr, "  %s, %12.6f\n", crs->key, crs->val.ratio);
+	else
+	    fprintf(stderr, "  %s, %5d %5d %d\n", crs->key, 
+		    crs->val.cal->day_number, crs->val.cal->busday_number, 
+		    crs->val.cal->is_busday);
+    }
 }
 
 
 void ht_free(hashtable_ptr ht) {
+    for(int ix = 0; ix < ht->count; ix++) {
+	ht_item_ptr crs = ht->list + ix;
+	if (crs->item_type == CAL_HT)
+	    free(crs->val.cal);
+    }
     free(ht->items);
     free(ht->list);
     free(ht);
