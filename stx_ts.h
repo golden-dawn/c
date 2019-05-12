@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libpq-fe.h>
+#include <time.h>
 #include "stx_db.h"
 #include "stx_ht.h"
 
@@ -30,6 +31,23 @@ typedef struct stx_data_t {
 } stx_data, *stx_data_ptr;
 
 
+void print_timestamp() {
+    long milliseconds;
+    time_t seconds;
+    struct timespec spec;
+    char buff[20];
+    clock_gettime(CLOCK_REALTIME, &spec);
+    seconds = spec.tv_sec;
+    milliseconds = round(spec.tv_nsec / 1.0e6);
+    if (milliseconds > 999) {
+	seconds++;
+	milliseconds = 0;
+    }
+    strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&seconds));
+    fprintf(stderr, "%s.%ld [] ", buff, milliseconds);
+}
+
+
 float wprice( daily_record_ptr data, int ix) {
     return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
 }
@@ -40,13 +58,22 @@ hashtable_ptr load_splits(char* stk) {
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
 	    "order by dt", stk);
     PGresult *res = db_query(sql_cmd);
+#ifdef DEBUG
+    fprintf(stderr, "Found %d splits for %s\n", PQntuples(res), stk);
+#endif
     hashtable_ptr result = ht_divis(res);
+#ifdef DEBUG
+    fprintf(stderr, "Loaded splits for %s\n", stk);
+#endif
     PQclear(res);
     return result;
 }
 
 
 stx_data_ptr load_stk(char* stk) {
+#ifdef DEBUG
+    fprintf(stderr, "Loading data for %s\n", stk);
+#endif
     stx_data_ptr data = (stx_data_ptr) malloc(sizeof(stx_data));
     data->data = NULL;
     data->num_recs = 0;
@@ -57,6 +84,9 @@ stx_data_ptr load_stk(char* stk) {
     if((data->num_recs = PQntuples(res)) <= 0) 
 	return data;
     int num = data->num_recs;
+#ifdef DEBUG
+    fprintf(stderr, "Found %d records for %s\n", num, stk);
+#endif
     data->data = (daily_record_ptr) calloc(num, sizeof(daily_record));
     for(int ix = 0; ix < num; ix++) {
 	data->data[ix].open = atoi(PQgetvalue(res, ix, 0));
@@ -67,12 +97,22 @@ stx_data_ptr load_stk(char* stk) {
 	strcpy(data->data[ix].date, PQgetvalue(res, ix, 5)); 
     }
     PQclear(res);
+#ifdef DEBUG
+    fprintf(stderr, "Loading the splits for %s\n", stk);
+#endif
     data->splits = load_splits(stk);
+#ifdef DEBUG
+    fprintf(stderr, "Done loading %s\n", stk);
+#endif
     return data;
 }
 
 
-/* int find_date_record(daily_record_ptr data, int lines, char* date) { */
+int find_date_record(stx_data_ptr data, char* date) {
+    char* first_date = data->data[0].date;
+    return 0;
+}
+/*     int num_days = stx_time_num_bus_days(first_date, date); */
 
 /*     time_t date_time; */
 /*     time_t crs_time; */
