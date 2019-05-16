@@ -88,14 +88,13 @@ void ht_new_divi(ht_item_ptr i, const char* k, float v) {
 }
 
 
-void ht_new_cal(ht_item_ptr i, const char* k, int num_day, int num_busday, 
-		bool is_busday) {
+void ht_new_cal(ht_item_ptr i, const char* k, int dt_info) {
     strcpy(i->key, k);
     i->item_type = CAL_HT;
     i->val.cal = (cal_info_ptr) malloc(sizeof(cal_info));
-    i->val.cal->day_number = num_day;
-    i->val.cal->busday_number = num_busday;
-    i->val.cal->is_busday = is_busday;
+    i->val.cal->day_number = abs(dt_info) & 0xffff;
+    i->val.cal->busday_number = (abs(dt_info) >> 16) & 0x7fff;
+    i->val.cal->is_busday = (dt_info > 0);
 }
 
 
@@ -187,6 +186,34 @@ hashtable_ptr ht_divis(PGresult* res) {
     }
     return ht_new(list, num);
 }
+
+
+hashtable_ptr ht_calendar(PGresult* res) {
+    int num = PQntuples(res);
+#ifdef DEBUG
+    fprintf(stderr, "Calendar: found %d records\n", num);
+#endif
+    ht_item_ptr list = NULL;
+    if (num > 0) {
+	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
+	for(int ix = 0; ix < num; ix++) {
+#ifdef DEBUG
+	    fprintf(stderr, "ix = %d\n", ix);
+#endif
+	    char* dt = PQgetvalue(res, ix, 0);
+	    int dt_info = atoi(PQgetvalue(res, ix, 1));
+	    ht_new_cal(list + ix, dt, dt_info);
+#ifdef DEBUG
+	    fprintf(stderr, 
+		    "dt=%s, is_busday=%5s, num_day=%5d, num_busday=%5d\n",
+		    dt, (dt_info > 0)? "true": "false", 
+		    abs(dt_info) & 0xffff, (abs(dt_info) >> 16) & 0x7fff);
+#endif
+	}
+    }
+    return ht_new(list, num);
+}
+
 
 void ht_print(hashtable_ptr ht) {
     fprintf(stderr, "Hashtable: \n");
