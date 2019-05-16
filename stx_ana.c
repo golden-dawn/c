@@ -19,6 +19,16 @@ void expiry_analysis(char* dt) {
     /* 1. Get all the stocks as of a given date */
     char sql_cmd[80];
     print_timestamp();
+    fprintf(stderr, "getting calendar from database\n");
+    strcpy(sql_cmd, "select * from calendar");    
+    PGresult *sql_res = db_query(sql_cmd);
+    print_timestamp();
+    fprintf(stderr, "got calendar fron database\n");
+    hashtable_ptr cal = ht_calendar(sql_res);
+    fprintf(stderr, "populated hashtable with calendar dates\n");
+    PQclear(sql_res);
+
+    print_timestamp();
     fprintf(stderr, "started expiry_analysis\n");
     strcpy(sql_cmd, "explain analyze select * from eods");
     PGresult *all_res = db_query(sql_cmd);
