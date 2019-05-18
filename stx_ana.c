@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libpq-fe.h>
-#include "stx_db.h"
-#include "stx_ht.h"
+#include "stx_core.h"
 #include "stx_ts.h"
 
 void expiry_analysis(char* dt) {
@@ -17,47 +16,31 @@ void expiry_analysis(char* dt) {
      * 5. populate leaders table
      **/
     /* 1. Get all the stocks as of a given date */
-    char sql_cmd[80];
-    print_timestamp();
-    fprintf(stderr, "getting calendar from database\n");
-    strcpy(sql_cmd, "select * from calendar");    
-    PGresult *sql_res = db_query(sql_cmd);
-    print_timestamp();
-    fprintf(stderr, "got calendar fron database\n");
-    hashtable_ptr cal = ht_calendar(sql_res);
-    fprintf(stderr, "populated hashtable with calendar dates\n");
-    PQclear(sql_res);
-
-    print_timestamp();
-    fprintf(stderr, "started expiry_analysis\n");
+    LOGINFO("started expiry_analysis\n");
+    char sql_cmd[128];
     strcpy(sql_cmd, "explain analyze select * from eods");
     PGresult *all_res = db_query(sql_cmd);
     PQclear(all_res);
-    print_timestamp();
-    fprintf(stderr, "got all records from eods\n");
+    LOGINFO("got all records from eods\n");
     sprintf(sql_cmd, "select distinct stk from eods where dt='%s'", dt);
     PGresult *res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows <= 0) {
-	fprintf(stderr, "No stocks found for %s, exiting...\n", dt);
+	LOGWARN("No stocks found for %s, exiting...\n", dt);
 	return;
     }
     char all_stx[rows][16];
     for (int ix = 0; ix < rows; ix++)
 	strcpy(all_stx[ix], PQgetvalue(res, ix, 0));
-    print_timestamp();
-    fprintf(stderr, "stored %d stocks in list\n", rows);
+    LOGINFO("stored %d stocks in list\n", rows);
     PQclear(res);
 
     for (int ix = 0; ix < rows; ix++) {
 	stx_data_ptr data = load_stk(all_stx[ix]);
-	if (ix % 100 == 0) {
-	    print_timestamp();
-	    fprintf(stderr, "loaded %4d stocks\n", ix);
-	}
+	if (ix % 100 == 0)
+	    LOGINFO("loaded %4d stocks\n", ix);
     }
-    print_timestamp();
-    fprintf(stderr, "loaded all %4d stocks\n", rows);
+    LOGINFO("loaded all %4d stocks\n", rows);
     /* 2. For each stock, get the data */
     /* 3. Set the time series to a specific date (dt) */
     /* 4. Get all the splits up to dt */
