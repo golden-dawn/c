@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 
 /** LOGGING Used this: https://stackoverflow.com/questions/7411301/ **/
@@ -159,7 +160,7 @@ void ht_new_cal(ht_item_ptr i, const char* k, int dt_info) {
     i->val.cal = (cal_info_ptr) malloc(sizeof(cal_info));
     i->val.cal->day_number = abs(dt_info) & 0xffff;
     i->val.cal->busday_number = (abs(dt_info) >> 16) & 0x7fff;
-    i->val.cal->is_busday = (dt_info > 0);
+    i->val.cal->is_busday = (dt_info >= 0);
 }
 
 int ht_hash(const char* s, const int a, const int m) {
@@ -307,7 +308,7 @@ void ht_free(hashtable_ptr ht) {
 /** CALENDAR **/
 static hashtable_ptr cal = NULL;
 
-hashtable_ptr get_cal() {
+hashtable_ptr cal_get() {
     if (cal == NULL) {
 	char sql_cmd[80];
 	LOGINFO("getting calendar from database\n");
@@ -322,9 +323,8 @@ hashtable_ptr get_cal() {
 }
 
 int cal_num_busdays(char* start_date, char* end_date) {
-    hashtable_ptr calendar = get_cal();
-    ht_item_ptr d1 = ht_get(calendar, start_date);
-    ht_item_ptr d2 = ht_get(calendar, end_date);
+    ht_item_ptr d1 = ht_get(cal_get(), start_date);
+    ht_item_ptr d2 = ht_get(cal_get(), end_date);
     int num_days = d2->val.cal->busday_number - d1->val.cal->busday_number;
     int adj = 0;
     if (strcmp(start_date, end_date) <= 0) {
@@ -336,4 +336,35 @@ int cal_num_busdays(char* start_date, char* end_date) {
     }
     return (num_days + adj);
 }
+
+/** returns day number for a given date */
+int cal_ix(char* date) {
+    ht_item_ptr d = ht_get(cal_get(), date);
+    return d->val.cal->day_number;
+}
+
+/** returns business day number for a given date, -1 if a holiday */
+int cal_bix(char* date) {
+    ht_item_ptr d = ht_get(cal_get(), date);
+    return d->val.cal->is_busday? d->val.cal->busday_number: -1;
+}
+
+int cal_next_bday(int crt_ix, char** next_date) {
+    int next_ix = crt_ix + 1;
+    for (ht_item_ptr crs = cal_get()->list + next_ix; !crs->val.cal->is_busday;
+	 crs++)
+	next_ix++;
+    *next_date = &(cal_get()->list[next_ix].key[0]);
+    return next_ix;
+}
+
+int cal_prev_bday(int crt_ix, char** prev_date) {
+    int prev_ix = crt_ix - 1;
+    for (ht_item_ptr crs = cal_get()->list + prev_ix; !crs->val.cal->is_busday;
+	 crs--)
+	prev_ix--;
+    *prev_date = &(cal_get()->list[prev_ix].key[0]);
+    return prev_ix;
+}
+
 #endif
