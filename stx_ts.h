@@ -121,7 +121,6 @@ stx_data_ptr load_stk(char* stk) {
     return data;
 }
 
-
 int find_date_record(stx_data_ptr data, char* date, int rel_pos) {
     /** rel_pos is a parameter that can take the following values:
      *  0 - do an exact search
@@ -129,98 +128,24 @@ int find_date_record(stx_data_ptr data, char* date, int rel_pos) {
      * -1 - return date, or previous business day, if date not found
      **/
     char* first_date = data->data[0].date;
-    int n = cal_num_busdays(first_date, date);
-/*     if (n < 0) { */
-/* 	if (rel_pos > 0) */
-/* 	    return 0; */
-/*     } else if (n >= data->num_recs) { */
-/* 	if (rel_pos < 0) */
-/* 	    return data->num_recs - 1;; */
-	
-/* 	return -1; */
-
-/*         n = stxcal.num_busdays(self.sd_str, dt) */
-/*         if n < 0: */
-/*             if c > 0: */
-/*                 return 0 */
-/*         elif n >= self.l: */
-/*             if c < 0: */
-/*                 return self.l - 1 */
-/*         else: */
-/*             df_dt = str(self.df.index[n].date()) */
-/*             if df_dt == dt: */
-/*                 return n */
-/*             # df_dt will always be less than dt, if dt is not a business day */
-/*             if c < 0: */
-/*                 return n - 1 */
-/*             if c > 0: */
-/*                 return n */
-/*         return -1 */
-    
-    return 0;
+    int n = cal_num_busdays(first_date, date) - 1;
+    if (n < 0) {
+	if (rel_pos > 0)
+	    return 0;
+    } else if (n >= data->num_recs) {
+	if (rel_pos < 0)
+	    return data->num_recs - 1;;
+    } else {
+	if (strcmp(data->data[n].date, date) == 0)
+	    return n;
+	else {
+	    if (rel_pos < 0)
+		return n - 1;
+	    if (rel_pos > 0)
+		return n;
+	}
+    }
+    return -1;
 }
-/*     int num_days = stx_time_num_bus_days(first_date, date); */
 
-/*     time_t date_time; */
-/*     time_t crs_time; */
-/*     int i = 0, j = lines- 1, mid = (i + j) / 2; */
-
-/*     if( !strcmp( data[ j].date, date)) */
-/* 	return j; */
-
-/*     date_time= get_time_from_date(date); */
-/*     while( i<= j) { */
-/* 	crs_time= get_time_from_date( data[ mid].date); */
-/* 	if( crs_time< date_time) */
-/* 	    i= mid+ 1; */
-/* 	else if( crs_time> date_time) */
-/* 	    j= mid- 1; */
-/* 	else */
-/* 	    return mid; */
-/* 	mid= ( i+ j)/ 2; */
-/*     } */
-/*     return -1; */
-/* } */
-
-/* data_fragment_ptr get_fragment( daily_record_ptr data, int nb_lines, */
-/* 				time_frame_ptr tf) { */
-
-/*     data_fragment_ptr dtf=       NULL; */
-/*     int               start_ix; */
-/*     int               end_ix; */
-  
-/*     start_ix= find_date_record( data, nb_lines, tf->start_date); */
-/*     end_ix= find_date_record( data, nb_lines, tf->end_date); */
-
-/*     if(( start_ix> end_ix)|| ( start_ix== -1)|| ( end_ix== -1)) */
-/* 	return dtf; */
-/*     else { */
-/* 	dtf= ( data_fragment_ptr) malloc( sizeof( data_fragment)); */
-/* 	memset( dtf, 0, sizeof( data_fragment)); */
-/* 	dtf->start= start_ix; */
-/* 	dtf->end= end_ix; */
-/*     } */
-/*     return dtf; */
-/* } */
-
-/* daily_record_ptr load_fragment( char* fname, char* start, char* end, */
-/* 				int* s_ix, int* lines) { */
-
-/*     daily_record_ptr data= NULL; */
-/*     int              res= -1; */
-
-/*     if(( data= load_file_into_memory( fname, lines))!= NULL) { */
-/* 	res= *lines; */
-/* 	while( order( start, data[ res- 1].date)>= 0) */
-/* 	    res--; */
-/* 	if( res== *lines) { */
-/* 	    free( data); */
-/* 	    data= NULL; */
-/* 	    res= -1; */
-/* 	    return NULL; */
-/* 	} */
-/*     } */
-/*     *s_ix= res; */
-/*     return data; */
-/* } */
 #endif
