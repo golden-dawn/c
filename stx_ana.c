@@ -22,7 +22,8 @@ void expiry_analysis(char* dt) {
     PGresult *all_res = db_query(sql_cmd);
     PQclear(all_res);
     LOGINFO("got all records from eods\n");
-    sprintf(sql_cmd, "select distinct stk from eods where dt='%s'", dt);
+    sprintf(sql_cmd, "select distinct stk from eods where dt='%s' and "
+	    "c*(v/100)>10", dt);
     PGresult *res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows <= 0) {
@@ -70,6 +71,6 @@ void intraday_analysis() {
 
 
 int main(int argc, char** argv) {
-    char* dt = "2019-04-24";
+    char* dt = "2019-05-17";
     expiry_analysis(dt);
 }
