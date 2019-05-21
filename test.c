@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "stx_core.h"
+#include "stx_ts.h"
 
 int print_num_busdays(char* sd, char* ed) {
     int num_busdays = cal_num_busdays(sd, ed);
@@ -29,6 +30,15 @@ char* print_prev_busday(char* date) {
     return res;
 }
 
+int find_record_date(stx_data_ptr data, char* date, int rel_pos) {
+    int ix = find_date_record(data, date, rel_pos);
+    if (ix == -1) 
+	LOGINFO("Date %s not found\n", date);
+    else
+	LOGINFO("The index for date %s is %d and the date is %s\n", 
+		date, ix, data->data[ix].date);
+    return ix;
+}
 
 int main(int argc, char** argv) {
     LOGINFO("sizeof(int) = %lu\n", sizeof(int));
@@ -77,6 +87,9 @@ int main(int argc, char** argv) {
     assert(strcmp(print_prev_busday("2019-05-21"), "2019-05-20") == 0);
     assert(strcmp(print_prev_busday("2019-05-22"), "2019-05-21") == 0);
     assert(strcmp(print_prev_busday("1985-01-02"), "1984-12-31") == 0);
+
+    stx_data_ptr data = load_stk("NFLX");
+    assert(find_record_date(data, "2002-05-24", 0) == 1);
 
     char *sd = "2019-05-17";
     char *ed = "2019-05-17";
