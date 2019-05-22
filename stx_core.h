@@ -97,11 +97,31 @@ typedef struct cal_info_t {
     bool is_busday;
 } cal_info, *cal_info_ptr;
 
-typedef enum { DIVI_HT, CAL_HT } ht_type;
+typedef struct daily_record_t {
+    int open;
+    int high;
+    int low;
+    int close;
+    int volume;
+    char date[ 16];
+} daily_record, *daily_record_ptr;
+
+struct hashtable_t;
+/* struct hashtable, *hashtable_ptr; */
+
+typedef struct stx_data_t {
+    daily_record_ptr data;
+    int num_recs;
+    struct hashtable_t* splits;
+    int pos;
+} stx_data, *stx_data_ptr;
+
+typedef enum { DIVI_HT, CAL_HT, DATA_HT } ht_type;
 
 union item_value {
     float ratio;
     cal_info_ptr cal;
+    stx_data_ptr data;
 };
 
 typedef struct ht_item_t {
