@@ -13,24 +13,6 @@
 #define sign( x) (( x> 0)? 1: -1)
 /** END: macros */
 
-typedef struct daily_record_t {
-    int open;
-    int high;
-    int low;
-    int close;
-    int volume;
-    char date[ 16];
-} daily_record, *daily_record_ptr;
-
-
-typedef struct stx_data_t {
-    daily_record_ptr data;
-    int num_recs;
-    hashtable_ptr splits;
-    int pos;
-} stx_data, *stx_data_ptr;
-
-
 float wprice( daily_record_ptr data, int ix) {
     return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
 }
