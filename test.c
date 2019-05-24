@@ -97,5 +97,9 @@ int main(int argc, char** argv) {
 	LOGDEBUG("sd == ed\n");
     else
 	LOGDEBUG("False");
-    
+
+    fprintf(stderr, "\x1b[1;32;40m This is green \x1b[0m  \n");
+    fprintf(stderr, "\x1b[1;31;40m This is red \x1b[0m  \n");
+    fprintf(stderr, "\x1b[4;32;40m This is underline green \x1b[0m  \n");
+    fprintf(stderr, "\x1b[4;31;40m This is underline red \x1b[0m  \n");
 }
