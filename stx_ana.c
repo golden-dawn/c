@@ -37,7 +37,7 @@ void expiry_analysis(char* dt) {
     PQclear(res);
 
     for (int ix = 0; ix < rows; ix++) {
-	stx_data_ptr data = load_stk(all_stx[ix]);
+	stx_data_ptr data = ts_load_stk(all_stx[ix]);
 	if (ix % 100 == 0)
 	    LOGINFO("loaded %4d stocks\n", ix);
     }
