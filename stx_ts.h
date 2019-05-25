@@ -97,6 +97,7 @@ stx_data_ptr ts_load_stk(char* stk) {
     LOGDEBUG("Loading the splits for %s\n", stk);
 #endif
     data->splits = ts_load_splits(stk);
+    strcpy(data->stk, stk);
 #ifdef DEBUG
     LOGDEBUG("Done loading %s\n", stk);
 #endif
@@ -149,6 +150,7 @@ void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
 
 void ts_free_data(stx_data_ptr data) {
     ht_free(data->splits);
-    
+    free(data->data);
+    free(data);
 }
 #endif
