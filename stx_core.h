@@ -299,21 +299,33 @@ hashtable_ptr ht_calendar(PGresult* res) {
 }
 
 
-int ht_seq_index(hashable_ptr ht, char* date) {
+int ht_seq_index(hashtable_ptr ht, char* date) {
+    if (ht == NULL)
+	return -2;
     if (strcmp(date, ht->list[0].key) < 0)
 	return -1;
     if (strcmp(date, ht->list[ht->count - 1].key) > 0)
 	return ht->count - 1;
     int i = 0, j = ht->count - 1, mid = (i + j) / 2, cmp;
+#ifdef DEBUG
+    LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
+#endif
     while(i <= j) {
 	cmp = strcmp(date, ht->list[mid].key);
-	if(cmp < 0)
+#ifdef DEBUG
+	LOGDEBUG("cmp = %d, date = %s, ht->list[mid].key = %s\n", 
+		 cmp, date, ht->list[mid].key);
+#endif
+	if(cmp > 0)
 	    i = mid + 1;
-	else if(cmp > 0)
+	else if(cmp < 0)
 	    j = mid - 1;
 	else
 	    return mid;
 	mid = (i + j) / 2;
+#ifdef DEBUG
+	LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
+#endif
     }
     return mid;
 }
