@@ -131,4 +131,13 @@ int main(int argc, char** argv) {
     assert(check_split_sequence(data, "2019-02-14") == 9);
 
     ts_free_data(data);
+
+    data = ts_load_stk("X");
+    assert(check_split_sequence(data, "1986-09-09") == -2);
+    assert(check_split_sequence(data, "1998-02-20") == -2);
+    assert(check_split_sequence(data, "2003-02-14") == -2);
+    assert(check_split_sequence(data, "2019-02-14") == -2);
+
+    ts_free_data(data);
+
 }
