@@ -31,13 +31,19 @@ char* print_prev_busday(char* date) {
 }
 
 int find_record_date(stx_data_ptr data, char* date, int rel_pos) {
-    int ix = find_date_record(data, date, rel_pos);
+    int ix = ts_find_date_record(data, date, rel_pos);
     if (ix == -1) 
 	LOGINFO("Date %s not found\n", date);
     else
 	LOGINFO("The index for date %s is %d and the date is %s\n", 
 		date, ix, data->data[ix].date);
     return ix;
+}
+
+int check_split_sequence(stx_data_ptr data, char* date) {
+    int ress = ht_seq_index(data->splits, date);
+    LOGINFO("ress = %d\n", ress);
+    return ress;
 }
 
 int main(int argc, char** argv) {
@@ -88,7 +94,7 @@ int main(int argc, char** argv) {
     assert(strcmp(print_prev_busday("2019-05-22"), "2019-05-21") == 0);
     assert(strcmp(print_prev_busday("1985-01-02"), "1984-12-31") == 0);
 
-    stx_data_ptr data = load_stk("NFLX");
+    stx_data_ptr data = ts_load_stk("NFLX");
     assert(find_record_date(data, "2002-05-24", 0) == 1);
 
     char *sd = "2019-05-17";
@@ -102,4 +108,23 @@ int main(int argc, char** argv) {
     fprintf(stderr, "\x1b[1;31;40m This is red \x1b[0m  \n");
     fprintf(stderr, "\x1b[4;32;40m This is underline green \x1b[0m  \n");
     fprintf(stderr, "\x1b[4;31;40m This is underline red \x1b[0m  \n");
+
+    data = ts_load_stk("MSFT");
+    assert(check_split_sequence(data, "1986-09-09") == -1);
+    assert(check_split_sequence(data, "1987-09-17") == -1);
+    assert(check_split_sequence(data, "1987-09-18") == 0);
+    assert(check_split_sequence(data, "1987-09-19") == 0);
+    assert(check_split_sequence(data, "1990-04-12") == 1);
+    assert(check_split_sequence(data, "1991-06-26") == 2);
+    assert(check_split_sequence(data, "1992-06-12") == 3);
+    assert(check_split_sequence(data, "1994-05-20") == 4);
+    assert(check_split_sequence(data, "1996-12-06") == 5);
+    assert(check_split_sequence(data, "1998-02-20") == 6);
+    assert(check_split_sequence(data, "1999-03-26") == 7);
+    assert(check_split_sequence(data, "1999-09-09") == 7);
+    assert(check_split_sequence(data, "2003-02-14") == 8);
+    assert(check_split_sequence(data, "2004-11-11") == 8);
+    assert(check_split_sequence(data, "2004-11-12") == 9);
+    assert(check_split_sequence(data, "2004-11-13") == 9);
+    assert(check_split_sequence(data, "2019-02-14") == 9);
 }
