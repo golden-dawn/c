@@ -18,7 +18,7 @@ float wprice( daily_record_ptr data, int ix) {
 }
 
 
-hashtable_ptr load_splits(char* stk) {
+hashtable_ptr ts_load_splits(char* stk) {
     char sql_cmd[80];
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
 	    "order by dt", stk);
@@ -35,7 +35,7 @@ hashtable_ptr load_splits(char* stk) {
 }
 
 
-stx_data_ptr load_stk(char* stk) {
+stx_data_ptr ts_load_stk(char* stk) {
 #ifdef DEBUG
     LOGDEBUG("Loading data for %s\n", stk);
 #endif
@@ -96,7 +96,7 @@ stx_data_ptr load_stk(char* stk) {
 #ifdef DEBUG
     LOGDEBUG("Loading the splits for %s\n", stk);
 #endif
-    data->splits = load_splits(stk);
+    data->splits = ts_load_splits(stk);
 #ifdef DEBUG
     LOGDEBUG("Done loading %s\n", stk);
 #endif
@@ -130,21 +130,25 @@ int ts_find_date_record(stx_data_ptr data, char* date, int rel_pos) {
     return -1;
 }
 
+void ts_adjust_data(stx_data_ptr data, int split_ix) {
+    
+}
+
 void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
     data->pos = ts_find_date_record(data, date, rel_pos);
     if (data->pos == -1) {
 	LOGERROR("Could not set date to %s for %s\n", date, data->stk);
 	return;
     }
-    int split_pos = ht_find_splits(data, date);
+    int split_pos = ht_seq_index(data->splits, date);
     if (split_pos > 0) {
 	for(int ix = 0; ix < split_pos; ix++)
 	    ts_adjust_data(data, ix);
     }
 }
 
-void ts_adjust_data(stx_data_ptr data, int ix) {
+void ts_free_data(stx_data_ptr data) {
+    ht_free(data->splits);
     
 }
-
 #endif
