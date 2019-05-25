@@ -109,6 +109,8 @@ int main(int argc, char** argv) {
     fprintf(stderr, "\x1b[4;32;40m This is underline green \x1b[0m  \n");
     fprintf(stderr, "\x1b[4;31;40m This is underline red \x1b[0m  \n");
 
+    ts_free_data(data);
+
     data = ts_load_stk("MSFT");
     assert(check_split_sequence(data, "1986-09-09") == -1);
     assert(check_split_sequence(data, "1987-09-17") == -1);
@@ -127,4 +129,6 @@ int main(int argc, char** argv) {
     assert(check_split_sequence(data, "2004-11-12") == 9);
     assert(check_split_sequence(data, "2004-11-13") == 9);
     assert(check_split_sequence(data, "2019-02-14") == 9);
+
+    ts_free_data(data);
 }
