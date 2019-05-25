@@ -132,7 +132,14 @@ int ts_find_date_record(stx_data_ptr data, char* date, int rel_pos) {
 }
 
 void ts_adjust_data(stx_data_ptr data, int split_ix) {
-    
+    if (split_ix < 0) 
+	return;
+    for(int ix = 0; ix <= split_ix; ix++) {
+	/* char *date = data->splits->list[ix].key;  */
+	/* float ratio = data->splits->list[ix].val.ratio; */
+	/* find the index for the date in the data->data */
+	/* adjust the data up to, and including that index */
+    }
 }
 
 void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
@@ -141,11 +148,9 @@ void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
 	LOGERROR("Could not set date to %s for %s\n", date, data->stk);
 	return;
     }
-    int split_pos = ht_seq_index(data->splits, date);
-    if (split_pos > 0) {
-	for(int ix = 0; ix < split_pos; ix++)
-	    ts_adjust_data(data, ix);
-    }
+    int split_ix = ht_seq_index(data->splits, date);
+    if (split_ix >= 0)
+	ts_adjust_data(data, split_ix);
 }
 
 void ts_free_data(stx_data_ptr data) {
