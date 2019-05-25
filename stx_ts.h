@@ -103,7 +103,7 @@ stx_data_ptr load_stk(char* stk) {
     return data;
 }
 
-int find_date_record(stx_data_ptr data, char* date, int rel_pos) {
+int ts_find_date_record(stx_data_ptr data, char* date, int rel_pos) {
     /** rel_pos is a parameter that can take the following values:
      *  0 - do an exact search
      *  1 - return date, or next business day, if date not found
@@ -128,6 +128,23 @@ int find_date_record(stx_data_ptr data, char* date, int rel_pos) {
 	}
     }
     return -1;
+}
+
+void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
+    data->pos = ts_find_date_record(data, date, rel_pos);
+    if (data->pos == -1) {
+	LOGERROR("Could not set date to %s for %s\n", date, data->stk);
+	return;
+    }
+    int split_pos = ht_find_splits(data, date);
+    if (split_pos > 0) {
+	for(int ix = 0; ix < split_pos; ix++)
+	    ts_adjust_data(data, ix);
+    }
+}
+
+void ts_adjust_data(stx_data_ptr data, int ix) {
+    
 }
 
 #endif
