@@ -239,6 +239,8 @@ ht_item_ptr ht_get(hashtable_ptr ht, const char* key) {
 }
 
 hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
+    if (num_elts <= 0)
+	return NULL;
     hashtable_ptr ht = malloc(sizeof(hashtable));
     ht->count = 0;
     ht->list = list;
@@ -347,6 +349,8 @@ void ht_print(hashtable_ptr ht) {
 
 
 void ht_free(hashtable_ptr ht) {
+    if (ht == NULL) 
+	return;
     for(int ix = 0; ix < ht->count; ix++) {
 	ht_item_ptr crs = ht->list + ix;
 	if (crs->item_type == CAL_HT)
