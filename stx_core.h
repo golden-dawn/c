@@ -114,6 +114,7 @@ typedef struct stx_data_t {
     int num_recs;
     struct hashtable_t* splits;
     int pos;
+    char stk[16];
 } stx_data, *stx_data_ptr;
 
 typedef enum { DIVI_HT, CAL_HT, DATA_HT } ht_type;
@@ -295,6 +296,26 @@ hashtable_ptr ht_calendar(PGresult* res) {
 	}
     }
     return ht_new(list, num);
+}
+
+
+int ht_seq_index(hashable_ptr ht, char* date) {
+    if (strcmp(date, ht->list[0].key) < 0)
+	return -1;
+    if (strcmp(date, ht->list[ht->count - 1].key) > 0)
+	return ht->count - 1;
+    int i = 0, j = ht->count - 1, mid = (i + j) / 2, cmp;
+    while(i <= j) {
+	cmp = strcmp(date, ht->list[mid].key);
+	if(cmp < 0)
+	    i = mid + 1;
+	else if(cmp > 0)
+	    j = mid - 1;
+	else
+	    return mid;
+	mid = (i + j) / 2;
+    }
+    return mid;
 }
 
 
