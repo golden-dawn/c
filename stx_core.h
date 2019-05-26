@@ -103,7 +103,7 @@ typedef struct daily_record_t {
     int low;
     int close;
     int volume;
-    char date[ 16];
+    char date[16];
 } daily_record, *daily_record_ptr;
 
 struct hashtable_t;
@@ -114,6 +114,7 @@ typedef struct stx_data_t {
     int num_recs;
     struct hashtable_t* splits;
     int pos;
+    int last_adj;
     char stk[16];
 } stx_data, *stx_data_ptr;
 
