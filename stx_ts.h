@@ -43,6 +43,7 @@ stx_data_ptr ts_load_stk(char* stk) {
     data->data = NULL;
     data->num_recs = 0;
     data->pos = 0;
+    data->last_adj = -1;
     char sql_cmd[128];
     sprintf(sql_cmd, "select o, hi, lo, c, v, dt from eods where stk='%s' "
 	    "and dt>'1985-01-01'order by dt", stk);
@@ -134,12 +135,21 @@ int ts_find_date_record(stx_data_ptr data, char* date, int rel_pos) {
 void ts_adjust_data(stx_data_ptr data, int split_ix) {
     if (split_ix < 0) 
 	return;
-    for(int ix = 0; ix <= split_ix; ix++) {
-	/* char *date = data->splits->list[ix].key;  */
-	/* float ratio = data->splits->list[ix].val.ratio; */
+    for(int ix = data->last_adj + 1; ix <= split_ix; ix++) {
+	char *date = data->splits->list[ix].key;
+	float ratio = data->splits->list[ix].val.ratio;
 	/* find the index for the date in the data->data */
 	/* adjust the data up to, and including that index */
+	int end = ts_find_date_record(data, date, 0);
+	for(int ixx = 0; ixx <= end; ++ixx) {
+	    data->data[ixx].open = (int)(ratio * data->data[ixx].open);
+	    data->data[ixx].high = (int)(ratio * data->data[ixx].high);
+	    data->data[ixx].low = (int)(ratio * data->data[ixx].low);
+	    data->data[ixx].close = (int)(ratio * data->data[ixx].close);
+	    data->data[ixx].volume = (int)(data->data[ixx].volume / ratio);
+	}
     }
+    data->last_adj = split_ix;
 }
 
 void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
@@ -157,5 +167,15 @@ void ts_free_data(stx_data_ptr data) {
     ht_free(data->splits);
     free(data->data);
     free(data);
+}
+
+void ts_print(stx_data_ptr data, char* s_date, char* e_date) {
+    int s_ix = ts_find_date_record(data, s_date, 1);
+    int e_ix = ts_find_date_record(data, e_date, -1);
+    for(int ix = s_ix; ix <= e_ix; ix++)
+	fprintf(stderr, "%s %7d %7d %7d %7d %7d\n", 
+		data->data[ix].date, data->data[ix].open, 
+		data->data[ix].high, data->data[ix].low, 
+		data->data[ix].close, data->data[ix].volume);
 }
 #endif
