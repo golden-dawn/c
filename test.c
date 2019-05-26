@@ -130,6 +130,22 @@ int main(int argc, char** argv) {
     assert(check_split_sequence(data, "2004-11-13") == 9);
     assert(check_split_sequence(data, "2019-02-14") == 9);
 
+/* stx=# select * from eods where stk='MSFT' and dt='1987-09-18'; */
+/*  stk  |     dt     |   o   |  hi   |  lo   |   c   |  v  | oi  */
+/* ------+------------+-------+-------+-------+-------+-----+---- */
+/*  MSFT | 1987-09-18 | 11521 | 11521 | 11379 | 11521 | 110 |  0 */
+
+    ts_print(data, "1987-09-18", "1987-09-18");
+    ts_print(data, "1990-04-12", "1990-04-12");
+    ts_set_day(data, "1987-09-18", 0);
+    ts_print(data, "1987-09-18", "1987-09-18");
+    ts_print(data, "1990-04-12", "1990-04-12");
+    ts_set_day(data, "1990-04-12", 0);
+    ts_print(data, "1987-09-18", "1987-09-18");
+    ts_print(data, "1990-04-12", "1990-04-12");
+    ts_set_day(data, "1994-05-20", 0);
+    ts_print(data, "1987-09-18", "1987-09-18");
+    ts_print(data, "1990-04-12", "1990-04-12");
     ts_free_data(data);
 
     data = ts_load_stk("X");
