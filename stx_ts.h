@@ -17,6 +17,16 @@ float wprice( daily_record_ptr data, int ix) {
     return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
 }
 
+int ts_true_range(stx_data_ptr data, int ix) {
+    int res = data->data[ix].high - data->data[ix].low;
+    if(ix == 0) 
+	return res;
+    if(res < data->data[ix].high - data->data[ix - 1].close)
+	res = data->data[ix].high - data->data[ix - 1].close;
+    if(res < data->data[ix - 1].close - data->data[ix].low)
+	res = data->data[ix - 1].close - data->data[ix].low;
+    return res;
+}
 
 hashtable_ptr ts_load_splits(char* stk) {
     char sql_cmd[80];
