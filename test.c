@@ -46,6 +46,14 @@ int check_split_sequence(stx_data_ptr data, char* date) {
     return ress;
 }
 
+int find_true_range(stx_data_ptr data, char* date) { 
+    int ix_tr = ts_find_date_record(data, date, 0);
+    int tr = ts_true_range(data, ix_tr);
+    LOGINFO("%6s: %s: true_range is %d\n", data->stk, 
+	    data->data[ix_tr].date, tr);
+    return tr;
+}
+
 int main(int argc, char** argv) {
     LOGINFO("sizeof(int) = %lu\n", sizeof(int));
     LOGINFO("sizeof(short) = %lu\n", sizeof(short));
@@ -130,6 +138,10 @@ int main(int argc, char** argv) {
     assert(check_split_sequence(data, "2004-11-13") == 9);
     assert(check_split_sequence(data, "2019-02-14") == 9);
 
+    assert(find_true_range(data, "1986-03-13") == 320);
+    assert(find_true_range(data, "1986-10-27") == 177);
+    assert(find_true_range(data, "1987-01-13") == 320);
+    assert(find_true_range(data, "1986-11-24") == 640);
 /* stx=# select * from eods where stk='MSFT' and dt='1987-09-18'; */
 /*  stk  |     dt     |   o   |  hi   |  lo   |   c   |  v  | oi  */
 /* ------+------------+-------+-------+-------+-------+-----+---- */
@@ -146,6 +158,7 @@ int main(int argc, char** argv) {
     ts_set_day(data, "1994-05-20", 0);
     ts_print(data, "1987-09-18", "1987-09-18");
     ts_print(data, "1990-04-12", "1990-04-12");
+
     ts_free_data(data);
 
     data = ts_load_stk("X");
@@ -156,4 +169,20 @@ int main(int argc, char** argv) {
 
     ts_free_data(data);
 
+    int* rgs = (int *) calloc(20, sizeof(int));
+    for(int ix = 0; ix < 20; ix++)
+	rgs[ix] = ix;
+    int avg_rg = 0;
+    for(int ix = 0; ix < 20; ix++)
+	avg_rg += rgs[ix];
+    avg_rg = (int) (avg_rg / 20.0);
+    LOGINFO("avg_rg = %d\n", avg_rg);
+    /* This doesn't work: */
+/*     int lp[8]; */
+/*     lp = [1000, 1000, 1000, 900, 900, 900, 1000, 900]; */
+    int lp[8];
+    lp[0] = (lp[1] = (lp[2] = (lp[6] = 1000)));
+    lp[3] = (lp[4] = (lp[5] = (lp[7] = 900)));
+    for(int ix = 0; ix < 8; ix++)
+	fprintf(stderr, "%5d", lp[ix]);
 }
