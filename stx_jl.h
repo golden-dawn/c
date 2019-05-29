@@ -38,10 +38,6 @@ typedef struct jl_data_t {
     stx_data_ptr data;
 } jl_data, *jl_data_ptr;
 
-/* self.cols = ['dt', 'rg', 'state', 'price', 'pivot', 'state2', */
-/* 	     'price2', 'pivot2', 'p1_dt', 'p1_px', 'p1_s', */
-/* 	     'lns_dt', 'lns_px', 'lns_s', 'lns', 'ls_s', 'ls'] */
-
 void jl_init_rec(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl.recs[ix]), jlr_1 = NULL;
     jlr->ix = ix;
@@ -57,45 +53,113 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	jlr->ls = -1;
     }
     int rg = ts_true_range(jl->data, ix);
-    if(ix < jl->window - 1)
+    if(ix < jl->window - 1) {
 	jlr->rg = 0;
-    else if(ix == jl->window - 1) {
+	jl->rgs[ix % jl->window] = rg;
+    } else if(ix == jl->window - 1) {
+	jl->rgs[ix % jl->window] = rg;
 	int sum_rg = 0;
 	for (int ixx = 0; ixx < jl->window; ixx++)
 	    sum_rg += jl->rgs[ixx];
 	jlr->rg = sum_rg / jl->window;
-    } else {/* ix >= jl->window */
+    } else { /* ix >= jl->window */
 	jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
 	jl->rgs[ix % jl->window] = rg;
     }
 }
 
-void jl_rec_day(jl_data_ptr jl, int ix, int up_state, int down_state) {
-    jl_init_rec(jl, ix);
-        sr = self.ts.df.ix[ixx]
-        dtc = str(self.ts.df.index[ixx].date())
-        lix = ixx - self.ts.start
-        # print("lix = %d" % lix)
-        dd = self.init_first_rec(dtc) if lix == 0 else self.init_rec(dtc, lix)
-        if sh != StxJL.Nil and sl != StxJL.Nil:
-            if sr.hb4l == 1:
-                dd.update({'state': sh, 'price': sr['hi'], 'state2': sl,
-                           'price2': sr['lo']})
-            else:
-                dd.update({'state': sl, 'price': sr['lo'], 'state2': sh,
-                           'price2': sr['hi']})
-        elif sh != StxJL.Nil:
-            dd.update({'state': sh, 'price': sr['hi']})
-        elif sl != StxJL.Nil:
-            dd.update({'state': sl, 'price': sr['lo']})
+    def update_last(self, dd):
+        if dd['state2'] == StxJL.Nil:
+            if dd['state'] != StxJL.Nil:
+                self.last['px'] = dd['price']
+                self.last['state'] = dd['state']
+                if self.primary(dd['state']):
+                    self.last['prim_px'] = dd['price']
+                    self.last['prim_state'] = dd['state']
+                self.lp[dd['state']] = dd['price']
         else:
-            pass  # nothing to do, the record is already initialized
+            self.last['px'] = dd['price2']
+            self.last['state'] = dd['state2']
+            self.lp[dd['state2']] = dd['price2']
+            self.lp[dd['state']] = dd['price']
+            if self.primary(dd['state2']):
+                self.last['prim_px'] = dd['price2']
+                self.last['prim_state'] = dd['state2']
+            elif self.primary(dd['state']):
+                self.last['prim_px'] = dd['price']
+                self.last['prim_state'] = dd['state']
+
+    def update_lns_pivots(self, dd, list_ix):
+        if (self.up(dd['state']) and self.dn(dd['lns'])) or \
+           (self.dn(dd['state']) and self.up(dd['lns'])):
+            self.update_pivot_diff_day(dd)
         if dd['state'] != StxJL.Nil:
-            self.update_last(dd)
-            self.update_lns_pivots(dd, lix)
-        lst = [dd[col] for col in self.cols]
-        self.jl_recs.append(lst)
-        self.jlix[dtc] = lix + 1
+            dd['ls_s'] = dd['ls']
+            dd['ls'] = dd['state']
+        if self.primary(dd['state']):
+            dd['lns_dt'] = dd['dt']
+            dd['lns_px'] = dd['price']
+            dd['lns_s'] = dd['lns']
+            dd['lns'] = dd['state']
+        if (self.up(dd['state2']) and self.dn(dd['lns'])) or \
+           (self.dn(dd['state2']) and self.up(dd['lns'])):
+            if dd['lns_dt'] == dd['dt']:
+                dd['pivot'] = 1
+                dd['p1_dt'] = dd['dt']
+                dd['p1_px'] = dd['price']
+                dd['p1_s'] = dd['state']
+            else:
+                self.update_pivot_diff_day(dd)
+        if dd['state2'] != StxJL.Nil:
+            dd['ls_s'] = dd['ls']
+            dd['ls'] = dd['state2']
+        if self.primary(dd['state2']):
+            dd['lns_dt'] = dd['dt']
+            dd['lns_px'] = dd['price2']
+            dd['lns_s'] = dd['lns']
+            dd['lns'] = dd['state2']
+
+    def update_pivot_diff_day(self, dd):
+        # print(self.jlix)
+        piv_rec = self.jl_recs[self.jlix[dd['lns_dt']]]
+        if self.primary(piv_rec[self.col_ix['state2']]):
+            piv_rec[self.col_ix['pivot2']] = 1
+            dd['p1_px'] = piv_rec[self.col_ix['price2']]
+            dd['p1_s'] = piv_rec[self.col_ix['state2']]
+        else:
+            piv_rec[self.col_ix['pivot']] = 1
+            dd['p1_px'] = piv_rec[self.col_ix['price']]
+            dd['p1_s'] = piv_rec[self.col_ix['state']]
+        dd['p1_dt'] = dd['lns_dt']
+
+
+void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
+    jl_init_rec(jl, ix);
+    daily_record_ptr sr = &(jl->data[ix]);
+    jl_record_ptr jlr = &(jl->recs[ix]);
+    if (upstate != NONE && downstate != NONE) {
+	if (2 * sr->close < sr->high + sr->low) {
+	    jlr->state = upstate;
+	    jlr->price = sr->high;
+	    jlr->state2 = downstate;
+	    jlr->price2 = sr->low;
+	} else {
+	    jlr->state = downstate;
+	    jlr->price = sr->low;
+	    jlr->state2 = upstate;
+	    jlr->price2 = sr->high;
+	}
+    } else if (upstate != NONE) {
+	jlr->state = upstate;
+	jlr->price = sr->high;
+    } else if (downstate != NONE) {
+	jlr->state = downstate;
+	jlr->price = sr->low;
+    }
+    if (jlr->state != NONE) {
+	jl_update_last(jl, ix);
+	jl_update_lns_pivots(jl, ix);
+    }
 }
 
 jl_data_ptr jl_init20(stx_data_ptr data, float factor) {
@@ -111,13 +175,10 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->size = data->num_recs;
     jl->factor = factor;
     jl->pos = 0;
-    rgs = (int *) calloc(window, sizeof(int));
+    jl->rgs = (int *) calloc(window, sizeof(int));
     int max = 0, max_ix, min = 2000000000, min_ix;
     ts_set_day(data, data->data[window - 1].date, 0);
-    int rg_sum = 0;
     for(int ix = 0; ix < window; ix++) {
-	rgs[ix] = ts_true_range(data, ix);
-	rg_sum += rgs[ix];
 	if(data->data[ix].high > max) {
 	    max = data->data[ix].high;
 	    max_ix = ix;
@@ -130,7 +191,6 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     for(int ix = 0; ix < window; ix++)
 	jl_rec_day(jld, ix, (ix == max_ix)? RALLY: NONE,
 		   (ix == min_ix)? REACTION: NONE);
-    jl->recs[window - 1].rg = rg_sum / window;
     jl->lp[S_RALLY] = (jl->lp[RALLY] = 
 		       (jl->lp[UPTREND] = 
 			(jl->lp[M_RALLY] = max)));
