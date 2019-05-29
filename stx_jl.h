@@ -27,6 +27,13 @@ typedef struct jl_record_t {
     int ls;
 } jl_record, *jl_record_ptr;
 
+typedef struct jl_last_t {
+    int prim_price;
+    int prim_state;
+    int price;
+    int state;
+} jl_last, *jl_last_ptr;
+
 typedef struct jl_data_t {
     jl_record_ptr recs;
     int size;
@@ -36,6 +43,7 @@ typedef struct jl_data_t {
     int window;
     int lp[8];
     stx_data_ptr data;
+    jl_last_ptr last;
 } jl_data, *jl_data_ptr;
 
 void jl_init_rec(jl_data_ptr jl, int ix) {
@@ -68,28 +76,39 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
     }
 }
 
-    def update_last(self, dd):
-        if dd['state2'] == StxJL.Nil:
-            if dd['state'] != StxJL.Nil:
-                self.last['px'] = dd['price']
-                self.last['state'] = dd['state']
-                if self.primary(dd['state']):
-                    self.last['prim_px'] = dd['price']
-                    self.last['prim_state'] = dd['state']
-                self.lp[dd['state']] = dd['price']
-        else:
-            self.last['px'] = dd['price2']
-            self.last['state'] = dd['state2']
-            self.lp[dd['state2']] = dd['price2']
-            self.lp[dd['state']] = dd['price']
-            if self.primary(dd['state2']):
-                self.last['prim_px'] = dd['price2']
-                self.last['prim_state'] = dd['state2']
-            elif self.primary(dd['state']):
-                self.last['prim_px'] = dd['price']
-                self.last['prim_state'] = dd['state']
+bool jl_primary(int state) {
+    return (state >= RALLY && state <= REACTION);
+}
 
-    def update_lns_pivots(self, dd, list_ix):
+void jl_update_last(jl_data_ptr jl, int ix) {
+    jl_record_ptr jlr = &(jl->recs[ix]);
+    if (jlr->state2 == NONE) {
+	if (jlr->state != NONE) {
+	    jl->last->price = jlr->price;
+	    jl->last->state = jlr->state;
+	    if (jl_primary(jlr->state)) {
+		jl->last->prim_price = jlr->price;
+		jl->last->prim_state = jlr->state;
+	    }
+	    jl->lp[jlr->state] = jlr->price;
+	}
+    } else {
+	jl->last->price = jlr->price2;
+	jl->last->state = jlr->state2;
+	jl->lp[jlr->state] = jlr->price;
+	jl->lp[jlr->state2] = jlr->price2;
+	if (jl_primary(jlr->state2)) {
+	    jl->last->prim_price = jlr->price2;
+	    jl->last->prim_state = jlr->state2;
+	} else if (jl_primary(jlr->state)) {
+	    jl->last->prim_price = jlr->price;
+	    jl->last->prim_state = jlr->state;
+	}
+    }
+}
+
+void jl_update_lns_pivots(jl_data_ptr jl, int ix) {
+    
         if (self.up(dd['state']) and self.dn(dd['lns'])) or \
            (self.dn(dd['state']) and self.up(dd['lns'])):
             self.update_pivot_diff_day(dd)
@@ -175,6 +194,9 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->size = data->num_recs;
     jl->factor = factor;
     jl->pos = 0;
+    jl->last = (jl_last_ptr) malloc(sizeof(jl_last));
+    jl->last->price = (jl->last->prim_price = -1);
+    jl->last->state = (jl->last->prim_state = NONE);
     jl->rgs = (int *) calloc(window, sizeof(int));
     int max = 0, max_ix, min = 2000000000, min_ix;
     ts_set_day(data, data->data[window - 1].date, 0);
