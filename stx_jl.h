@@ -42,41 +42,36 @@ typedef struct jl_data_t {
 /* 	     'price2', 'pivot2', 'p1_dt', 'p1_px', 'p1_s', */
 /* 	     'lns_dt', 'lns_px', 'lns_s', 'lns', 'ls_s', 'ls'] */
 
-void jl_init_first_rec(jl_data_ptr jl) {
-    jl_record_ptr jlr = &(jl.recs[0]);
-    jlr->ix = 0;
-    jlr->rg = 0;
-    jlr->state = NONE;
-    jlr->price = 0;
-    jlr->pivot = false;
-    jlr->state2 = NONE;
-    jlr->price2 = 0;
-    jlr->pivot2 = false;
-    jlr->lns = -1;
-    jlr->ls = -1;
-}
-
 void jl_init_rec(jl_data_ptr jl, int ix) {
-    jl_record_ptr jlr = &(jl.recs[ix]), jlr_1 = &(jl.recs[ix - 1]);
+    jl_record_ptr jlr = &(jl.recs[ix]), jlr_1 = NULL;
     jlr->ix = ix;
+    jlr->state = (jlr->state2 = NONE);
+    jlr->price = (jlr->price2 = 0);
+    jlr->pivot = (jlr->pivot2 = false);
+    if (ix > 0) { 
+	jlr_1 = &(jl.recs[ix - 1]);
+	jlr->lns = jlr_1->lns;
+	jlr->ls = jlr_1->ls;
+    } else {
+	jlr->lns = -1;
+	jlr->ls = -1;
+    }
     int rg = ts_true_range(jl->data, ix);
-    jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
-    jl->rgs[ix % jl->window] = rg;
-    jlr->state = NONE;
-    jlr->price = 0;
-    jlr->pivot = false;
-    jlr->state2 = NONE;
-    jlr->price2 = 0;
-    jlr->pivot2 = false;
-    jlr->lns = jlr_1->lns;
-    jlr->ls = jlr_1->ls;
+    if(ix < jl->window - 1)
+	jlr->rg = 0;
+    else if(ix == jl->window - 1) {
+	int sum_rg = 0;
+	for (int ixx = 0; ixx < jl->window; ixx++)
+	    sum_rg += jl->rgs[ixx];
+	jlr->rg = sum_rg / jl->window;
+    } else {/* ix >= jl->window */
+	jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
+	jl->rgs[ix % jl->window] = rg;
+    }
 }
 
 void jl_rec_day(jl_data_ptr jl, int ix, int up_state, int down_state) {
-    if(ix == 0)
-	jl_init_first_rec(jl);
-    else
-	jl_init_rec(jl, ix);
+    jl_init_rec(jl, ix);
         sr = self.ts.df.ix[ixx]
         dtc = str(self.ts.df.index[ixx].date())
         lix = ixx - self.ts.start
@@ -110,12 +105,12 @@ jl_data_ptr jl_init20(stx_data_ptr data, float factor) {
 jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     if(data->num_recs < window)
 	return NULL;
-    jl_data_ptr jld = (jl_data_ptr) malloc(sizeof(jl_data));
-    jld->data = data;
-    jld->recs = (jl_record_ptr) calloc(data->num_recs, sizeof(jl_record));
-    jld->size = data->num_recs;
-    jld->factor = factor;
-    jld->pos = 0;
+    jl_data_ptr jl = (jl_data_ptr) malloc(sizeof(jl_data));
+    jl->data = data;
+    jl->recs = (jl_record_ptr) calloc(data->num_recs, sizeof(jl_record));
+    jl->size = data->num_recs;
+    jl->factor = factor;
+    jl->pos = 0;
     rgs = (int *) calloc(window, sizeof(int));
     int max = 0, max_ix, min = 2000000000, min_ix;
     ts_set_day(data, data->data[window - 1].date, 0);
@@ -132,21 +127,16 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
 	    min_ix = ix;
 	}
     }
-    for(int ix = 0; ix < window; ix++) {
-	if((ix == max_ix) && (ix == min_ix))
-	    jl_rec_day(jld, ix, RALLY, REACTION);
-	else if(ix == max_ix)
-	    jl_rec_day(jld, ix, RALLY, NONE);
-	else if(ix == min_ix)
-	    jl_rec_day(jld, ix, NONE, REACTION);
-	else
-	    jl_rec_day(jld, ix, NONE, NONE);
-    }
-    jld->recs[window - 1].rg = rg_sum / window;
-    jld->lp[S_RALLY] = (jld->lp[RALLY] = (jld->lp[UPTREND] = 
-					  (jld->lp[M_RALLY] = max)));
-    jld->lp[DOWNTREND] = (jld->lp[REACTION] = (jld->lp[S_REACTION] = 
-					       (jld->lp[M_REACTION] = min)));
+    for(int ix = 0; ix < window; ix++)
+	jl_rec_day(jld, ix, (ix == max_ix)? RALLY: NONE,
+		   (ix == min_ix)? REACTION: NONE);
+    jl->recs[window - 1].rg = rg_sum / window;
+    jl->lp[S_RALLY] = (jl->lp[RALLY] = 
+		       (jl->lp[UPTREND] = 
+			(jl->lp[M_RALLY] = max)));
+    jl->lp[DOWNTREND] = (jl->lp[REACTION] = 
+			 (jl->lp[S_REACTION] = 
+			  (jl->lp[M_REACTION] = min)));
 }
 
 
