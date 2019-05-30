@@ -77,7 +77,8 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 }
 
 bool jl_primary(int state) {
-    return (state >= RALLY && state <= REACTION);
+    return (state == UPTREND || state == RALLY || state == DOWNTREND || 
+	    state == REACTION);
 }
 
 void jl_update_last(jl_data_ptr jl, int ix) {
@@ -107,8 +108,25 @@ void jl_update_last(jl_data_ptr jl, int ix) {
     }
 }
 
+bool jl_up(int state) {
+    return (state == UPTREND || state == RALLY);
+}
+
+bool jl_down(int state) {
+    return (state == DOWNTREND || state == REACTION);
+}
+
+void jl_update_pivot_diff_day(jl_data_ptr jl, int ix) {
+    jl_record_ptr jlr = &(jl->recs[ix]);
+    jl_record_ptr piv_rec = &(jl->recs[jlr->lns]);
+    if (jl_primary(piv_rec->state2))
+	piv_rec->pivot2 = true;
+    else
+	piv_rec->pivot = true;
+}
+
 void jl_update_lns_pivots(jl_data_ptr jl, int ix) {
-    
+    jl_record_ptr jlr = &(jl->recs[ix]);
         if (self.up(dd['state']) and self.dn(dd['lns'])) or \
            (self.dn(dd['state']) and self.up(dd['lns'])):
             self.update_pivot_diff_day(dd)
