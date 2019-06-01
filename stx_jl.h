@@ -106,6 +106,7 @@ void jl_update_last(jl_data_ptr jl, int ix) {
 	    jl->last->prim_state = jlr->state;
 	}
     }
+    jlr->ls = ix;
 }
 
 bool jl_up(int state) {
@@ -125,50 +126,20 @@ void jl_update_pivot_diff_day(jl_data_ptr jl, int ix) {
 	piv_rec->pivot = true;
 }
 
-void jl_update_lns_pivots(jl_data_ptr jl, int ix) {
+void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
-        if (self.up(dd['state']) and self.dn(dd['lns'])) or \
-           (self.dn(dd['state']) and self.up(dd['lns'])):
-            self.update_pivot_diff_day(dd)
-        if dd['state'] != StxJL.Nil:
-            dd['ls_s'] = dd['ls']
-            dd['ls'] = dd['state']
-        if self.primary(dd['state']):
-            dd['lns_dt'] = dd['dt']
-            dd['lns_px'] = dd['price']
-            dd['lns_s'] = dd['lns']
-            dd['lns'] = dd['state']
-        if (self.up(dd['state2']) and self.dn(dd['lns'])) or \
-           (self.dn(dd['state2']) and self.up(dd['lns'])):
-            if dd['lns_dt'] == dd['dt']:
-                dd['pivot'] = 1
-                dd['p1_dt'] = dd['dt']
-                dd['p1_px'] = dd['price']
-                dd['p1_s'] = dd['state']
-            else:
-                self.update_pivot_diff_day(dd)
-        if dd['state2'] != StxJL.Nil:
-            dd['ls_s'] = dd['ls']
-            dd['ls'] = dd['state2']
-        if self.primary(dd['state2']):
-            dd['lns_dt'] = dd['dt']
-            dd['lns_px'] = dd['price2']
-            dd['lns_s'] = dd['lns']
-            dd['lns'] = dd['state2']
-
-    def update_pivot_diff_day(self, dd):
-        # print(self.jlix)
-        piv_rec = self.jl_recs[self.jlix[dd['lns_dt']]]
-        if self.primary(piv_rec[self.col_ix['state2']]):
-            piv_rec[self.col_ix['pivot2']] = 1
-            dd['p1_px'] = piv_rec[self.col_ix['price2']]
-            dd['p1_s'] = piv_rec[self.col_ix['state2']]
-        else:
-            piv_rec[self.col_ix['pivot']] = 1
-            dd['p1_px'] = piv_rec[self.col_ix['price']]
-            dd['p1_s'] = piv_rec[self.col_ix['state']]
-        dd['p1_dt'] = dd['lns_dt']
-
+    jl_record_ptr jlns = &(jl->recs[jlr->lns]);
+    int crt_s = jl_primary(jlr->state)? jlr->state: jlr->state2;
+    int lns_s = lns_s2? jlns->state2: jlns->state;
+    bool lns_s2 = jl_primary(jlns->state2);
+    if ((jl_up(crt_s) && jl_down(lns_s)) || (jl_down(crt_s) && jl_up(lns_s))) {
+	if (lns_s2)
+	    jlns->pivot2 = true;
+	else
+	    jlns->pivot = true;
+    }
+    jlr->lns = ix;
+}
 
 void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
@@ -195,7 +166,8 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     }
     if (jlr->state != NONE) {
 	jl_update_last(jl, ix);
-	jl_update_lns_pivots(jl, ix);
+	if (jl_primary(upstate) || jl_primary(downstate))
+	    jl_update_lns_and_pivots(jl, ix);
     }
 }
 
