@@ -57,6 +57,26 @@ typedef struct jl_data_t {
     jl_pivot_ptr pivots;
 } jl_data, *jl_data_ptr;
 
+void jl_free(jl_data_ptr jl) {
+    if (jl->last != NULL) {
+	free(jl->last);
+	jl->last = NULL;
+    }
+    jl_pivot_ptr piv_crs = jl->pivots, piv_next = piv_crs->next;
+    free(piv_crs);
+    piv_crs = NULL;
+    while(piv_next != NULL) {
+	piv_crs = piv_next;
+	piv_next = piv_crs->next;
+	free(piv_crs);
+	piv_crs = NULL;
+    }
+    free(jl->rgs);
+    jl->rgs = NULL;
+    free(jl->recs);
+    jl_recs = NULL;
+}
+
 void jl_init_rec(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl.recs[ix]), jlr_1 = NULL;
     jlr->ix = ix;
