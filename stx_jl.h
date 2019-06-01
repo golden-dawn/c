@@ -169,6 +169,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	if (jl_primary(upstate) || jl_primary(downstate))
 	    jl_update_lns_and_pivots(jl, ix);
     }
+    jl->pos++;
 }
 
 jl_data_ptr jl_init20(stx_data_ptr data, float factor) {
@@ -210,6 +211,54 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
 			 (jl->lp[S_REACTION] = 
 			  (jl->lp[M_REACTION] = min)));
 }
+
+void jl_split_adjust(jl_data_ptr jl, ht_item_ptr split) {
+    float ratio = split->val.ratio;
+    for(int ix = 0; ix < jl->pos; ix++) {
+	jl->recs[ix].rg = (int) (jl->recs[ix].rg * ratio);
+	jl->recs[ix].price = (int) (jl->recs[ix].price * ratio);
+	jl->recs[ix].price2 = (int) (jl->recs[ix].price2 * ratio);
+    }
+    for(int ix = 0; ix < jl->window; ix++)
+	jl->rgs[ix] = (int) (jl->rgs[ix] * ratio);
+    for(int ix = 0; ix < 8; ix++)
+	jl->rgs[ix] = (int) (jl->rgs[ix] * ratio);
+    jl->last->prim_price = (int) (jl->last->prim_price * ratio);
+    jl->last->price = (int) (jl->last->price * ratio);
+}
+
+void jl_next(jl_data_ptr jl) {
+    if (jl->pos >= jl->size)
+	return;
+    ht_item_ptr split = ht_get(jl->data->splits, jl->data[jl->pos].date);
+    if (split != NULL) 
+	jl_split_adjust(jl, split);
+    int factor = (int) (jl->factor * jl->recs[jl->pos].rg);
+    switch(jl->last->state) {
+    case S_RALLY:
+	jl_sra(jl, factor);
+	break;
+    case N_RALLY:
+	jl_nra(jl, factor);
+	break;
+    case UPTREND:
+	jl_ut(jl, factor);
+	break;
+    case DOWNTREND:
+	jl_dt(jl, factor);
+	break;
+    case N_REACTION:
+	jl_nre(jl, factor);
+	break;
+    case S_REACTION:
+	jl_sre(jl, factor);
+	break;
+    default:
+	LOGWARN("%s: unknown state %d found for date %s", jl->data->stk,
+		jl->last->state, jl->data[jl->pos].date);
+	break;
+    }
+} 
 
 
 class StxJL:
