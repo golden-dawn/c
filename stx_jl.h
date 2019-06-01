@@ -227,6 +227,137 @@ void jl_split_adjust(jl_data_ptr jl, ht_item_ptr split) {
     jl->last->price = (int) (jl->last->price * ratio);
 }
 
+void jl_sra(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if (jl->lp[UPTREND] < sr->high)
+	sh = UPTREND;
+    else if (jl->lp[M_RALLY] + factor < sr->high) {
+	if (jl->last->prim_state == N_RALLY || jl->last->prim_state == UPTREND)
+	    sh = (sr->high > jl->last->prim_price)? UPTREND: S_RALLY;
+	else
+	    sh = UPTREND;
+    } else if ((jl->lp[N_RALLY] < sr->high) && 
+	       (jl->last->prim_state != UPTREND))
+	sh = N_RALLY;
+    else if (jl->lp[S_RALLY] < sr->high)
+	sh = S_RALLY;
+    if (jl_up(sh) && jl_down(jl->last->prim_state))
+	jl->lp[M_REACTION] = jl->last->prim_price;
+    if (sr->low < jl->lp[S_RALLY] - 2 * factor) {
+	if (jl->lp[N_REACTION] < sr->low)
+	    sl = S_REACTION;
+	else {
+	    sl = ((sr->low < jl->lp[DOWNTREND]) || 
+		  (sr->low < jl->lp[M_REACTION] - factor))? DOWNTREND: 
+		N_REACTION;
+	    if (jl_up(jl->last->prim_state))
+		jl->lp[M_RALLY] = jl->last->prim_price;
+	}
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
+void jl_nra(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if ((jl->lp[UPTREND] < sr->high) || (jl->lp[M_RALLY] + factor < sr->high))
+	sh = UPTREND;
+    else if (jl->lp[N_RALLY] < sr->high)
+	sh = N_RALLY;
+    if (sr->low < jl->lp[N_RALLY] - 2 * factor) {
+	if (jl->lp[N_REACTION] < sr->low)
+	    sl = S_REACTION;
+	else if ((sr->low < jl->lp[DOWNTREND]) || 
+		 (sr->low < jl->lp[M_REACTION] - factor))
+	    sl = DOWNTREND;
+	else
+	    sl = N_REACTION;
+	if (sl != S_REACTION)
+	    jl->lp[M_RALLY] = jl->lp[N_RALLY];
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
+void jl_ut(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if (jl->lp[UPTREND] < sr->high)
+	sh = UPTREND;
+    if (sr->low <= jl->lp[UPTREND] - 2 * factor) {
+	sl = ((sr->low < jl->lp[DOWNTREND]) || 
+	      (sr->low < jl->lp[M_REACTION] - factor))? DOWNTREND: N_REACTION;
+	jl->lp[M_RALLY] = jl->lp[UPTREND];
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
+void jl_sre(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if (sr->low < jl->lp[DOWNTREND])
+	sl = DOWNTREND;
+    else if (jl->lp[M_REACTION] - factor > sr->low) {
+	if ((jl->last->prim_state == N_REACTION) ||
+	    (jl->last->prim_state == DOWNTREND))
+	    sl = (sr->low < jl->last->prim_price)? DOWNTREND: S_REACTION;
+	else
+	    sl = DOWNTREND;
+    } else if ((jl->lp[N_REACTION] > sr->low) &&
+	       (jl->last->prim_state != DOWNTREND))
+	sl = N_REACTION;
+    else if (jl->lp[S_REACTION] > sr->low)
+	sl = S_REACTION;
+    if (jl_down(sl) && jl_up(jl->last->prim_state))
+	jl->lp[M_RALLY] = jl->last_prim_price;
+    if (sr->high > jl->lp[S_REACTION] + 2 * factor) {
+	if (jl->lp[N_RALLY] > sr->high)
+	    sh = S_RALLY;
+	else {
+	    sh = ((sr->high > jl->lp[UPTREND]) ||
+		  (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: N_RALLY;
+	    if (jl_down(jl->last->prim_state))
+		jl->lp[M_REACTION] = jl->last->prim_price;
+	}
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
+void jl_dt(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if (jl->lp[DOWNTREND] > sr->low)
+	sl = DOWNTREND;
+    if (sr->high >= jl->lp[DOWNTREND] + 2 * factor) {
+	sh = ((sr->high > jl->lp[UPTREND]) ||
+	      (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: N_RALLY;
+	jl->lp[M_REACTION] = jl->lp[DOWNTREND];
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
+void jl_nre(jl_data_ptr jl, int factor) {
+    daily_record_ptr sr = &(jl->data[jl->pos]);
+    int sh = NONE, sl = NONE;
+    if ((jl->lp[DOWNTREND] > sr->low) || 
+	(jl->lp[M_REACTION] - factor > sr->low))
+	sl = DOWNTREND;
+    else if (jl->lp[N_REACTION] > sr->low)
+	sl = N_REACTION;
+    if (sr->high > jl->lp[N_REACTION] + 2 * factor) {
+	if (jl->lp[N_RALLY] > sr->high)
+	    sh = S_RALLY;
+	else if ((sr->high > jl->lp[UPTREND]) ||
+		 (sr->high > jl->lp[M_RALLY] + factor))
+	    sh = UPTREND;
+	else
+	    sh = N_RALLY;
+	if (sh != S_RALLY)
+	    jl->lp[M_REACTION] = jl->lp[N_REACTION];
+    }
+    jl_rec_day(jl, jl->pos, sh, sl);
+}
+
 void jl_next(jl_data_ptr jl) {
     if (jl->pos >= jl->size)
 	return;
@@ -259,7 +390,6 @@ void jl_next(jl_data_ptr jl) {
 	break;
     }
 } 
-
 
 class StxJL:
     # static variables
