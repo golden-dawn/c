@@ -34,6 +34,15 @@ typedef struct jl_last_t {
     int state;
 } jl_last, *jl_last_ptr;
 
+typedef struct jl_pivot_t {
+    char date[16];
+    int state;
+    int price;
+    int rg;
+    struct jl_pivot_t* prev;
+    struct jl_pivot_t* next;
+} jl_pivot, *jl_pivot_ptr;
+
 typedef struct jl_data_t {
     jl_record_ptr recs;
     int size;
@@ -44,6 +53,8 @@ typedef struct jl_data_t {
     int lp[8];
     stx_data_ptr data;
     jl_last_ptr last;
+    int num_pivots;
+    jl_pivot_ptr pivots;
 } jl_data, *jl_data_ptr;
 
 void jl_init_rec(jl_data_ptr jl, int ix) {
