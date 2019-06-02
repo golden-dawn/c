@@ -39,7 +39,6 @@ typedef struct jl_pivot_t {
     int state;
     int price;
     int rg;
-    struct jl_pivot_t* prev;
     struct jl_pivot_t* next;
 } jl_pivot, *jl_pivot_ptr;
 
@@ -105,6 +104,8 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
 	jl->rgs[ix % jl->window] = rg;
     }
+    jl->num_pivots = 0;
+    jl->pivots = NULL;
 }
 
 bool jl_primary(int state) {
@@ -151,11 +152,24 @@ bool jl_down(int state) {
 void jl_update_pivot_diff_day(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
     jl_record_ptr piv_rec = &(jl->recs[jlr->lns]);
-    if (jl_primary(piv_rec->state2))
+    bool piv_s2 = jl_primary(piv_rec->state2);
+    if (piv_s2)
 	piv_rec->pivot2 = true;
     else
 	piv_rec->pivot = true;
+    jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
+    strcpy(piv->date, jl->data[jlr->lns].date);
+    piv->state = piv_s2? piv_rec->state2: piv_rec->state;
+    piv->price = piv_s2? piv_rec->price2: piv_rec->price;
+    piv->rg = piv_rec->rg;
+    if (jl->pivots == NULL)
+	piv->next = NULL;
+    else
+	piv->next = jl->pivots;
+    jl->pivots = piv;
 }
+
+/* TODO: handle the case when there are two pivots in the same day */
 
 void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
@@ -421,6 +435,120 @@ void jl_next(jl_data_ptr jl) {
 	break;
     }
 } 
+
+char* jl_state_to_string(int state) {
+    static char _retval[4];
+    switch(state) {
+    case S_RALLY:
+	strcpy(_retval, "SRa");
+	break;
+    case RALLY:
+	strcpy(_retval, "NRa");
+	break;
+    case UPTREND:
+	strcpy(_retval, "UT");
+	break;
+    case DOWNTREND:
+	strcpy(_retval, "DT");
+	break;
+    case REACTION:
+	strcpy(_retval, "NRe");
+	break;
+    case S_REACTION:
+	strcpy(_retval, "SRe");
+	break;
+    case M_RALLY:
+	strcpy(_retval, "MRa");
+	break;
+    case M_REACTION:
+	strcpy(_retval, "MRe");
+	break;
+    default:
+	strcpy(_retval, "Nil");
+	break;
+    }
+    return _retval;
+}
+
+void jl_print_record(jl_data_ptr jl, int ix) {
+    jl_record_ptr jlr = &(jl->recs[ix]);
+    
+#ifdef DEBUG
+    fprintf(stderr, "%8d lns = %5d, ls = %5d\n", ix, jlr->lns, jlr->ls);
+    fprintf(stderr, "    last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
+	    jl->last->prim_price, jl_state_to_string(jl->last->prim_state), 
+	    jl->last->price, jl_state_to_string(jl->last->state));
+    fprintf(stderr, "    lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+	    jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
+	    jl_state_to_string(RALLY), jl->lp[RALLY],
+	    jl_state_to_string(UPTREND), jl->lp[UPTREND],
+	    jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
+    fprintf(stderr, "    lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+	    jl_state_to_string(REACTION), jl->lp[REACTION],
+	    jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
+	    jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
+	    jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
+#endif
+}
+    def jlr_print2(self, jlr):
+        return 's:{0:d} px:{1:.2f} p:{2:d} s2:{3:d} px2:{4:.2f} p2:{5:d} ' \
+            'p1dt:{6:s} p1px:{7:.2f} p1s:{8:d} ldt:{9:s} lpx:{10:.2f} ' \
+            'lns:{11:d} ls_s:{12:d} ls:{13:d}'. \
+            format(jlr[self.col_ix['state']], jlr[self.col_ix['price']],
+                   jlr[self.col_ix['pivot']], jlr[self.col_ix['state2']],
+                   jlr[self.col_ix['price2']], jlr[self.col_ix['pivot2']],
+                   jlr[self.col_ix['p1_dt']], jlr[self.col_ix['p1_px']],
+                   jlr[self.col_ix['p1_s']], jlr[self.col_ix['lns_dt']],
+                   jlr[self.col_ix['lns_px']], jlr[self.col_ix['lns']],
+                   jlr[self.col_ix['ls_s']], jlr[self.col_ix['ls']])
+
+    def get_formatted_price(self, state, pivot, price):
+        s_fmt = ''
+        e_fmt = '\x1b[0m'
+        if state == StxJL.UT:
+            s_fmt = StxJL.UT_fmt if pivot == 0 else StxJL.UP_piv_fmt
+        elif state == StxJL.DT:
+            s_fmt = StxJL.DT_fmt if pivot == 0 else StxJL.DN_piv_fmt
+        elif pivot == 1:
+            s_fmt = StxJL.UP_piv_fmt if state == StxJL.NRe else \
+                    StxJL.DN_piv_fmt
+        else:
+            e_fmt = ''
+        s_price = '{0:s}{1:9.2f}{2:s}'.format(s_fmt, price, e_fmt)
+        return '{0:s}'.format(54 * ' ') if state == StxJL.Nil else \
+            '{0:s}{1:s}{2:s}'.format((9 * state) * ' ', s_price,
+                                     (9 * (5 - state)) * ' ')
+
+    def jl_print(self, print_pivots_only=False, print_nils=False,
+                 print_dbg=False):
+        output = ''
+        for jlr in self.jl_recs[1:]:
+            state = jlr[self.col_ix['state']]
+            pivot = jlr[self.col_ix['pivot']]
+            price = jlr[self.col_ix['price']]
+            if print_pivots_only and pivot == 0:
+                continue
+            if not print_nils and state == StxJL.Nil:
+                continue
+            px_str = self.get_formatted_price(state, pivot, price)
+            output += '{0:s}{1:s}{2:6.2f} {3:s}\n'. \
+                format(jlr[self.col_ix['dt']], px_str, jlr[self.col_ix['rg']],
+                       '' if not print_dbg else self.jlr_print2(jlr))
+            state2 = jlr[self.col_ix['state2']]
+            if state2 == StxJL.Nil:
+                continue
+            pivot2 = jlr[self.col_ix['pivot2']]
+            if print_pivots_only and pivot2 == 0:
+                continue
+            price2 = jlr[self.col_ix['price2']]
+            px_str = self.get_formatted_price(state2, pivot2, price2)
+            output += '{0:s}{1:s}{2:6.2f} {3:s}\n'.\
+                format(jlr[self.col_ix['dt']], px_str, jlr[self.col_ix['rg']],
+                       '' if not print_dbg else self.jlr_print2(jlr))
+        print(output)
+
+
+
 
 class StxJL:
     # static variables
