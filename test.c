@@ -7,6 +7,13 @@
 #include "stx_core.h"
 #include "stx_ts.h"
 
+#define RED   "\x1B[31m"
+#define GRN   "\x1B[32m"
+#define PRED   "\x1B[4;31m"
+#define PGRN   "\x1B[4;32m"
+#define RESET "\x1B[0m"
+
+
 int print_num_busdays(char* sd, char* ed) {
     int num_busdays = cal_num_busdays(sd, ed);
     LOGINFO("The number of business days between %s and %s is: %d\n",
@@ -185,4 +192,15 @@ int main(int argc, char** argv) {
     lp[3] = (lp[4] = (lp[5] = (lp[7] = 900)));
     for(int ix = 0; ix < 8; ix++)
 	fprintf(stderr, "%5d", lp[ix]);
+
+    char* ut_fmt = "\x1b[1;32;40m";
+    char* e_fmt = "\x1b[0m";
+    int color_price = 4000;
+
+    fprintf(stderr, "%s%6d%s\n", ut_fmt, color_price, e_fmt);
+    fprintf(stderr, "%10s", " ");
+    fprintf(stderr, RED "%10d%s\n", color_price, RESET);
+    printf(GRN "green\n" RESET);
+    printf(PRED "pivot-red\n" RESET);
+    printf(PGRN "pivot-green\n" RESET);
 }
