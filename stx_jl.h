@@ -519,64 +519,41 @@ void jl_print_rec(int state, int price, bool pivot) {
     }
 }
 
-void jl_print_record(jl_data_ptr jl, int ix) {
-    jl_record_ptr jlr = &(jl->recs[ix]);
-    fprintf(stderr, "%s", jl->data[ix].date);
-    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
-    if (jlr->state2 != NONE) {
-	fprintf(stderr, "%s", jl->data[ix].date);
-	jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
-    }
+void jl_print_record(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
+    int last_pivot = ts_find_date_record(jl->data, jl->pivots->date);
+    for(int ix = 0; ix <= jl->pos; ix++) {
+	jl_record_ptr jlr = &(jl->recs[ix]);
+	if (jlr->state == NONE && (!print_nils))
+	    continue;
+	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
+	    continue;	
+	if (!print_pivots_only || jlr->pivot) {
+	    fprintf(stderr, "%s", jl->data[ix].date);
+	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
+	}
+	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2)) {
+	    fprintf(stderr, "%s", jl->data[ix].date);
+	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
+	}
 #ifdef DEBUG
-    fprintf(stderr, "%8d lns = %5d, ls = %5d\n", ix, jlr->lns, jlr->ls);
-    fprintf(stderr, "    last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
-	    jl->last->prim_price, jl_state_to_string(jl->last->prim_state), 
-	    jl->last->price, jl_state_to_string(jl->last->state));
-    fprintf(stderr, "    lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-	    jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
-	    jl_state_to_string(RALLY), jl->lp[RALLY],
-	    jl_state_to_string(UPTREND), jl->lp[UPTREND],
-	    jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
-    fprintf(stderr, "    lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-	    jl_state_to_string(REACTION), jl->lp[REACTION],
-	    jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
-	    jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
-	    jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
+	fprintf(stderr, "%8d lns = %5d, ls = %5d\n", ix, jlr->lns, jlr->ls);
+	fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
+		jl->last->prim_price, 
+		jl_state_to_string(jl->last->prim_state), 
+		jl->last->price, jl_state_to_string(jl->last->state));
+	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+		jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
+		jl_state_to_string(RALLY), jl->lp[RALLY],
+		jl_state_to_string(UPTREND), jl->lp[UPTREND],
+		jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
+	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+		jl_state_to_string(REACTION), jl->lp[REACTION],
+		jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
+		jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
+		jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
 #endif
+    }
 }
-
-void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
-
-}
-    def jl_print(self, print_pivots_only=False, print_nils=False,
-                 print_dbg=False):
-        output = ''
-        for jlr in self.jl_recs[1:]:
-            state = jlr[self.col_ix['state']]
-            pivot = jlr[self.col_ix['pivot']]
-            price = jlr[self.col_ix['price']]
-            if print_pivots_only and pivot == 0:
-                continue
-            if not print_nils and state == StxJL.Nil:
-                continue
-            px_str = self.get_formatted_price(state, pivot, price)
-            output += '{0:s}{1:s}{2:6.2f} {3:s}\n'. \
-                format(jlr[self.col_ix['dt']], px_str, jlr[self.col_ix['rg']],
-                       '' if not print_dbg else self.jlr_print2(jlr))
-            state2 = jlr[self.col_ix['state2']]
-            if state2 == StxJL.Nil:
-                continue
-            pivot2 = jlr[self.col_ix['pivot2']]
-            if print_pivots_only and pivot2 == 0:
-                continue
-            price2 = jlr[self.col_ix['price2']]
-            px_str = self.get_formatted_price(state2, pivot2, price2)
-            output += '{0:s}{1:s}{2:6.2f} {3:s}\n'.\
-                format(jlr[self.col_ix['dt']], px_str, jlr[self.col_ix['rg']],
-                       '' if not print_dbg else self.jlr_print2(jlr))
-        print(output)
-
-
 
     def get_num_pivots(self, num_pivs):
         ixx = -1
