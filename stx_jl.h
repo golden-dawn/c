@@ -1,3 +1,5 @@
+#ifndef __STX_JL_H__
+#define __STX_JL_H__
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -410,9 +412,10 @@ void jl_nre(jl_data_ptr jl, int factor) {
     jl_rec_day(jl, jl->pos, sh, sl);
 }
 
-void jl_next(jl_data_ptr jl) {
+int jl_next(jl_data_ptr jl) {
     if (jl->pos >= jl->size)
-	return;
+	return -1;
+    jl->pos++;
     ht_item_ptr split = ht_get(jl->data->splits, jl->data[jl->pos].date);
     if (split != NULL) 
 	jl_split_adjust(jl, split);
@@ -555,84 +558,25 @@ void jl_print_record(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
     }
 }
 
-    def get_num_pivots(self, num_pivs):
-        ixx = -1
-        end = -len(self.jl_recs)
-        pivs = []
-        while len(pivs) < num_pivs and ixx >= end:
-            jlr = self.jl_recs[ixx]
-            if jlr[self.col_ix['pivot2']] == 1:
-                pivs.append(JLPivot(jlr[self.col_ix['dt']],
-                                    jlr[self.col_ix['state2']],
-                                    jlr[self.col_ix['price2']],
-                                    jlr[self.col_ix['rg']]))
-            if len(pivs) < num_pivs and jlr[self.col_ix['pivot']] == 1:
-                pivs.append(JLPivot(jlr[self.col_ix['dt']],
-                                    jlr[self.col_ix['state']],
-                                    jlr[self.col_ix['price']],
-                                    jlr[self.col_ix['rg']]))
-            ixx -= 1
-        pivs.reverse()
-        return pivs
 
-    def get_pivots_in_days(self, num_days):
-        ixx = -1
-        end = -len(self.jl_recs)
-        pivs = []
-        if end < -num_days:
-            end = -num_days
-        while ixx > end:
-            jlr = self.jl_recs[ixx]
-            if jlr[self.col_ix['pivot2']] == 1:
-                pivs.append(JLPivot(jlr[self.col_ix['dt']],
-                                    jlr[self.col_ix['state2']],
-                                    jlr[self.col_ix['price2']],
-                                    jlr[self.col_ix['rg']]))
-            if jlr[self.col_ix['pivot']] == 1:
-                pivs.append(JLPivot(jlr[self.col_ix['dt']],
-                                    jlr[self.col_ix['state']],
-                                    jlr[self.col_ix['price']],
-                                    jlr[self.col_ix['rg']]))
-            ixx -= 1
-        pivs.reverse()
-        return pivs
+/*     def get_num_pivots(self, num_pivs): */
+/*         ixx = -1 */
+/*         end = -len(self.jl_recs) */
+/*         pivs = [] */
+/*         while len(pivs) < num_pivs and ixx >= end: */
+/*             jlr = self.jl_recs[ixx] */
+/*             if jlr[self.col_ix['pivot2']] == 1: */
+/*                 pivs.append(JLPivot(jlr[self.col_ix['dt']], */
+/*                                     jlr[self.col_ix['state2']], */
+/*                                     jlr[self.col_ix['price2']], */
+/*                                     jlr[self.col_ix['rg']])) */
+/*             if len(pivs) < num_pivs and jlr[self.col_ix['pivot']] == 1: */
+/*                 pivs.append(JLPivot(jlr[self.col_ix['dt']], */
+/*                                     jlr[self.col_ix['state']], */
+/*                                     jlr[self.col_ix['price']], */
+/*                                     jlr[self.col_ix['rg']])) */
+/*             ixx -= 1 */
+/*         pivs.reverse() */
+/*         return pivs */
 
-    def print_pivs(self, pivs):
-        output = ''
-        for piv in pivs:
-            px_str = self.get_formatted_price(piv.state, 1, piv.price)
-            output += '{0:s}{1:s}{2:6.2f}\n'.format(piv.dt, px_str, piv.rg)
-        print(output)
-
-    def last_rec(self, col_name, ixx=1):
-        if ixx > len(self.jl_recs):
-            ixx = len(self.jl_recs)
-        jlr = self.jl_recs[-ixx]
-        if col_name in ['state', 'price', 'pivot']:
-            col_name2 = '{0:s}2'.format(col_name)
-            if jlr[self.col_ix['state2']] != StxJL.Nil:
-                return jlr[self.col_ix[col_name2]]
-        return jlr[self.col_ix[col_name]]
-
-
-if __name__ == '__main__':
-    stk = sys.argv[1]
-    sd = sys.argv[2]
-    ed = sys.argv[3]
-    dt = sys.argv[4]
-    factor = float(sys.argv[5])
-    ts = StxTS(stk, sd, ed)
-    jl = StxJL(ts, factor)
-    jlres = jl.jl(dt)
-    jl.jl_print()
-    pivs = jl.get_pivots_in_days(100)
-    print("Pivs in 100 days:")
-    jl.print_pivs(pivs)
-    pivs = jl.get_num_pivots(4)
-    print("4 pivs:")
-    jl.print_pivs(pivs)
-    # jl.jl_print(print_pivots_only = True)
-    # pd.set_option('display.max_rows', 2000)
-    # pd.set_option('display.max_columns', 1500)
-    # pd.set_option('display.width', 1500)
-    # print(jlres)
+#endif
