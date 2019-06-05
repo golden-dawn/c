@@ -173,6 +173,16 @@ void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
 	ts_adjust_data(data, split_ix);
 }
 
+int ts_next(stx_data_ptr data) {
+    if (data->pos >= data->num_recs)
+	return -1;
+    data->pos++;
+    ht_item_ptr split = ht_get(data->splits, data[jl->pos].date);
+    if (split != NULL) {
+	ts_adjust_data(data, split_ix);
+    }
+}
+
 void ts_free_data(stx_data_ptr data) {
     ht_free(data->splits);
     free(data->data);
