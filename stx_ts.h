@@ -178,9 +178,9 @@ int ts_next(stx_data_ptr data) {
 	return -1;
     data->pos++;
     ht_item_ptr split = ht_get(data->splits, data[jl->pos].date);
-    if (split != NULL) {
-	ts_adjust_data(data, split_ix);
-    }
+    if (split != NULL)
+	ts_adjust_data(data, ht_seq_index(data->splits, data[jl->pos].date));
+    return 0;
 }
 
 void ts_free_data(stx_data_ptr data) {
