@@ -415,6 +415,7 @@ void jl_nre(jl_data_ptr jl, int factor) {
 int jl_next(jl_data_ptr jl) {
     if (jl->pos >= jl->size)
 	return -1;
+    ts_next(jl->data);
     jl->pos++;
     ht_item_ptr split = ht_get(jl->data->splits, jl->data[jl->pos].date);
     if (split != NULL) 
@@ -520,6 +521,13 @@ void jl_print_rec(int state, int price, bool pivot) {
 	fprintf(stderr, "\n");
 	break;
     }
+}
+
+jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
+    jl_data_ptr jl = jl_init20(data, factor);
+    while(strcmp(jl->data[jl->pos].date, end_date) > 0)
+	jl_next(jl);
+    return jl;
 }
 
 void jl_print_record(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
