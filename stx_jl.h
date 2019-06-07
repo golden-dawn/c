@@ -1,9 +1,12 @@
 #ifndef __STX_JL_H__
 #define __STX_JL_H__
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "stx_core.h"
+#include "stx_ts.h"
 
 #define PIVOT      0x100
 #define NONE       -1
@@ -82,17 +85,17 @@ void jl_free(jl_data_ptr jl) {
     free(jl->rgs);
     jl->rgs = NULL;
     free(jl->recs);
-    jl_recs = NULL;
+    jl->recs = NULL;
 }
 
 void jl_init_rec(jl_data_ptr jl, int ix) {
-    jl_record_ptr jlr = &(jl.recs[ix]), jlr_1 = NULL;
+    jl_record_ptr jlr = &(jl->recs[ix]), jlr_1 = NULL;
     jlr->ix = ix;
     jlr->state = (jlr->state2 = NONE);
     jlr->price = (jlr->price2 = 0);
     jlr->pivot = (jlr->pivot2 = false);
     if (ix > 0) { 
-	jlr_1 = &(jl.recs[ix - 1]);
+	jlr_1 = &(jl->recs[ix - 1]);
 	jlr->lns = jlr_1->lns;
 	jlr->ls = jlr_1->ls;
     } else {
@@ -167,7 +170,7 @@ void jl_update_pivot_diff_day(jl_data_ptr jl, int ix) {
     else
 	piv_rec->pivot = true;
     jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
-    strcpy(piv->date, jl->data[jlr->lns].date);
+    strcpy(piv->date, jl->data->data[jlr->lns].date);
     piv->state = piv_s2? piv_rec->state2: piv_rec->state;
     piv->price = piv_s2? piv_rec->price2: piv_rec->price;
     piv->rg = piv_rec->rg;
@@ -184,8 +187,8 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
     jl_record_ptr jlns = &(jl->recs[jlr->lns]);
     int crt_s = jl_primary(jlr->state)? jlr->state: jlr->state2;
-    int lns_s = lns_s2? jlns->state2: jlns->state;
     bool lns_s2 = jl_primary(jlns->state2);
+    int lns_s = lns_s2? jlns->state2: jlns->state;
     if ((jl_up(crt_s) && jl_down(lns_s)) || (jl_down(crt_s) && jl_up(lns_s))) {
 	if (lns_s2)
 	    jlns->pivot2 = true;
@@ -197,7 +200,7 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
 
 void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
-    daily_record_ptr sr = &(jl->data[ix]);
+    daily_record_ptr sr = &(jl->data->data[ix]);
     jl_record_ptr jlr = &(jl->recs[ix]);
     if (upstate != NONE && downstate != NONE) {
 	if (2 * sr->close < sr->high + sr->low) {
@@ -226,10 +229,6 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl->pos++;
 }
 
-jl_data_ptr jl_init20(stx_data_ptr data, float factor) {
-    return jl_init(data, factor, 20);
-}
-
 jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     if(data->num_recs < window)
 	return NULL;
@@ -256,7 +255,7 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
 	}
     }
     for(int ix = 0; ix < window; ix++)
-	jl_rec_day(jld, ix, (ix == max_ix)? RALLY: NONE,
+	jl_rec_day(jl, ix, (ix == max_ix)? RALLY: NONE,
 		   (ix == min_ix)? REACTION: NONE);
     jl->lp[S_RALLY] = (jl->lp[RALLY] = 
 		       (jl->lp[UPTREND] = 
@@ -264,6 +263,11 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->lp[DOWNTREND] = (jl->lp[REACTION] = 
 			 (jl->lp[S_REACTION] = 
 			  (jl->lp[M_REACTION] = min)));
+    return jl;
+}
+
+jl_data_ptr jl_init20(stx_data_ptr data, float factor) {
+    return jl_init(data, factor, 20);
 }
 
 void jl_split_adjust(jl_data_ptr jl, ht_item_ptr split) {
@@ -282,29 +286,29 @@ void jl_split_adjust(jl_data_ptr jl, ht_item_ptr split) {
 }
 
 void jl_sra(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if (jl->lp[UPTREND] < sr->high)
 	sh = UPTREND;
     else if (jl->lp[M_RALLY] + factor < sr->high) {
-	if (jl->last->prim_state == N_RALLY || jl->last->prim_state == UPTREND)
+	if (jl->last->prim_state == RALLY || jl->last->prim_state == UPTREND)
 	    sh = (sr->high > jl->last->prim_price)? UPTREND: S_RALLY;
 	else
 	    sh = UPTREND;
-    } else if ((jl->lp[N_RALLY] < sr->high) && 
+    } else if ((jl->lp[RALLY] < sr->high) && 
 	       (jl->last->prim_state != UPTREND))
-	sh = N_RALLY;
+	sh = RALLY;
     else if (jl->lp[S_RALLY] < sr->high)
 	sh = S_RALLY;
     if (jl_up(sh) && jl_down(jl->last->prim_state))
 	jl->lp[M_REACTION] = jl->last->prim_price;
     if (sr->low < jl->lp[S_RALLY] - 2 * factor) {
-	if (jl->lp[N_REACTION] < sr->low)
+	if (jl->lp[REACTION] < sr->low)
 	    sl = S_REACTION;
 	else {
 	    sl = ((sr->low < jl->lp[DOWNTREND]) || 
 		  (sr->low < jl->lp[M_REACTION] - factor))? DOWNTREND: 
-		N_REACTION;
+		REACTION;
 	    if (jl_up(jl->last->prim_state))
 		jl->lp[M_RALLY] = jl->last->prim_price;
 	}
@@ -313,63 +317,63 @@ void jl_sra(jl_data_ptr jl, int factor) {
 }
 
 void jl_nra(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if ((jl->lp[UPTREND] < sr->high) || (jl->lp[M_RALLY] + factor < sr->high))
 	sh = UPTREND;
-    else if (jl->lp[N_RALLY] < sr->high)
-	sh = N_RALLY;
-    if (sr->low < jl->lp[N_RALLY] - 2 * factor) {
-	if (jl->lp[N_REACTION] < sr->low)
+    else if (jl->lp[RALLY] < sr->high)
+	sh = RALLY;
+    if (sr->low < jl->lp[RALLY] - 2 * factor) {
+	if (jl->lp[REACTION] < sr->low)
 	    sl = S_REACTION;
 	else if ((sr->low < jl->lp[DOWNTREND]) || 
 		 (sr->low < jl->lp[M_REACTION] - factor))
 	    sl = DOWNTREND;
 	else
-	    sl = N_REACTION;
+	    sl = REACTION;
 	if (sl != S_REACTION)
-	    jl->lp[M_RALLY] = jl->lp[N_RALLY];
+	    jl->lp[M_RALLY] = jl->lp[RALLY];
     }
     jl_rec_day(jl, jl->pos, sh, sl);
 }
 
 void jl_ut(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if (jl->lp[UPTREND] < sr->high)
 	sh = UPTREND;
     if (sr->low <= jl->lp[UPTREND] - 2 * factor) {
 	sl = ((sr->low < jl->lp[DOWNTREND]) || 
-	      (sr->low < jl->lp[M_REACTION] - factor))? DOWNTREND: N_REACTION;
+	      (sr->low < jl->lp[M_REACTION] - factor))? DOWNTREND: REACTION;
 	jl->lp[M_RALLY] = jl->lp[UPTREND];
     }
     jl_rec_day(jl, jl->pos, sh, sl);
 }
 
 void jl_sre(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if (sr->low < jl->lp[DOWNTREND])
 	sl = DOWNTREND;
     else if (jl->lp[M_REACTION] - factor > sr->low) {
-	if ((jl->last->prim_state == N_REACTION) ||
+	if ((jl->last->prim_state == REACTION) ||
 	    (jl->last->prim_state == DOWNTREND))
 	    sl = (sr->low < jl->last->prim_price)? DOWNTREND: S_REACTION;
 	else
 	    sl = DOWNTREND;
-    } else if ((jl->lp[N_REACTION] > sr->low) &&
+    } else if ((jl->lp[REACTION] > sr->low) &&
 	       (jl->last->prim_state != DOWNTREND))
-	sl = N_REACTION;
+	sl = REACTION;
     else if (jl->lp[S_REACTION] > sr->low)
 	sl = S_REACTION;
     if (jl_down(sl) && jl_up(jl->last->prim_state))
-	jl->lp[M_RALLY] = jl->last_prim_price;
+	jl->lp[M_RALLY] = jl->last->prim_price;
     if (sr->high > jl->lp[S_REACTION] + 2 * factor) {
-	if (jl->lp[N_RALLY] > sr->high)
+	if (jl->lp[RALLY] > sr->high)
 	    sh = S_RALLY;
 	else {
 	    sh = ((sr->high > jl->lp[UPTREND]) ||
-		  (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: N_RALLY;
+		  (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: RALLY;
 	    if (jl_down(jl->last->prim_state))
 		jl->lp[M_REACTION] = jl->last->prim_price;
 	}
@@ -378,36 +382,36 @@ void jl_sre(jl_data_ptr jl, int factor) {
 }
 
 void jl_dt(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if (jl->lp[DOWNTREND] > sr->low)
 	sl = DOWNTREND;
     if (sr->high >= jl->lp[DOWNTREND] + 2 * factor) {
 	sh = ((sr->high > jl->lp[UPTREND]) ||
-	      (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: N_RALLY;
+	      (sr->high > jl->lp[M_RALLY] + factor))? UPTREND: RALLY;
 	jl->lp[M_REACTION] = jl->lp[DOWNTREND];
     }
     jl_rec_day(jl, jl->pos, sh, sl);
 }
 
 void jl_nre(jl_data_ptr jl, int factor) {
-    daily_record_ptr sr = &(jl->data[jl->pos]);
+    daily_record_ptr sr = &(jl->data->data[jl->pos]);
     int sh = NONE, sl = NONE;
     if ((jl->lp[DOWNTREND] > sr->low) || 
 	(jl->lp[M_REACTION] - factor > sr->low))
 	sl = DOWNTREND;
-    else if (jl->lp[N_REACTION] > sr->low)
-	sl = N_REACTION;
-    if (sr->high > jl->lp[N_REACTION] + 2 * factor) {
-	if (jl->lp[N_RALLY] > sr->high)
+    else if (jl->lp[REACTION] > sr->low)
+	sl = REACTION;
+    if (sr->high > jl->lp[REACTION] + 2 * factor) {
+	if (jl->lp[RALLY] > sr->high)
 	    sh = S_RALLY;
 	else if ((sr->high > jl->lp[UPTREND]) ||
 		 (sr->high > jl->lp[M_RALLY] + factor))
 	    sh = UPTREND;
 	else
-	    sh = N_RALLY;
+	    sh = RALLY;
 	if (sh != S_RALLY)
-	    jl->lp[M_REACTION] = jl->lp[N_REACTION];
+	    jl->lp[M_REACTION] = jl->lp[REACTION];
     }
     jl_rec_day(jl, jl->pos, sh, sl);
 }
@@ -417,7 +421,7 @@ int jl_next(jl_data_ptr jl) {
 	return -1;
     ts_next(jl->data);
     jl->pos++;
-    ht_item_ptr split = ht_get(jl->data->splits, jl->data[jl->pos].date);
+    ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
     if (split != NULL) 
 	jl_split_adjust(jl, split);
     int factor = (int) (jl->factor * jl->recs[jl->pos].rg);
@@ -425,7 +429,7 @@ int jl_next(jl_data_ptr jl) {
     case S_RALLY:
 	jl_sra(jl, factor);
 	break;
-    case N_RALLY:
+    case RALLY:
 	jl_nra(jl, factor);
 	break;
     case UPTREND:
@@ -434,7 +438,7 @@ int jl_next(jl_data_ptr jl) {
     case DOWNTREND:
 	jl_dt(jl, factor);
 	break;
-    case N_REACTION:
+    case REACTION:
 	jl_nre(jl, factor);
 	break;
     case S_REACTION:
@@ -442,9 +446,10 @@ int jl_next(jl_data_ptr jl) {
 	break;
     default:
 	LOGWARN("%s: unknown state %d found for date %s", jl->data->stk,
-		jl->last->state, jl->data[jl->pos].date);
+		jl->last->state, jl->data->data[jl->pos].date);
 	break;
     }
+    return 0;
 } 
 
 char* jl_state_to_string(int state) {
@@ -492,30 +497,30 @@ void jl_print_rec(int state, int price, bool pivot) {
     case RALLY:
 	fprintf(stderr, "%10s", " ");
 	if (pivot)
-	    fprintf(stderr, PRED, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", PRED, price, RESET);
 	else
 	    fprintf(stderr, "%10d\n", price);
 	break;
     case REACTION:
 	fprintf(stderr, "%40s", " ");
 	if (pivot)
-	    fprintf(stderr, PGRN, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", PGRN, price, RESET);
 	else
 	    fprintf(stderr, "%10d\n", price);
 	break;
     case UPTREND:
 	fprintf(stderr, "%20s", " ");
 	if (pivot)
-	    fprintf(stderr, PGRN, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", PGRN, price, RESET);
 	else
-	    fprintf(stderr, GRN, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", GRN, price, RESET);
 	break;
     case DOWNTREND:
 	fprintf(stderr, "%30s", " ");
 	if (pivot)
-	    fprintf(stderr, PRED, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", PRED, price, RESET);
 	else
-	    fprintf(stderr, RED, "%10d%s\n", price, RESET);
+	    fprintf(stderr, "%s%10d%s\n", RED, price, RESET);
 	break;
     default:
 	fprintf(stderr, "\n");
@@ -525,13 +530,13 @@ void jl_print_rec(int state, int price, bool pivot) {
 
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
-    while(strcmp(jl->data[jl->pos].date, end_date) > 0)
+    while(strcmp(jl->data->data[jl->pos].date, end_date) > 0)
 	jl_next(jl);
     return jl;
 }
 
-void jl_print_record(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
-    int last_pivot = ts_find_date_record(jl->data, jl->pivots->date);
+void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
+    int last_piv = ts_find_date_record(jl->data, jl->pivots->date, 0);
     for(int ix = 0; ix <= jl->pos; ix++) {
 	jl_record_ptr jlr = &(jl->recs[ix]);
 	if (jlr->state == NONE && (!print_nils))
@@ -539,11 +544,11 @@ void jl_print_record(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
 	    continue;	
 	if (!print_pivots_only || jlr->pivot) {
-	    fprintf(stderr, "%s", jl->data[ix].date);
+	    fprintf(stderr, "%s", jl->data->data[ix].date);
 	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
 	}
 	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2)) {
-	    fprintf(stderr, "%s", jl->data[ix].date);
+	    fprintf(stderr, "%s", jl->data->data[ix].date);
 	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
 	}
 #ifdef DEBUG
