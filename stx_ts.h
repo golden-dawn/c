@@ -13,10 +13,6 @@
 #define sign( x) (( x> 0)? 1: -1)
 /** END: macros */
 
-float wprice( daily_record_ptr data, int ix) {
-    return ( data[ ix].close+ data[ ix].high+ data[ ix].low)/ 3;
-}
-
 int ts_true_range(stx_data_ptr data, int ix) {
     int res = data->data[ix].high - data->data[ix].low;
     if(ix == 0) 
@@ -177,9 +173,10 @@ int ts_next(stx_data_ptr data) {
     if (data->pos >= data->num_recs)
 	return -1;
     data->pos++;
-    ht_item_ptr split = ht_get(data->splits, data[jl->pos].date);
+    ht_item_ptr split = ht_get(data->splits, data->data[data->pos].date);
     if (split != NULL)
-	ts_adjust_data(data, ht_seq_index(data->splits, data[jl->pos].date));
+	ts_adjust_data(data, ht_seq_index(data->splits, 
+					  data->data[data->pos].date));
     return 0;
 }
 
