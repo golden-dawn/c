@@ -116,8 +116,6 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
 	jl->rgs[ix % jl->window] = rg;
     }
-    jl->num_pivots = 0;
-    jl->pivots = NULL;
 }
 
 bool jl_primary(int state) {
@@ -161,39 +159,55 @@ bool jl_down(int state) {
     return (state == DOWNTREND || state == REACTION);
 }
 
-void jl_update_pivot_diff_day(jl_data_ptr jl, int ix) {
-    jl_record_ptr jlr = &(jl->recs[ix]);
-    jl_record_ptr piv_rec = &(jl->recs[jlr->lns]);
-    bool piv_s2 = jl_primary(piv_rec->state2);
-    if (piv_s2)
-	piv_rec->pivot2 = true;
-    else
-	piv_rec->pivot = true;
+void jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
+		  int piv_price, int piv_rg) {
     jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
-    strcpy(piv->date, jl->data->data[jlr->lns].date);
-    piv->state = piv_s2? piv_rec->state2: piv_rec->state;
-    piv->price = piv_s2? piv_rec->price2: piv_rec->price;
-    piv->rg = piv_rec->rg;
-    if (jl->pivots == NULL)
+    strcpy(piv->date, piv_date);
+    piv->state = piv_state;
+    piv->price = piv_price;
+    piv->rg = piv_rg;
+    if (pivots == NULL)
 	piv->next = NULL;
     else
-	piv->next = jl->pivots;
-    jl->pivots = piv;
+	piv->next = pivots;
+    pivots = piv;
+}
+
+bool jl_is_pivot(int prev_state, int crt_state) {
+    return (((prev_state == REACTION || prev_state == DOWNTREND) &&
+	     (crt_state == RALLY || crt_state == UPTREND)) ||
+	    ((prev_state == REACTION || prev_state == DOWNTREND) &&
+	     (crt_state == RALLY || crt_state == UPTREND)));
 }
 
 /* TODO: handle the case when there are two pivots in the same day */
 
 void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
-    jl_record_ptr jlns = &(jl->recs[jlr->lns]);
+    jl_record_ptr jlns = (jlr->lns > -1)? &(jl->recs[jlr->lns]): NULL;
     int crt_s = jl_primary(jlr->state)? jlr->state: jlr->state2;
-    bool lns_s2 = jl_primary(jlns->state2);
-    int lns_s = lns_s2? jlns->state2: jlns->state;
-    if ((jl_up(crt_s) && jl_down(lns_s)) || (jl_down(crt_s) && jl_up(lns_s))) {
-	if (lns_s2)
-	    jlns->pivot2 = true;
-	else
-	    jlns->pivot = true;
+    if (jlns != NULL) {
+	bool p2 = jl_primary(jlns->state2);
+	int lns_s = p2? jlns->state2: jlns->state;
+	if (jl_is_pivot(crt_s, lns_s)) {
+	    if (p2)
+		jlns->pivot2 = true;
+	    else
+		jlns->pivot = true;
+	    jl_add_pivot(jl->pivots, jl->data->data[jlr->lns].date, 
+			 p2? jlns->state2: jlns->state,
+			 p2? jlns->price2: jlns->price, jlns->rg);
+	}
+    }
+    if (jl_is_pivot(jlr->state, jlr->state2)) {
+	jlr->pivot = true;
+	jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
+	strcpy(piv->date, jl->data->data[ix].date);
+	piv->state = jlr->state;
+	piv->price = jlr->price;
+	piv->rg = jlr->rg;
+	jl_add_pivot(jl->pivots, jl->data->data[ix].date, jlr->state, 
+		     jlr->price, jlr->rg);
     }
     jlr->lns = ix;
 }
@@ -202,6 +216,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
     daily_record_ptr sr = &(jl->data->data[ix]);
     jl_record_ptr jlr = &(jl->recs[ix]);
+    fprintf(stderr, "upstate = %d, downstate = %d, NONE = %d\n", upstate, downstate, NONE);
     if (upstate != NONE && downstate != NONE) {
 	if (2 * sr->close < sr->high + sr->low) {
 	    jlr->state = upstate;
@@ -238,10 +253,13 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->size = data->num_recs;
     jl->factor = factor;
     jl->pos = 0;
+    jl->window = window;
     jl->last = (jl_last_ptr) malloc(sizeof(jl_last));
     jl->last->price = (jl->last->prim_price = -1);
     jl->last->state = (jl->last->prim_state = NONE);
     jl->rgs = (int *) calloc(window, sizeof(int));
+    jl->num_pivots = 0;
+    jl->pivots = NULL;
     int max = 0, max_ix, min = 2000000000, min_ix;
     ts_set_day(data, data->data[window - 1].date, 0);
     for(int ix = 0; ix < window; ix++) {
@@ -530,7 +548,7 @@ void jl_print_rec(int state, int price, bool pivot) {
 
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
-    while(strcmp(jl->data->data[jl->pos].date, end_date) > 0)
+    while(strcmp(jl->data->data[jl->pos].date, end_date) <= 0)
 	jl_next(jl);
     return jl;
 }
