@@ -113,7 +113,8 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	    sum_rg += jl->rgs[ixx];
 	jlr->rg = sum_rg / jl->window;
     } else { /* ix >= jl->window */
-	jlr->rg = jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window];
+	jlr->rg = (jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window]) / 
+	    jl->window;
 	jl->rgs[ix % jl->window] = rg;
     }
 }
@@ -213,12 +214,48 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jlr->lns = ix;
 }
 
+char* jl_state_to_string(int state) {
+    static char _retval[4];
+    switch(state) {
+    case S_RALLY:
+	strcpy(_retval, "SRa");
+	break;
+    case RALLY:
+	strcpy(_retval, "NRa");
+	break;
+    case UPTREND:
+	strcpy(_retval, "UT");
+	break;
+    case DOWNTREND:
+	strcpy(_retval, "DT");
+	break;
+    case REACTION:
+	strcpy(_retval, "NRe");
+	break;
+    case S_REACTION:
+	strcpy(_retval, "SRe");
+	break;
+    case M_RALLY:
+	strcpy(_retval, "MRa");
+	break;
+    case M_REACTION:
+	strcpy(_retval, "MRe");
+	break;
+    default:
+	strcpy(_retval, "Nil");
+	break;
+    }
+    return _retval;
+}
+
 void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
     daily_record_ptr sr = &(jl->data->data[ix]);
     jl_record_ptr jlr = &(jl->recs[ix]);
+#ifdef DEBUG
     fprintf(stderr, "%s: upstate = %d, downstate = %d\n", 
 	    jl->data->data[ix].date, upstate, downstate);
+#endif
     if (upstate != NONE && downstate != NONE) {
 	if (2 * sr->close < sr->high + sr->low) {
 	    jlr->state = upstate;
@@ -244,6 +281,24 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	    jl_update_lns_and_pivots(jl, ix);
     }
     jl->pos++;
+#ifdef DEBUG
+	fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
+		jlr->lns, jlr->ls, jlr->rg);
+	fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
+		jl->last->prim_price, 
+		jl_state_to_string(jl->last->prim_state), 
+		jl->last->price, jl_state_to_string(jl->last->state));
+	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+		jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
+		jl_state_to_string(RALLY), jl->lp[RALLY],
+		jl_state_to_string(UPTREND), jl->lp[UPTREND],
+		jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
+	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+		jl_state_to_string(REACTION), jl->lp[REACTION],
+		jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
+		jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
+		jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
+#endif
 }
 
 jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
@@ -254,7 +309,7 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->recs = (jl_record_ptr) calloc(data->num_recs, sizeof(jl_record));
     jl->size = data->num_recs;
     jl->factor = factor;
-    jl->pos = 0;
+    jl->pos = -1;
     jl->window = window;
     jl->last = (jl_last_ptr) malloc(sizeof(jl_last));
     jl->last->price = (jl->last->prim_price = -1);
@@ -440,7 +495,6 @@ int jl_next(jl_data_ptr jl) {
     if (jl->pos >= jl->size)
 	return -1;
     ts_next(jl->data);
-    jl->pos++;
     ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
     if (split != NULL) 
 	jl_split_adjust(jl, split);
@@ -471,40 +525,6 @@ int jl_next(jl_data_ptr jl) {
     }
     return 0;
 } 
-
-char* jl_state_to_string(int state) {
-    static char _retval[4];
-    switch(state) {
-    case S_RALLY:
-	strcpy(_retval, "SRa");
-	break;
-    case RALLY:
-	strcpy(_retval, "NRa");
-	break;
-    case UPTREND:
-	strcpy(_retval, "UT");
-	break;
-    case DOWNTREND:
-	strcpy(_retval, "DT");
-	break;
-    case REACTION:
-	strcpy(_retval, "NRe");
-	break;
-    case S_REACTION:
-	strcpy(_retval, "SRe");
-	break;
-    case M_RALLY:
-	strcpy(_retval, "MRa");
-	break;
-    case M_REACTION:
-	strcpy(_retval, "MRe");
-	break;
-    default:
-	strcpy(_retval, "Nil");
-	break;
-    }
-    return _retval;
-}
 
 void jl_print_rec(int state, int price, bool pivot) {
     switch(state) {
@@ -551,6 +571,7 @@ void jl_print_rec(int state, int price, bool pivot) {
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
+    jl->pos++;
     while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1))
 	res = jl_next(jl);
     return jl;
@@ -572,23 +593,6 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	    fprintf(stderr, "%s", jl->data->data[ix].date);
 	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
 	}
-#ifdef DEBUG
-	fprintf(stderr, "%8d lns = %5d, ls = %5d\n", ix, jlr->lns, jlr->ls);
-	fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
-		jl->last->prim_price, 
-		jl_state_to_string(jl->last->prim_state), 
-		jl->last->price, jl_state_to_string(jl->last->state));
-	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-		jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
-		jl_state_to_string(RALLY), jl->lp[RALLY],
-		jl_state_to_string(UPTREND), jl->lp[UPTREND],
-		jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
-	fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-		jl_state_to_string(REACTION), jl->lp[REACTION],
-		jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
-		jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
-		jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
-#endif
     }
 }
 
