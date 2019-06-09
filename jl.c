@@ -7,7 +7,7 @@
 int main(int argc, char** argv) {
     char stk[16], ed[16];
     strcpy(stk, "NFLX");
-    strcpy(ed, "2019-05-24");
+    strcpy(ed, "2019-05-17");
     float factor = 1.5;
     for (int ix = 1; ix < argc; ix++) {
 	if (!strcmp(argv[ix], "-n") && (++ix < argc))
@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
 	    factor = atof(argv[ix]);
     }
     stx_data_ptr data = ts_load_stk(stk);
-    jl_data_ptr jl = jl_jl(data, "2019-05-24", factor);
+    jl_data_ptr jl = jl_jl(data, "2019-05-17", factor);
     jl_print(jl, false, false);
 /*     pivs = jl.get_num_pivots(4) */
 /*     print("4 pivs:") */
