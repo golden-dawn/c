@@ -198,7 +198,7 @@ int ht_hash(const char* s, const int a, const int m) {
 int ht_get_hash(const char* s, const int num_buckets, const int attempt) {
     int hash_a = ht_hash(s, HT_PRIME_1, num_buckets);
     int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
-#ifdef DEBUG
+#ifdef DDEBUGG
     if (attempt <= 999) 
 	LOGINFO("hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
 		hash_a, hash_b, num_buckets, attempt);
@@ -215,7 +215,7 @@ void ht_insert(hashtable_ptr ht, ht_item_ptr item) {
     int i = 1;
     while (crt_item != NULL) {
         index = ht_get_hash(item->key, ht->size, i);
-#ifdef DEBUG
+#ifdef DDEBUGG
 	LOGDEBUG("i= %d, index = %d\n", i, index);
 #endif
         crt_item = ht->items[index];
@@ -254,20 +254,20 @@ hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
 
 hashtable_ptr ht_divis(PGresult* res) {
     int num = PQntuples(res);
-#ifdef DEBUG
+#ifdef DDEBUGG
     LOGDEBUG("Found %d records\n", num);
 #endif
     ht_item_ptr list = NULL;
     if (num > 0) {
 	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
 	for(int ix = 0; ix < num; ix++) {
-#ifdef DEBUG
+#ifdef DDEBUGG
 	    LOGDEBUG("ix = %d\n", ix);
 #endif
 	    float ratio = atof(PQgetvalue(res, ix, 0));
 	    char* dt = PQgetvalue(res, ix, 1);
 	    ht_new_divi(list + ix, dt, ratio);
-#ifdef DEBUG
+#ifdef DDEBUGG
 	    LOGDEBUG("value = %12.6f\n", ratio);
 #endif
 	}
@@ -278,20 +278,20 @@ hashtable_ptr ht_divis(PGresult* res) {
 
 hashtable_ptr ht_calendar(PGresult* res) {
     int num = PQntuples(res);
-#ifdef DEBUG
+#ifdef DDEBUGG
     LOGDEBUG("Calendar: found %d records\n", num);
 #endif
     ht_item_ptr list = NULL;
     if (num > 0) {
 	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
 	for(int ix = 0; ix < num; ix++) {
-#ifdef DEBUG
+#ifdef DDEBUGG
 	    LOGDEBUG("ix = %d\n", ix);
 #endif
 	    char* dt = PQgetvalue(res, ix, 0);
 	    int dt_info = atoi(PQgetvalue(res, ix, 1));
 	    ht_new_cal(list + ix, dt, dt_info);
-#ifdef DEBUG
+#ifdef DDEBUGG
 	    LOGDEBUG("dt=%s, is_busday=%5s, num_day=%5d, num_busday=%5d\n",
 		     dt, (dt_info > 0)? "true": "false", 
 		     abs(dt_info) & 0xffff, (abs(dt_info) >> 16) & 0x7fff);
@@ -310,12 +310,12 @@ int ht_seq_index(hashtable_ptr ht, char* date) {
     if (strcmp(date, ht->list[ht->count - 1].key) > 0)
 	return ht->count - 1;
     int i = 0, j = ht->count - 1, mid = (i + j) / 2, cmp;
-#ifdef DEBUG
+#ifdef DDEBUGG
     LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
 #endif
     while(i <= j) {
 	cmp = strcmp(date, ht->list[mid].key);
-#ifdef DEBUG
+#ifdef DDEBUGG
 	LOGDEBUG("cmp = %d, date = %s, ht->list[mid].key = %s\n", 
 		 cmp, date, ht->list[mid].key);
 #endif
@@ -326,7 +326,7 @@ int ht_seq_index(hashtable_ptr ht, char* date) {
 	else
 	    return mid;
 	mid = (i + j) / 2;
-#ifdef DEBUG
+#ifdef DDEBUGG
 	LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
 #endif
     }
