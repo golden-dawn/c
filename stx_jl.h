@@ -498,7 +498,7 @@ int jl_next(jl_data_ptr jl) {
     ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
     if (split != NULL) 
 	jl_split_adjust(jl, split);
-    int factor = (int) (jl->factor * jl->recs[jl->pos].rg);
+    int factor = (int) (jl->factor * jl->recs[jl->pos - 1].rg);
     switch(jl->last->state) {
     case S_RALLY:
 	jl_sra(jl, factor);
@@ -586,7 +586,7 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
 	    continue;	
 	if (!print_pivots_only || jlr->pivot) {
-	    fprintf(stderr, "%s", jl->data->data[ix].date);
+	    fprintf(stderr, "%8d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
 	}
 	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2)) {
