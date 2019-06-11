@@ -103,19 +103,14 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	jlr->ls = -1;
     }
     int rg = ts_true_range(jl->data, ix);
-    if(ix < jl->window - 1) {
+    jl->rgs[ix % jl->window] = rg;
+    if(ix < jl->window - 1)
 	jlr->rg = 0;
-	jl->rgs[ix % jl->window] = rg;
-    } else if(ix == jl->window - 1) {
-	jl->rgs[ix % jl->window] = rg;
+    else {
 	int sum_rg = 0;
 	for (int ixx = 0; ixx < jl->window; ixx++)
 	    sum_rg += jl->rgs[ixx];
 	jlr->rg = sum_rg / jl->window;
-    } else { /* ix >= jl->window */
-	jlr->rg = (jl->window * jlr_1->rg + rg - jl->rgs[ix % jl->window]) / 
-	    jl->window;
-	jl->rgs[ix % jl->window] = rg;
     }
 }
 
@@ -177,8 +172,8 @@ jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state,
 bool jl_is_pivot(int prev_state, int crt_state) {
     return (((prev_state == REACTION || prev_state == DOWNTREND) &&
 	     (crt_state == RALLY || crt_state == UPTREND)) ||
-	    ((prev_state == REACTION || prev_state == DOWNTREND) &&
-	     (crt_state == RALLY || crt_state == UPTREND)));
+	    ((crt_state == REACTION || crt_state == DOWNTREND) &&
+	     (prev_state == RALLY || prev_state == UPTREND)));
 }
 
 /* TODO: handle the case when there are two pivots in the same day */
@@ -190,7 +185,7 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     if (jlns != NULL) {
 	bool p2 = jl_primary(jlns->state2);
 	int lns_s = p2? jlns->state2: jlns->state;
-	if (jl_is_pivot(crt_s, lns_s)) {
+	if (jl_is_pivot(lns_s, crt_s)) {
 	    if (p2)
 		jlns->pivot2 = true;
 	    else
@@ -284,6 +279,9 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 #ifdef DEBUG
 	fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
 		jlr->lns, jlr->ls, jlr->rg);
+	for(int ixxx = 0; ixxx < jl->window; ixxx++)
+	    fprintf(stderr, "%6d ", jl->rgs[ixxx]);
+	fprintf(stderr, "\n");
 	fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
 		jl->last->prim_price, 
 		jl_state_to_string(jl->last->prim_state), 
