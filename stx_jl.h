@@ -575,6 +575,19 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     return jl;
 }
 
+/* jl_pivot_ptr jl_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) { */
+void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
+    int n = num_pivs;
+    jl_pivot_ptr crs = jl->pivots;
+    while((n > 0) && (crs!= NULL) && (crs->next != NULL)) {
+	fprintf(stderr, "%s: %d, %8d\n", crs->date, crs->state, crs->price);
+	crs = crs->next;
+	n--;
+    }
+    *piv_num = (num_pivs - n);
+    
+}
+
 void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
     int last_piv = ts_find_date_record(jl->data, jl->pivots->date, 0);
     for(int ix = 0; ix <= jl->pos; ix++) {
