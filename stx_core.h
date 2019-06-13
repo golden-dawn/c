@@ -425,4 +425,40 @@ int cal_prev_bday(int crt_ix, char** prev_date) {
     return prev_ix;
 }
 
+int cal_expiry(int ix, int num_months, char** exp_date) {
+    int day_of_week = ix % 7;
+    int day_of_month = atoi(&(cal_get()->list[ix].key[8]));
+    int week_num = 1 + (day_of_month - 1) / 7;
+    
+/*     static public String getMonthlyExpiration( String date) { */
+/*         int dwk= dow( date); */
+/*         String exp_date= moveWeekDays( date, 5- dwk); */
+/*         int week_num = 1 + (Integer.parseInt(exp_date.substring(8)) - 1) / 7; */
+/*         if(week_num < 3) */
+/*             exp_date= moveWeekDays( exp_date, 5* ( 3- week_num)); */
+/*         else if( week_num> 3) { */
+/*             while( month( date)== month( exp_date)) */
+/*                 exp_date= moveWeekDays( exp_date, 5); */
+/*             exp_date= moveWeekDays( exp_date, 10); */
+/*         } */
+/*         if( cmp( exp_date, "2015-01-17")>= 0) */
+/* 	    exp_date= moveDays( exp_date, 1); */
+/* 	else { */
+/*             if( !isBusDay( exp_date)) exp_date= prevBusDay( exp_date);	     */
+/* 	} */
+/*         return exp_date; */
+/*     } */
+/*     static public String getMonthlyExpiration(String date, int num_months) { */
+/*         String exp_date = getMonthlyExpiration(date); */
+/*         boolean one_month = ( num_months == 1); */
+/*         while(num_months > 1) { */
+/*             exp_date = moveWeekDays(exp_date, 10); */
+/* 	    exp_date = getMonthlyExpiration(exp_date); */
+/*             --num_months; */
+/*         } */
+/*         // if(one_month == false && (cmp(exp_date, "2015-01-17") >= 0)) */
+/*         //     exp_date = StxCal.moveDays(exp_date, 1); */
+/*         return exp_date; */
+/*     } */
+}
 #endif
