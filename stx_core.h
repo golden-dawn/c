@@ -425,7 +425,7 @@ int cal_prev_bday(int crt_ix, char** prev_date) {
     return prev_ix;
 }
 
-int cal_expiry(int ix, int num_months, char** exp_date) {
+int cal_expiry(int ix, char** exp_date) {
     char *crt_date = &(cal_get()->list[ix].key[0]), tmp[16];
     int bix = cal_get()->list[ix].val.cal->is_busday? ix:
 	cal_next_bday(ix, &crt_date);
