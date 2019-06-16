@@ -1,3 +1,6 @@
+#ifndef __STX_ANA_H__
+#define __STX_ANA_H__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,8 +72,4 @@ void intraday_analysis() {
      **/
 }
 
-
-int main(int argc, char** argv) {
-    char* dt = "2019-05-17";
-    expiry_analysis(dt);
-}
+#endif
