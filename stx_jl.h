@@ -601,31 +601,9 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
 	}
 	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2)) {
-	    fprintf(stderr, "%s", jl->data->data[ix].date);
+	    fprintf(stderr, "%8d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
 	}
     }
 }
-
-
-/*     def get_num_pivots(self, num_pivs): */
-/*         ixx = -1 */
-/*         end = -len(self.jl_recs) */
-/*         pivs = [] */
-/*         while len(pivs) < num_pivs and ixx >= end: */
-/*             jlr = self.jl_recs[ixx] */
-/*             if jlr[self.col_ix['pivot2']] == 1: */
-/*                 pivs.append(JLPivot(jlr[self.col_ix['dt']], */
-/*                                     jlr[self.col_ix['state2']], */
-/*                                     jlr[self.col_ix['price2']], */
-/*                                     jlr[self.col_ix['rg']])) */
-/*             if len(pivs) < num_pivs and jlr[self.col_ix['pivot']] == 1: */
-/*                 pivs.append(JLPivot(jlr[self.col_ix['dt']], */
-/*                                     jlr[self.col_ix['state']], */
-/*                                     jlr[self.col_ix['price']], */
-/*                                     jlr[self.col_ix['rg']])) */
-/*             ixx -= 1 */
-/*         pivs.reverse() */
-/*         return pivs */
-
 #endif
