@@ -203,4 +203,31 @@ int main(int argc, char** argv) {
     printf(GRN "green\n" RESET);
     printf(PRED "pivot-red\n" RESET);
     printf(PGRN "pivot-green\n" RESET);
+
+    char* dt = "2019-06-14";
+    char* exp_date;
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2019-06-21"));
+    dt = "2019-06-21";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2019-06-21"));
+    dt = "2019-06-22";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2019-07-19"));
+    dt = "2019-04-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2019-04-18"));
+    dt = "2015-01-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2015-01-17"));
+    dt = "2015-02-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2015-02-20"));
+
 }
