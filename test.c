@@ -229,5 +229,17 @@ int main(int argc, char** argv) {
     cal_expiry(cal_ix(dt), &exp_date);
     printf("%s: exp_date = %s\n", dt, exp_date);
     assert(!strcmp(exp_date, "2015-02-20"));
+    dt = "2002-01-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2002-01-19"));
+    dt = "2002-02-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2002-02-16"));
+    dt = "2002-03-01";
+    cal_expiry(cal_ix(dt), &exp_date);
+    printf("%s: exp_date = %s\n", dt, exp_date);
+    assert(!strcmp(exp_date, "2002-03-16"));
 
 }
