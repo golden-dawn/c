@@ -53,3 +53,6 @@ dkms.conf
 
 # Emacs backup files
 *~
+
+# Ignore "scratch" C file t.c
+t.c
