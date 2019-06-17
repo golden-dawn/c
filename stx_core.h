@@ -470,4 +470,13 @@ int cal_prev_expiry(int ix, char** prev_exp_date) {
     int next_ix = cal_expiry(ix, prev_exp_date);
     return cal_expiry(next_ix - 40, prev_exp_date);
 }
+
+int cal_exp_bday(int exp_ix, char** exp_bdate) {
+    int res = exp_ix;
+    if(!cal_get()->list[exp_ix].val.cal->is_busday)
+	res = cal_prev_bday(exp_ix, exp_bdate);
+    else
+	*exp_bdate = &(cal_get()->list[exp_ix].key[0]);
+    return res;
+}
 #endif
