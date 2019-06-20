@@ -1,12 +1,42 @@
 #ifndef __STX_ANA_H__
 #define __STX_ANA_H__
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <libpq-fe.h>
 #include "stx_core.h"
 #include "stx_ts.h"
+
+#define AVG_DAYS 50
+
+/** 
+    This function returns the average option spread for stocks that are
+    leaders, or -1, if the stock is not a leader. 
+**/
+int is_leader(stx_data_ptr data, char* as_of_date) {
+    /** 
+	A stock is a leader at a given date if:
+	1. Its average activity is above a threshold.
+	2. Its average range is above a threshold.
+	3. It has call and put options for that date, expiring in one month,
+	4. For both calls and puts, it has at least 3 strikes >= spot, and
+	   3 strikes <= spot
+     **/
+    ts_set_day(data, as_of_date, 0);
+    if (data->pos < AVG_DAYS - 1)
+	return -1;
+    int avg_act = 0, avg_rg = 0;
+    for(int ix = ts->pos - AVG_DAYS + 1; ix < ts->pos; ix++) {
+	avg_act += (data->data[ix].close * data->data[ix].volume);
+	avg_rg += ts_true_range(data, ix);
+    }
+    avg_act /= AVG_DAYS;
+    avg_rg /= AVG_DAYS;
+
+}
+
 
 void expiry_analysis(char* dt) {
     /** 
