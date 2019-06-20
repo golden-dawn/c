@@ -10,6 +10,8 @@
 #include "stx_ts.h"
 
 #define AVG_DAYS 50
+#define MIN_ACT 80000
+#define MIN_RCR 15
 
 /** 
     This function returns the average option spread for stocks that are
@@ -34,6 +36,22 @@ int is_leader(stx_data_ptr data, char* as_of_date) {
     }
     avg_act /= AVG_DAYS;
     avg_rg /= AVG_DAYS;
+    if ((avg_act < MIN_ACT) || 
+	((1000 * avg_rg / data->data[ix].close) < MIN_RCR))
+	return -1;
+    char* exp;
+    cal_expiry(cal_ix(as_of_date)+ 5, &exp);
+    /** TODO: handle historical tickers **/
+    char sql_cmd[256];
+    sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and dt='%s'",
+	    data->stk, as_of_date);
+    PGresult* res = db_query(sql_cmd);
+    if (PQntuples(res) != 1)
+	return -1;;
+    int spot = atoi(PQgetvalue(res, 0, 0));
+    PQclear(res);
+    sprintf(sql_cmd, "select cp, strike, bid, ask fron options where und='%s' and dt='%s' and exp='%s' order by cp, strike",
+	    data->stk, as_of_date);
 
 }
 
