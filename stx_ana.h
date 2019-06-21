@@ -13,6 +13,54 @@
 #define MIN_ACT 80000
 #define MIN_RCR 15
 
+
+int ana_calc_spread(PGresult* sql_res, int spot) {
+    int itm_calls = 0, otm_calls = 0, itm_puts = 0, otm_puts = 0;
+    int avg_spread = 0, bid, ask, strike, num_calls = 0, num_puts = 0;
+    char* cp;
+    bool call_atm = false, put_atm = false;
+    int num = PQntuples(sql_res), num_spreads = 0;
+    for(int ix = 0; ix < num; ix++) {
+	cp = PQgetvalue(sql_res, ix, 0);
+	strike = atoi(PQgetvalue(sql_res, ix, 1));
+	if (!strcmp(cp, "c")) {
+	    num_calls++;
+	    if (strike < spot) itm_calls++;
+	    if (strike == spot) { itm_calls++; otm_calls++; call_atm = true; }
+	    if (strike > spot) otm_calls++;
+	} else {
+	    num_puts++;
+	    if (strike < spot) otm_puts++;
+	    if (strike == spot) { itm_puts++; otm_puts++; put_atm = true; }
+	    if (strike > spot) itm_puts++;
+	}
+    }
+    if ((itm_calls < 2) || (otm_calls < 2) || (itm_puts < 2) || (otm_puts < 2))
+	return -1;
+    for(int ix = itm_calls - 2; ix < itm_calls; ix++) {
+	num_spreads++;
+	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	avg_spread += (100 - 100 * bid / ask);
+    }
+    for(int ix = itm_calls; ix < itm_calls + (call_atm? 1: 2); ix++) {
+	num_spreads++;
+	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	avg_spread += (100 - 100 * bid / ask);
+    }
+    for(int ix = num_calls + otm_puts - 2; ix < num_calls + otm_puts; ix++) {
+	num_spreads++;
+	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	avg_spread += (100 - 100 * bid / ask);
+    }
+    for(int ix = num_calls + otm_puts; 
+	ix < num_calls + otm_puts + (put_atm? 1: 2); ix++) {
+	num_spreads++;
+	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	avg_spread += (100 - 100 * bid / ask);
+    }
+    return avg_spread / num_spreads;
+}
+
 /** 
     This function returns the average option spread for stocks that are
     leaders, or -1, if the stock is not a leader. 
@@ -23,8 +71,8 @@ int is_leader(stx_data_ptr data, char* as_of_date) {
 	1. Its average activity is above a threshold.
 	2. Its average range is above a threshold.
 	3. It has call and put options for that date, expiring in one month,
-	4. For both calls and puts, it has at least 3 strikes >= spot, and
-	   3 strikes <= spot
+	4. For both calls and puts, it has at least 2 strikes >= spot, and
+	   2 strikes <= spot
      **/
     ts_set_day(data, as_of_date, 0);
     if (data->pos < AVG_DAYS - 1)
@@ -46,13 +94,24 @@ int is_leader(stx_data_ptr data, char* as_of_date) {
     sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and dt='%s'",
 	    data->stk, as_of_date);
     PGresult* res = db_query(sql_cmd);
-    if (PQntuples(res) != 1)
-	return -1;;
+    if (PQntuples(res) != 1) {
+	PQclear(res);
+	return -1;
+    }
     int spot = atoi(PQgetvalue(res, 0, 0));
     PQclear(res);
-    sprintf(sql_cmd, "select cp, strike, bid, ask fron options where und='%s' and dt='%s' and exp='%s' order by cp, strike",
-	    data->stk, as_of_date);
-
+    sprintf(sql_cmd, "select cp, strike, bid, ask fron options where "
+	    "und='%s' and dt='%s' and exp='%s' order by cp, strike",
+	    data->stk, as_of_date, exp);
+    res = db_query(sql_cmd);
+    int num = PQntuples(res);
+    if (num < 5) {
+	PQclear(res);
+	return -1;
+    }
+    int avg_spread = ana_calc_spread(res, spot);
+    PQclear(res);
+    return avg_spread;
 }
 
 
