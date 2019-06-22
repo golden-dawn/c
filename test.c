@@ -6,6 +6,7 @@
 #include <time.h>
 #include "stx_core.h"
 #include "stx_ts.h"
+#include "stx_ana.h"
 
 #define RED   "\x1B[31m"
 #define GRN   "\x1B[32m"
@@ -242,4 +243,16 @@ int main(int argc, char** argv) {
     printf("%s: exp_date = %s\n", dt, exp_date);
     assert(!strcmp(exp_date, "2002-03-16"));
 
+    data = ts_load_stk("VLO");
+    ldr_ptr leader = ana_leader(data, "2002-02-15");
+    fprintf(stderr, "opt_spread = %d\n", leader->opt_spread);
+    ts_free_data(data);
+    assert(leader->opt_spread == 16);
+    free(leader);
+    data = ts_load_stk("A");
+    leader = ana_leader(data, "2002-02-15");
+    fprintf(stderr, "opt_spread = %d\n", leader->opt_spread);
+    ts_free_data(data);
+    assert(leader->opt_spread == 33);
+    free(leader);
 }
