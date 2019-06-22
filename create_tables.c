@@ -131,11 +131,11 @@ int main() {
     char* create_ldrs = "CREATE TABLE leaders( "	 \
 	"expiry DATE NOT NULL, "			 \
 	"stk VARCHAR(16) NOT NULL, "			 \
-	"dt DATE NOT NULL, "				 \
 	"activity INTEGER, "				 \
+	"range_ratio INTEGER, "				 \
 	"opt_spread INTEGER, "				 \
 	"atm_price INTEGER, "				 \
-	"PRIMARY KEY(expiry, stk, dt))";
+	"PRIMARY KEY(expiry, stk))";
     create_table_if_missing(cnx, "leaders", create_ldrs);
     char* create_ldrs_stk_idx = "CREATE INDEX leaders_stk_idx ON " \
 	"leaders(stk)";
