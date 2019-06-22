@@ -13,6 +13,13 @@
 #define MIN_ACT 80000
 #define MIN_RCR 15
 
+typedef struct ldr_t {
+    int activity;
+    int range_ratio;
+    int opt_spread;
+    int atm_price;
+    bool is_ldr;
+} ldr, *ldr_ptr;
 
 int ana_calc_spread(PGresult* sql_res, int spot) {
     int itm_calls = 0, otm_calls = 0, itm_puts = 0, otm_puts = 0;
@@ -39,23 +46,27 @@ int ana_calc_spread(PGresult* sql_res, int spot) {
 	return -1;
     for(int ix = itm_calls - 2; ix < itm_calls; ix++) {
 	num_spreads++;
-	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	int bid = atoi(PQgetvalue(sql_res, ix, 2));
+	int ask = atoi(PQgetvalue(sql_res, ix, 3));
 	avg_spread += (100 - 100 * bid / ask);
     }
     for(int ix = itm_calls; ix < itm_calls + (call_atm? 1: 2); ix++) {
 	num_spreads++;
-	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	int bid = atoi(PQgetvalue(sql_res, ix, 2));
+	int ask = atoi(PQgetvalue(sql_res, ix, 3));
 	avg_spread += (100 - 100 * bid / ask);
     }
     for(int ix = num_calls + otm_puts - 2; ix < num_calls + otm_puts; ix++) {
 	num_spreads++;
-	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	int bid = atoi(PQgetvalue(sql_res, ix, 2));
+	int ask = atoi(PQgetvalue(sql_res, ix, 3));
 	avg_spread += (100 - 100 * bid / ask);
     }
     for(int ix = num_calls + otm_puts; 
 	ix < num_calls + otm_puts + (put_atm? 1: 2); ix++) {
 	num_spreads++;
-	int bid = PQgetvalue(sql_res, ix, 2), ask = PQgetvalue(sql_res, ix, 3);
+	int bid = atoi(PQgetvalue(sql_res, ix, 2));
+	int ask = atoi(PQgetvalue(sql_res, ix, 3));
 	avg_spread += (100 - 100 * bid / ask);
     }
     return avg_spread / num_spreads;
@@ -65,7 +76,7 @@ int ana_calc_spread(PGresult* sql_res, int spot) {
     This function returns the average option spread for stocks that are
     leaders, or -1, if the stock is not a leader. 
 **/
-int is_leader(stx_data_ptr data, char* as_of_date) {
+ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date) {
     /** 
 	A stock is a leader at a given date if:
 	1. Its average activity is above a threshold.
@@ -74,44 +85,56 @@ int is_leader(stx_data_ptr data, char* as_of_date) {
 	4. For both calls and puts, it has at least 2 strikes >= spot, and
 	   2 strikes <= spot
      **/
+    ldr_ptr leader = (ldr_ptr) calloc((size_t)1, sizeof(ldr));
+    leader->is_ldr = false;
     ts_set_day(data, as_of_date, 0);
     if (data->pos < AVG_DAYS - 1)
-	return -1;
+	return leader;
     int avg_act = 0, avg_rg = 0;
-    for(int ix = ts->pos - AVG_DAYS + 1; ix < ts->pos; ix++) {
+    for(int ix = data->pos - AVG_DAYS + 1; ix < data->pos; ix++) {
 	avg_act += (data->data[ix].close * data->data[ix].volume);
 	avg_rg += ts_true_range(data, ix);
     }
     avg_act /= AVG_DAYS;
     avg_rg /= AVG_DAYS;
+    leader->activity = avg_act;
+    leader->range_ratio = avg_rg;
     if ((avg_act < MIN_ACT) || 
-	((1000 * avg_rg / data->data[ix].close) < MIN_RCR))
-	return -1;
-    char* exp;
+	((1000 * avg_rg / data->data[data->pos].close) < MIN_RCR))
+	return leader;
+    char *exp, und[16];
+    strcpy(und, data->stk);
+    char* dot = strchr(und, '.');
+    if(dot != NULL) {
+	if (( '0' <= *(dot + 1)) && (*(dot + 1)<= '9'))
+            *dot = '\0';
+    }
     cal_expiry(cal_ix(as_of_date)+ 5, &exp);
-    /** TODO: handle historical tickers **/
     char sql_cmd[256];
     sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and dt='%s'",
-	    data->stk, as_of_date);
+	    und, as_of_date);
     PGresult* res = db_query(sql_cmd);
     if (PQntuples(res) != 1) {
 	PQclear(res);
-	return -1;
+	return leader;
     }
     int spot = atoi(PQgetvalue(res, 0, 0));
     PQclear(res);
-    sprintf(sql_cmd, "select cp, strike, bid, ask fron options where "
-	    "und='%s' and dt='%s' and exp='%s' order by cp, strike",
-	    data->stk, as_of_date, exp);
+    sprintf(sql_cmd, "select cp, strike, bid, ask from options where "
+	    "und='%s' and dt='%s' and expiry='%s' order by cp, strike",
+	    und, as_of_date, exp);
     res = db_query(sql_cmd);
     int num = PQntuples(res);
     if (num < 5) {
 	PQclear(res);
-	return -1;
+	return leader;
     }
     int avg_spread = ana_calc_spread(res, spot);
     PQclear(res);
-    return avg_spread;
+    leader->opt_spread = avg_spread;
+    if (avg_spread >= 0)
+	leader->is_ldr = true;
+    return leader;
 }
 
 
