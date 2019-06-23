@@ -21,6 +21,14 @@ typedef struct ldr_t {
     bool is_ldr;
 } ldr, *ldr_ptr;
 
+static hashtable_ptr stx_data = NULL;
+
+hashtable_ptr ana_data() {
+    if (stx_data == NULL) 
+	stx_data = ht_new(NULL, 20000);
+    return stx_data;
+} 
+
 int ana_calc_spread(PGresult* sql_res, int spot) {
     int itm_calls = 0, otm_calls = 0, itm_puts = 0, otm_puts = 0;
     int avg_spread = 0, bid, ask, strike, num_calls = 0, num_puts = 0;
@@ -138,7 +146,7 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date) {
 }
 
 
-void expiry_analysis(char* dt) {
+void ana_expiry_analysis(char* dt) {
     /** 
      * special case when the date is an option expiry date
      * if the data is NULL, only run for the most recent business day
@@ -151,12 +159,8 @@ void expiry_analysis(char* dt) {
     /* 1. Get all the stocks as of a given date */
     LOGINFO("started expiry_analysis\n");
     char sql_cmd[128];
-    strcpy(sql_cmd, "explain analyze select * from eods");
-    PGresult *all_res = db_query(sql_cmd);
-    PQclear(all_res);
-    LOGINFO("got all records from eods\n");
-    sprintf(sql_cmd, "select distinct stk from eods where dt='%s' and "
-	    "c*(v/100)>10", dt);
+    sprintf(sql_cmd, "select distinct stk from eods where dt='%s' and stk not "
+	    "like '#%' and stk not like '^*' and (c/100)*(v/100)>100", dt);
     PGresult *res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows <= 0) {
