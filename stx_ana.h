@@ -21,12 +21,12 @@ typedef struct ldr_t {
     bool is_ldr;
 } ldr, *ldr_ptr;
 
-static hashtable_ptr stx_data = NULL;
+static hashtable_ptr stx = NULL;
 
 hashtable_ptr ana_data() {
-    if (stx_data == NULL) 
-	stx_data = ht_new(NULL, 20000);
-    return stx_data;
+    if (stx == NULL) 
+	stx = ht_new(NULL, 20000);
+    return stx;
 } 
 
 int ana_calc_spread(PGresult* sql_res, int spot) {
