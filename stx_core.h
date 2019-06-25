@@ -85,35 +85,31 @@ PGresult* db_query(char* sql_cmd) {
 }
 
 
-void db_upload_file(char* sql_cmd) {
+bool db_upload_file(char* table_name, char* file_name) {
     db_connect();
-
-     const char *errmsg;
-     PGconn     *conn;
-     PGresult   *res;
-     int a,b; // <<--
-
-     char buffer[] = "key1\tcol11\tcol12";
-
-
-     errmsg = NULL;      // << HERE
-     res = PQexec(conn, sql_cmd);
-     a = PQputCopyData(conn, buffer, strlen(buffer) );
-     b = PQputCopyEnd(conn, errmsg);
-
-     printf("Res=%p a=%d,b=%d\n", res, a, b);
-
-     if (errmsg )
-	 printf("Failed:%s\n", errmsg);
-     else
-	 printf("worked.\n");
-
-     res = PQexec(conn, "COMMIT;");      // <<-- HERE
-
-     /* close the connection to the database and cleanup */
-     PQfinish(conn);
-
-     return 0;
+    char sql_cmd[128];
+    sprintf(sql_cmd, "COPY %s FROM '%s'", table_name, file_name);
+    PGresult *res;
+    bool success = true;
+    res = PQexec(conn, "BEGIN");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+	printf("BEGIN failed: %s\n", PQresStatus(PQresultStatus(res)));
+	success = false;
+    }
+    PQclear(res);
+    res = PQexec(conn, sql_cmd);
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+	printf("%s failed: %s\n", sql_cmd, PQresStatus(PQresultStatus(res)));
+	success = false;
+    }
+    PQclear(res);
+    res = PQexec(conn, "COMMIT");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+	printf("COMMIT failed: %s\n", PQresStatus(PQresultStatus(res)));
+	success = false;
+    }
+    PQclear(res);
+    return success;
 }
 
 
