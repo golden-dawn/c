@@ -68,6 +68,9 @@ void db_disconnect() {
 }
 
 PGresult* db_query(char* sql_cmd) {
+#ifdef DEBUG
+    LOGDEBUG("<db_query>: %s\n", sql_cmd);
+#endif
     db_connect();
     PGresult *res = PQexec(conn, sql_cmd);
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -75,8 +78,44 @@ PGresult* db_query(char* sql_cmd) {
         PQclear(res);
         do_exit(conn);
     }
+#ifdef DEBUG
+    LOGDEBUG("</db_query>: %s\n", sql_cmd);
+#endif
     return res;
 }
+
+
+void db_upload_file(char* sql_cmd) {
+    db_connect();
+
+     const char *errmsg;
+     PGconn     *conn;
+     PGresult   *res;
+     int a,b; // <<--
+
+     char buffer[] = "key1\tcol11\tcol12";
+
+
+     errmsg = NULL;      // << HERE
+     res = PQexec(conn, sql_cmd);
+     a = PQputCopyData(conn, buffer, strlen(buffer) );
+     b = PQputCopyEnd(conn, errmsg);
+
+     printf("Res=%p a=%d,b=%d\n", res, a, b);
+
+     if (errmsg )
+	 printf("Failed:%s\n", errmsg);
+     else
+	 printf("worked.\n");
+
+     res = PQexec(conn, "COMMIT;");      // <<-- HERE
+
+     /* close the connection to the database and cleanup */
+     PQfinish(conn);
+
+     return 0;
+}
+
 
 /** HASHTABLE 
 This is based on : https://github.com/jamesroutley/write-a-hash-table/
