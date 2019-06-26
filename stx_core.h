@@ -220,6 +220,12 @@ void ht_new_cal(ht_item_ptr i, const char* k, int dt_info) {
     i->val.cal->is_busday = (dt_info >= 0);
 }
 
+void ht_new_data(ht_item_ptr i, const char* k, stx_data_ptr data) {
+    strcpy(i->key, k);
+    i->item_type = DATA_HT;
+    i->val.data = data;
+}
+
 int ht_hash(const char* s, const int a, const int m) {
     long hash = 0;
     const int len_s = strlen(s);
@@ -282,8 +288,10 @@ hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
     ht->list = list;
     ht->size = next_prime(2 * num_elts);
     ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
-    for (int ix = 0; ix < num_elts; ++ix)
-	ht_insert(ht, &list[ix]);
+    if (list != NULL) {
+	for (int ix = 0; ix < num_elts; ++ix)
+	    ht_insert(ht, &list[ix]);
+    }
     return ht;
 }
 
