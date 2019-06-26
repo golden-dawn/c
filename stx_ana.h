@@ -158,9 +158,11 @@ void ana_expiry_analysis(char* dt) {
      **/
     /* 1. Get all the stocks as of a given date */
     LOGINFO("started expiry_analysis\n");
-    char sql_cmd[128];
-    sprintf(sql_cmd, "select distinct stk from eods where dt='%s' and stk not "
-	    "like '#%' and stk not like '^*' and (c/100)*(v/100)>100", dt);
+    char sql_cmd[256];
+    char *sql_1 = "select distinct stk from eods where dt='";
+    char *sql_2 = "' and stk not like '#%' and stk not like '^*' and "
+	"(c/100)*(v/100)>100";
+    sprintf(sql_cmd, "%s%s%s", sql_1, dt, sql_2);
     PGresult *res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows <= 0) {
