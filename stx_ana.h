@@ -169,9 +169,15 @@ void ana_expiry_analysis(char* dt) {
 	LOGWARN("No stocks found for %s, exiting...\n", dt);
 	return;
     }
-    char all_stx[rows][16];
-    for (int ix = 0; ix < rows; ix++)
+    for (int ix = 0; ix < rows; ix++) {
+	char stk_name[16];
+	strcpy(stk_name, PQgetvalue(res, ix, 0));
+	stx_data_ptr data = ht_get(ana_data(), stk_name);
+	if (data == NULL) {
+	    data = ts_load_stk(stk_name);
+
 	strcpy(all_stx[ix], PQgetvalue(res, ix, 0));
+    }
     LOGINFO("stored %d stocks in list\n", rows);
     PQclear(res);
 
