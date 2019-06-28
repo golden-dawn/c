@@ -397,18 +397,19 @@ void ht_print(hashtable_ptr ht) {
 void ht_free(hashtable_ptr ht) {
     if (ht == NULL) 
 	return;
-    for(int ix = 0; ix < ht->count; ix++) {
-	ht_item_ptr crs = ht->list + ix;
-	if (crs->item_type == CAL_HT)
-	    free(crs->val.cal);
-    }
     if (ht->list == NULL) {
 	for(int ix = 0; ix < ht->size; ix++) {
 	    if (ht->items[ix] != NULL)
 		free(ht->items[ix]);
 	}
-    } else
+    } else {
+	for(int ix = 0; ix < ht->count; ix++) {
+	    ht_item_ptr crs = ht->list + ix;
+	    if (crs->item_type == CAL_HT)
+		free(crs->val.cal);
+	}
 	free(ht->list);
+    }
     free(ht->items);
     free(ht);
 }
