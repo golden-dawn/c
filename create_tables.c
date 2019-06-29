@@ -168,6 +168,12 @@ int main() {
 	"PRIMARY KEY(stk))";
     create_table_if_missing(cnx, "excludes", create_excludes);
 
+    char* create_analyses = "CREATE TABLE analyses( "	 \
+	"dt DATE NOT NULL, "				 \
+	"analysis VARCHAR(32) NOT NULL, "		 \
+	"PRIMARY KEY(dt, analysis))";
+    create_table_if_missing(cnx, "analyses", create_analyses);
+
     PQfinish(cnx);
     return 0;
 }
