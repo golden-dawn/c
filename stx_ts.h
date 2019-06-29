@@ -73,9 +73,9 @@ stx_data_ptr ts_load_stk(char* stk) {
 	calix = cal_next_bday(calix, &dt);
 	char* db_date = PQgetvalue(res, ix, 5);
 	if (strcmp(dt, db_date) > 0) {
-	    LOGERROR("Something is very wrong: dt = %s, db_date = %s\n",
-		     dt, db_date);
-	    exit(-1);
+	    LOGERROR("%s: Something is very wrong: dt = %s, db_date = %s\n",
+		     stk, dt, db_date);
+	    return NULL;
 	}
 	while (strcmp(dt, db_date) < 0) {
 #ifdef DEBUG
