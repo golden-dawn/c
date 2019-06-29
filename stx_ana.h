@@ -10,7 +10,7 @@
 #include "stx_ts.h"
 
 #define AVG_DAYS 50
-#define MIN_ACT 80000
+#define MIN_ACT 8
 #define MIN_RCR 15
 
 typedef struct ldr_t {
@@ -107,15 +107,15 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
 	return leader;
     int avg_act = 0, avg_rg = 0;
     for(int ix = data->pos - AVG_DAYS + 1; ix < data->pos; ix++) {
-	avg_act += (data->data[ix].close * data->data[ix].volume);
-	avg_rg += ts_true_range(data, ix);
+	avg_act += ((data->data[ix].close / 100) * 
+		    (data->data[ix].volume / 100));
+	avg_rg += (1000 * ts_true_range(data, ix) / data->data[ix].close);
     }
     avg_act /= AVG_DAYS;
     avg_rg /= AVG_DAYS;
     leader->activity = avg_act;
     leader->range_ratio = avg_rg;
-    if ((avg_act < MIN_ACT) || 
-	((1000 * avg_rg / data->data[data->pos].close) < MIN_RCR))
+    if ((avg_act < MIN_ACT) || (avg_rg < MIN_RCR))
 	return leader;
     char und[16];
     strcpy(und, data->stk);
@@ -163,7 +163,7 @@ int ana_expiry_analysis(char* dt) {
     LOGINFO("started expiry_analysis\n");
     char sql_cmd[256];
     char *sql_1 = "select distinct stk from eods where dt='";
-    char *sql_2 = "' and stk not like '#%' and stk not like '^*' and "
+    char *sql_2 = "' and stk not like '#%' and stk not like '^%' and "
 	"(c/100)*(v/100)>100";
     sprintf(sql_cmd, "%s%s%s", sql_1, dt, sql_2);
     PGresult *res = db_query(sql_cmd);
@@ -183,6 +183,8 @@ int ana_expiry_analysis(char* dt) {
 	stx_data_ptr data = NULL;
 	if (ht_data == NULL) {
 	    data = ts_load_stk(stk);
+	    if (data == NULL)
+		continue;
 	    ht_data = ht_new_data(stk, data);
 	    ht_insert(ana_data(), ht_data);
 	} else
