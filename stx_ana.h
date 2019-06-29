@@ -154,24 +154,29 @@ int ana_expiry_analysis(char* dt) {
      * special case when the date is an option expiry date
      * if the data is NULL, only run for the most recent business day
      * 1. wait until eoddata is downloaded. 
-     * 2. calculate liquidity leaders
-     * 3. download options for all liquidity leaders
-     * 4. calculate option spread leaders
-     * 5. populate leaders table
      **/
-    /* 1. Get all the stocks as of a given date */
     LOGINFO("started expiry_analysis\n");
-    char sql_cmd[256];
+    char sql_cmd[256], *exp;
+    cal_expiry(cal_ix(dt) + 5, &exp);
+    sprintf(sql_cmd, "select * from analyses where dt='%s' and "
+	    "analysis='leaders'", dt);
+    PGresult *res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    if (rows >= 1) {
+	LOGINFO("Found %d leaders analyses for %s (expiry %s)\n", 
+		rows, dt, exp);
+	LOGINFO("Will skip leaders analyses for %s (expiry %s)\n", dt, exp);
+	return 0;
+    }
     char *sql_1 = "select distinct stk from eods where dt='";
     char *sql_2 = "' and stk not like '#%' and stk not like '^%' and "
 	"(c/100)*(v/100)>100";
     sprintf(sql_cmd, "%s%s%s", sql_1, dt, sql_2);
-    PGresult *res = db_query(sql_cmd);
-    int rows = PQntuples(res);
+    res = db_query(sql_cmd);
+    rows = PQntuples(res);
     LOGINFO("loaded %5d stocks\n", rows);
     FILE* fp = NULL;
-    char *filename = "/tmp/leaders.csv", *exp;
-    cal_expiry(cal_ix(dt) + 5, &exp);
+    char *filename = "/tmp/leaders.csv";
     if((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
 	return -1;
@@ -203,10 +208,9 @@ int ana_expiry_analysis(char* dt) {
     PQclear(res);
     db_upload_file("leaders", filename);
     LOGINFO("%s: uploaded leaders in the database as of date %s\n", exp, dt);
-    /* 2. For each stock, get the data */
-    /* 3. Set the time series to a specific date (dt) */
-    /* 4. Get all the splits up to dt */
-    /* 5. Adjust the data accordingly */
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', 'leaders')", dt);
+    db_upsert(sql_cmd);
     /* 6. Run JL on the adjusted data */
     /* 7. Run the setups */
     return 0;
