@@ -439,6 +439,8 @@ void ht_free(hashtable_ptr ht) {
 
 
 /** CALENDAR **/
+/** LOGGING Used this: https://stackoverflow.com/questions/7411301/ **/
+/* Get current time in format YYYY-MM-DD HH:MM:SS.mms */
 static hashtable_ptr cal = NULL;
 
 hashtable_ptr cal_get() {
@@ -552,6 +554,22 @@ int cal_exp_bday(int exp_ix, char** exp_bdate) {
 	res = cal_prev_bday(exp_ix, exp_bdate);
     else
 	*exp_bdate = &(cal_get()->list[exp_ix].key[0]);
+    return res;
+}
+
+char* cal_current_busdate() {
+    time_t seconds;
+    struct timespec spec;
+    char *res;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    seconds = spec.tv_sec;
+    char crt_date[12];
+    strftime(crt_date, 12, "%Y-%m-%d", localtime(&seconds));
+    int ix = cal_ix(crt_date);
+    if(!cal_get()->list[ix].val.cal->is_busday)
+	cal_prev_bday(ix, &res);
+    else
+	res = &(cal_get()->list[ix].key[0]);
     return res;
 }
 #endif
