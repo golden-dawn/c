@@ -557,15 +557,19 @@ int cal_exp_bday(int exp_ix, char** exp_bdate) {
     return res;
 }
 
-char* cal_current_busdate() {
+char* cal_current_busdate(int hr) {
     time_t seconds;
     struct timespec spec;
     char *res;
     clock_gettime(CLOCK_REALTIME, &spec);
     seconds = spec.tv_sec;
+    struct tm *ts = localtime(&seconds);
+    int hours = ts->tm_hour;
     char crt_date[12];
-    strftime(crt_date, 12, "%Y-%m-%d", localtime(&seconds));
+    strftime(crt_date, 12, "%Y-%m-%d", ts);
     int ix = cal_ix(crt_date);
+    if (hours < hr)
+	ix--;
     if(!cal_get()->list[ix].val.cal->is_busday)
 	cal_prev_bday(ix, &res);
     else
