@@ -576,4 +576,24 @@ char* cal_current_busdate(int hr) {
 	res = &(cal_get()->list[ix].key[0]);
     return res;
 }
+
+long cal_long_expiry(char* exp_dt) {
+    char *month = NULL, *day = NULL, year[16];
+    struct tm result;
+    time_t tt;
+    strcpy(year, exp_dt);
+    month = strchr(year, '-');
+    *month++ = '\0';
+    day = strchr(month, '-');
+    *day++ = '\0';
+    result.tm_mday = atoi(day);
+    result.tm_mon = atoi(month) - 1;
+    result.tm_year = atoi(year) - 1900;
+    result.tm_hour = 0;
+    result.tm_min = 0;
+    result.tm_sec = 0;
+    result.tm_isdst = 0;
+    tt = mktime(&result) - timezone;
+    return (long)tt;
+}
 #endif
