@@ -143,6 +143,8 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
 	PQclear(res);
 	return leader;
     }
+    if (!strcmp(cal_current_busdate(10), as_of_date))
+	net_get_option_data(und, as_of_date, exp);
     ana_option_analysis(leader, res, spot);
     PQclear(res);
     return leader;
