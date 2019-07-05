@@ -10,20 +10,17 @@
 #include <libpq-fe.h>
 #include "stx_core.h"
 
-#define Y_1 "https://query1.finance.yahoo.com/v7/finance/options/"
-#define Y_2 "?formatted=true&crumb=BfPVqc7QhCQ&lang=en-US&region=US&date="
-#define Y_3 "&corsDomain=finance.yahoo.com"
+#define Y_1 "https://query1.finance.yahoo.com/v7/finance"
+#define Y_2 "?formatted=true&crumb=BfPVqc7QhCQ&lang=en-US&region=US"
+#define Y_3 "?formatted=true&crumb=SCD1VzLlKv0&lang=en-US&region=US"
+#define Y_4 "&fields=regularMarketPrice,regularMarketVolume,regularMarketDayLow,regularMarketDayHigh,regularMarketOpen,"
+#define Y_5 "&corsDomain=finance.yahoo.com"
 
 typedef struct net_mem_t {
     char *memory;
     size_t size;
 } net_mem, *net_mem_ptr;
 
-struct MemoryStruct {
-    char *memory;
-    size_t size;
-};
- 
 static size_t
 WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -51,13 +48,22 @@ void net_print_json_err(cJSON *json, char* err_msg) {
     free(s_json);
 }
 
-int net_number_from_json(cJSON* json, char* name) {
+int net_number_from_json(cJSON* json, char* name, bool has_raw) {
     cJSON *num = cJSON_GetObjectItemCaseSensitive(json, name);
     char err_msg[80];
     if (num == NULL) {
 	sprintf(err_msg, "No '%s' found in 'quote'", name);
-	net_print_json_err(json, err_msg);
+	if (strcmp(name, "volume"))
+	    net_print_json_err(json, err_msg);
 	return -1;
+    }
+    if (has_raw) {
+	num = cJSON_GetObjectItemCaseSensitive(num, "raw");
+	if (num == NULL) {
+	    sprintf(err_msg, "No '%s'/'raw' found in 'quote'", name);
+	    net_print_json_err(json, err_msg);
+	    return -1;
+	}
     }
     if (!cJSON_IsNumber(num)) {
 	sprintf(err_msg, "'%s' is not a number", name);
@@ -67,10 +73,8 @@ int net_number_from_json(cJSON* json, char* name) {
     return (int)(100 * num->valuedouble);
 }
 
-net_mem_ptr net_get_quote(char* und, char* exp, long exp_ms) {
+net_mem_ptr net_get_quote(char* url) {
     net_mem_ptr chunk = (net_mem_ptr) malloc(sizeof(net_mem));
-    char yhoo_url[256];
-    sprintf(yhoo_url, "%s%s%s%ld%s", Y_1, und, Y_2, exp_ms, Y_3);
     CURL *curl_handle;
     CURLcode res;
     chunk->memory = malloc(1);  /* will be grown by the realloc above */
@@ -78,7 +82,7 @@ net_mem_ptr net_get_quote(char* und, char* exp, long exp_ms) {
     /* init the curl session */
     curl_handle = curl_easy_init();
     /* specify URL to get */
-    curl_easy_setopt(curl_handle, CURLOPT_URL, yhoo_url);
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
     /* send all data to this function */
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     /* we pass our 'chunk' struct to the callback function */
@@ -113,7 +117,7 @@ cJSON* net_parse_quote(char* buffer) {
     return json;
 }
 
-cJSON* net_navigate_to_quote(cJSON *json) {
+cJSON* net_navigate_to_opt_quote(cJSON *json) {
     cJSON *opt_chain = cJSON_GetObjectItemCaseSensitive(json, "optionChain");
     if (opt_chain == NULL) {
 	net_print_json_err(json, "No 'optionChain' found in data");
@@ -131,23 +135,37 @@ cJSON* net_navigate_to_quote(cJSON *json) {
     return cJSON_GetArrayItem(opt_result, 0);
 }
 
-int net_parse_eod(FILE *eod_fp, cJSON* opt_quote, char* stk, char* dt) {
-    cJSON *quote = cJSON_GetObjectItemCaseSensitive(opt_quote, "quote");
-    if (quote == NULL) {
-	net_print_json_err(json, "No 'quote' found in 'result'");
-	return -1;
+cJSON* net_navigate_to_eod_quote(cJSON *json) {
+    cJSON *q_resp = cJSON_GetObjectItemCaseSensitive(json, "quoteResponse");
+    if (q_resp == NULL) {
+	net_print_json_err(json, "No 'quoteResponse' found in data");
+	return NULL;
     }
-    int c = net_number_from_json(quote, "regularMarketPrice");
+    cJSON *result = cJSON_GetObjectItemCaseSensitive(q_resp, "result");
+    if (result == NULL) {
+	net_print_json_err(json, "No 'result' found in 'quoteResponse'");
+	return NULL;
+    }
+    if (!cJSON_IsArray(result)) {
+	net_print_json_err(json, "'quoteResponse'/'result' is not an array");
+	return NULL;
+    }
+    return cJSON_GetArrayItem(result, 0);
+}
+
+int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt, 
+		  bool has_raw) {
+    int c = net_number_from_json(quote, "regularMarketPrice", has_raw);
     if (c == -1)
 	return -1;
     if (eod_fp) {
-	int v = net_number_from_json(quote, "regularMarketVolume");
-	int o = net_number_from_json(quote, "regularMarketOpen");
-	int hi = net_number_from_json(quote, "regularMarketDayHigh");
-	int lo = net_number_from_json(quote, "regularMarketDayLow");
+	int v = net_number_from_json(quote, "regularMarketVolume", has_raw);
+	int o = net_number_from_json(quote, "regularMarketOpen", has_raw);
+	int hi = net_number_from_json(quote, "regularMarketDayHigh", has_raw);
+	int lo = net_number_from_json(quote, "regularMarketDayLow", has_raw);
 	if (o > 0 && hi > 0 && lo > 0 && v >= 0)
 	    fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
-		    stk, dt, o, hi, lo, c, v);
+		    stk, dt, o, hi, lo, c, v / 100000);
     }
     return c;
 }
@@ -169,38 +187,28 @@ void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
     cJSON *opt = NULL, *crs = NULL;
     cJSON_ArrayForEach(opt, opts) {
 	int volume = 0, strike, bid, ask;
-	crs = cJSON_GetObjectItemCaseSensitive(opt, "volume");
-	if (crs != NULL)
-	    volume = net_number_from_json(crs, "raw");
-	crs = cJSON_GetObjectItemCaseSensitive(opt, "strike");
-	if (crs == NULL) {
-	    net_print_json_err(opt, "No 'strike' found in option");
+	volume = net_number_from_json(opt, "volume", true);
+	if (volume == -1)
+	    volume = 0;
+	strike = net_number_from_json(opt, "strike", true);
+	if (strike == -1)
 	    continue;
-	}
-	strike = net_number_from_json(crs, "raw");
-	crs = cJSON_GetObjectItemCaseSensitive(opt, "bid");
-	if (crs == NULL) {
-	    net_print_json_err(opt, "No 'bid' found in option");
+	bid = net_number_from_json(opt, "bid", true);
+	if (bid == -1)
 	    continue;
-	}
-	bid = net_number_from_json(crs, "raw");
-	crs = cJSON_GetObjectItemCaseSensitive(opt, "ask");
-	if (crs == NULL) {
-	    net_print_json_err(opt, "No 'ask' found in option");
+	ask = net_number_from_json(opt, "ask", true);
+	if (ask == -1)
 	    continue;
-	}
-	ask = net_number_from_json(crs, "raw");
-	if (strike != -1 && bid != -1 && ask != -1)
-	    fprintf(opt_fp, "%s\t%s\t%c\t%d\t%s\t%d\t%d\t%d\t1\n",
-		    exp, und, opt_type[0], strike, bid, ask, volume);
+	fprintf(opt_fp, "%s\t%s\t%c\t%d\t%d\t%d\t%d\t1\n",
+		exp, und, opt_type[0], strike, bid, ask, volume / 100);
     }
 }
 
-void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt, 
-			 char* exp, long exp_ms, bool save_eod, 
-			 bool save_opts) {
-    LOGINFO("%s: Getting %s option data for expiry %s\n", dt, und, exp);
-    net_mem_ptr chunk = net_get_quote(und, exp, exp_ms);
+void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
+    LOGINFO("%s: Getting quote for %s\n", dt, stk);
+    char url[256];
+    sprintf(url, "%s/quote%s&symbols=%s%s%s", Y_1, Y_3, stk, Y_4, Y_5);
+    net_mem_ptr chunk = net_get_quote(url);
     if (chunk == NULL)
 	return;
     cJSON *json = net_parse_quote(chunk->memory);
@@ -209,34 +217,62 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
 	free(chunk);
 	return;
     }
-    cJSON *opt_quote = net_navigate_to_quote(json);
-    int spot = net_parse_eod(eod_fp, opt_quote, und, dt);
+    cJSON *quote = net_navigate_to_eod_quote(json);
+    if (quote == NULL)
+	net_print_json_err(json, "No 'quote' found in 'result'");
+    else
+	net_parse_eod(eod_fp, quote, stk, dt, true);
+    cJSON_Delete(json);
+    free(chunk->memory);
+    free(chunk);
+}
+
+void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt, 
+			 char* exp, long exp_ms) {
+    LOGINFO("%s: Getting %s option data for expiry %s\n", dt, und, exp);
+    char url[256];
+    sprintf(url, "%s/options/%s%s&date=%ld%s", Y_1, und, Y_2, exp_ms, Y_5);
+    net_mem_ptr chunk = net_get_quote(url);
+    if (chunk == NULL)
+	return;
+    cJSON *json = net_parse_quote(chunk->memory);
+    if (json == NULL) {
+	free(chunk->memory);
+	free(chunk);
+	return;
+    }
+    cJSON *opt_quote = net_navigate_to_opt_quote(json);
+    cJSON *quote = cJSON_GetObjectItemCaseSensitive(opt_quote, "quote");
+    if (quote == NULL) {
+	net_print_json_err(json, "No 'quote' found in 'result'");
+	goto end;
+    }
+    int spot = net_parse_eod(eod_fp, quote, und, dt, false);
     if (spot == -1)
 	goto end;
-    if (opt_fd) {
-	cJSON *opt_arr = cJSON_GetObjectItemCaseSensitive(opt_quote, "options");
-	if (opt_arr == NULL) {
-	    net_print_json_err(opt, "No 'options' found in options quote");
-	    goto end;
-	}
-	if (!cJSON_IsArray(opt_arr)) {
-	    net_print_json_err(json, "'options' is not an array");
-	    goto end;
-	}
-	cJSON *options = cJSON_GetArrayItem(opt_arr, 0);
-	net_parse_options(opt_fd, options, "calls", exp, und, dt);
-	net_parse_options(opt_fd, options, "puts", exp, und, dt);
+    cJSON *opt_arr = cJSON_GetObjectItemCaseSensitive(opt_quote, "options");
+    if (opt_arr == NULL) {
+	net_print_json_err(opt_quote, "No 'options' found in options quote");
+	goto end;
     }
-    end:
+    if (!cJSON_IsArray(opt_arr)) {
+	net_print_json_err(json, "'options' is not an array");
+	goto end;
+    }
+    cJSON *options = cJSON_GetArrayItem(opt_arr, 0);
+    net_parse_options(opt_fp, options, "calls", exp, und, dt);
+    net_parse_options(opt_fp, options, "puts", exp, und, dt);
+ end:
     cJSON_Delete(json);
     free(chunk->memory);
     free(chunk);
 }
  
-/* int main(void) { */
+/* <BEGIN> Add these two functions before and after using curlib */
+/*     /\* initialize libcurl before using it *\/  */
 /*     curl_global_init(CURL_GLOBAL_ALL); */
 /*     /\* we're done with libcurl, so clean it up *\/  */
 /*     curl_global_cleanup(); */
 /*     return 0; */
-/* } */
+/* <END> Add these two functions before and after using curlib */
 #endif
