@@ -44,13 +44,6 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
  
     return realsize;
 }
- 
-/* int main(void) { */
-/*     curl_global_init(CURL_GLOBAL_ALL); */
-/*     /\* we're done with libcurl, so clean it up *\/  */
-/*     curl_global_cleanup(); */
-/*     return 0; */
-/* } */
 
 void net_print_json_err(cJSON *json, char* err_msg) {
     char* s_json = cJSON_Print(json);
@@ -58,18 +51,17 @@ void net_print_json_err(cJSON *json, char* err_msg) {
     free(s_json);
 }
 
-/* int get_from_quote(cJSON* quote, char* param_name) { */
 int net_number_from_json(cJSON* json, char* name) {
     cJSON *num = cJSON_GetObjectItemCaseSensitive(json, name);
     char err_msg[80];
     if (num == NULL) {
 	sprintf(err_msg, "No '%s' found in 'quote'", name);
-	print_json_err(json, err_msg);
+	net_print_json_err(json, err_msg);
 	return -1;
     }
     if (!cJSON_IsNumber(num)) {
 	sprintf(err_msg, "'%s' is not a number", name);
-	print_json_err(json, err_msg);
+	net_print_json_err(json, err_msg);
 	return -1;
     }
     return (int)(100 * num->valuedouble);
@@ -124,22 +116,86 @@ cJSON* net_parse_quote(char* buffer) {
 cJSON* net_navigate_to_quote(cJSON *json) {
     cJSON *opt_chain = cJSON_GetObjectItemCaseSensitive(json, "optionChain");
     if (opt_chain == NULL) {
-	print_json_err(json, "No 'optionChain' found in data");
+	net_print_json_err(json, "No 'optionChain' found in data");
 	return NULL;
     }
     cJSON *opt_result = cJSON_GetObjectItemCaseSensitive(opt_chain, "result");
     if (opt_result == NULL) {
-	print_json_err(json, "No 'result' found in 'optionChain'");
+	net_print_json_err(json, "No 'result' found in 'optionChain'");
 	return NULL;
     }
     if (!cJSON_IsArray(opt_result)) {
-	print_json_err(json, "'optionChain'/'result' is not an array");
+	net_print_json_err(json, "'optionChain'/'result' is not an array");
 	return NULL;
     }
     return cJSON_GetArrayItem(opt_result, 0);
 }
 
-int net_parse_eod(
+int net_parse_eod(FILE *eod_fp, cJSON* opt_quote, char* stk, char* dt) {
+    cJSON *quote = cJSON_GetObjectItemCaseSensitive(opt_quote, "quote");
+    if (quote == NULL) {
+	net_print_json_err(json, "No 'quote' found in 'result'");
+	return -1;
+    }
+    int c = net_number_from_json(quote, "regularMarketPrice");
+    if (c == -1)
+	return -1;
+    if (eod_fp) {
+	int v = net_number_from_json(quote, "regularMarketVolume");
+	int o = net_number_from_json(quote, "regularMarketOpen");
+	int hi = net_number_from_json(quote, "regularMarketDayHigh");
+	int lo = net_number_from_json(quote, "regularMarketDayLow");
+	if (o > 0 && hi > 0 && lo > 0 && v >= 0)
+	    fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
+		    stk, dt, o, hi, lo, c, v);
+    }
+    return c;
+}
+
+void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
+		       char* exp, char* und, char* dt) {
+    cJSON *opts = cJSON_GetObjectItemCaseSensitive(options, opt_type);
+    char err_msg[80];
+    if (opts == NULL) {
+	sprintf(err_msg, "No '%s' found in 'options'", opt_type);
+	net_print_json_err(options, err_msg);
+	return;
+    }
+    if (!cJSON_IsArray(opts)) {
+	sprintf(err_msg, "'options'/'%s' is not an array", opt_type);
+	net_print_json_err(options, err_msg);
+	return;
+    }
+    cJSON *opt = NULL, *crs = NULL;
+    cJSON_ArrayForEach(opt, opts) {
+	int volume = 0, strike, bid, ask;
+	crs = cJSON_GetObjectItemCaseSensitive(opt, "volume");
+	if (crs != NULL)
+	    volume = net_number_from_json(crs, "raw");
+	crs = cJSON_GetObjectItemCaseSensitive(opt, "strike");
+	if (crs == NULL) {
+	    net_print_json_err(opt, "No 'strike' found in option");
+	    continue;
+	}
+	strike = net_number_from_json(crs, "raw");
+	crs = cJSON_GetObjectItemCaseSensitive(opt, "bid");
+	if (crs == NULL) {
+	    net_print_json_err(opt, "No 'bid' found in option");
+	    continue;
+	}
+	bid = net_number_from_json(crs, "raw");
+	crs = cJSON_GetObjectItemCaseSensitive(opt, "ask");
+	if (crs == NULL) {
+	    net_print_json_err(opt, "No 'ask' found in option");
+	    continue;
+	}
+	ask = net_number_from_json(crs, "raw");
+	if (strike != -1 && bid != -1 && ask != -1)
+	    fprintf(opt_fp, "%s\t%s\t%c\t%d\t%s\t%d\t%d\t%d\t1\n",
+		    exp, und, opt_type[0], strike, bid, ask, volume);
+    }
+}
+
 void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt, 
 			 char* exp, long exp_ms, bool save_eod, 
 			 bool save_opts) {
@@ -148,125 +204,39 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
     if (chunk == NULL)
 	return;
     cJSON *json = net_parse_quote(chunk->memory);
-    if (json == NULL)
+    if (json == NULL) {
+	free(chunk->memory);
+	free(chunk);
 	return;
+    }
     cJSON *opt_quote = net_navigate_to_quote(json);
-    int spot = net_parse_eod(eod_fp, und, dt);
+    int spot = net_parse_eod(eod_fp, opt_quote, und, dt);
     if (spot == -1)
 	goto end;
-
-	cJSON *quote = cJSON_GetObjectItemCaseSensitive(opt_result_0, "quote");
-	if (quote == NULL) {
-	    print_json_err(json, "No 'quote' found in 'result'");
+    if (opt_fd) {
+	cJSON *opt_arr = cJSON_GetObjectItemCaseSensitive(opt_quote, "options");
+	if (opt_arr == NULL) {
+	    net_print_json_err(opt, "No 'options' found in options quote");
 	    goto end;
 	}
-	int c = get_from_quote(quote, "regularMarketPrice");
-	if (c == -1)
-	    goto end;
-	if (save_eod) {
-	    int v = get_from_quote(quote, "regularMarketVolume");
-	    int o = get_from_quote(quote, "regularMarketOpen");
-	    int hi = get_from_quote(quote, "regularMarketDayHigh");
-	    int lo = get_from_quote(quote, "regularMarketDayLow");
-	    if (o == -1 || hi == -1 || lo == -1 || v == -1)
-		goto end;
-	    /* TODO: Write the result here to file or DB */
-	}
-	if (!save_opts)
-	    goto end;
-	cJSON *options = cJSON_GetObjectItemCaseSensitive(opt_result_0, 
-							  "options");
-	if (!cJSON_IsArray(options)) {
-	    print_json_err(json, "'options' is not an array");
+	if (!cJSON_IsArray(opt_arr)) {
+	    net_print_json_err(json, "'options' is not an array");
 	    goto end;
 	}
-	cJSON *options_0 = cJSON_GetArrayItem(options, 0);
-	
-	cJSON *calls = cJSON_GetObjectItemCaseSensitive(options_0, "calls");
-	cJSON *puts = cJSON_GetObjectItemCaseSensitive(options_0, "puts");
-	cJSON *opt = NULL, *crs = NULL;
-	cJSON_ArrayForEach(opt, calls) {
-	    int volume = 0, strike, bid, ask;
-	    crs = cJSON_GetObjectItemCaseSensitive(opt, "volume");
-	    if (crs != NULL)
-		volume = get_from_quote(crs, "raw");
-	    crs = cJSON_GetObjectItemCaseSensitive(opt, "strike");
-	    if (crs == NULL)
-		continue;
-	    strike = get_from_quote(crs, "raw");
-	    crs = cJSON_GetObjectItemCaseSensitive(opt, "bid");
-	    if (crs == NULL)
-		continue;
-	    bid = get_from_quote(crs, "raw");
-	    crs = cJSON_GetObjectItemCaseSensitive(opt, "ask");
-	    if (crs == NULL)
-		continue;
-	    ask = get_from_quote(crs, "raw");
-	}
-
-    end:
-	cJSON_Delete(json);
+	cJSON *options = cJSON_GetArrayItem(opt_arr, 0);
+	net_parse_options(opt_fd, options, "calls", exp, und, dt);
+	net_parse_options(opt_fd, options, "puts", exp, und, dt);
     }
-
-    free(chunk.memory);
-
+    end:
+    cJSON_Delete(json);
+    free(chunk->memory);
+    free(chunk);
 }
-
-/**
-
-        res = requests.get(self.yhoo_url.format(stk, expiry))
-        if res.status_code != 200:
-            print('Failed to get {0:s} data for {1:s}: {2:d}'.
-                  format(exp_date, stk, res.status_code))
-            return
-        res_json = json.loads(res.text)
-        res_0 = res_json['optionChain']['result'][0]
-        quote = res_0.get('quote', {})
-        c = quote.get('regularMarketPrice', -1)
-        if c == -1:
-            print('Failed to get closing price for {0:s}'.format(stk))
-            return
-        if save_eod:
-            v = quote.get('regularMarketVolume', -1)
-            o = quote.get('regularMarketOpen', -1)
-            hi = quote.get('regularMarketDayHigh', -1)
-            lo = quote.get('regularMarketDayLow', -1)
-            if o == -1 or hi == -1 or lo == -1 or v == -1:
-                print('Failed to get EOD quote for {0:s}'.format(stk))
-            else:
-                stxdb.db_insert_eods([[stk, crt_date, o, hi, lo, c, v / 1000,
-                                       -1]])
-        if not save_opts:
-            return
-        opts = res_0.get('options', [{}])
-        calls = opts[0].get('calls', [])
-        puts = opts[0].get('puts', [])
-        cnx = stxdb.db_get_cnx()
-        with cnx.cursor() as crs:
-            for call in calls:
-                opt_volume = 0 if call.get('volume') is None \
-                             else call['volume']['raw']
-                crs.execute('insert into opt_cache values' +
-                            crs.mogrify(
-                                '(%s,%s,%s,%s,%s,%s,%s,%s)',
-                                [call['expiration']['fmt'], stk, 'c',
-                                 call['strike']['raw'], crt_date,
-                                 call['bid']['raw'], call['ask']['raw'],
-                                 opt_volume]) +
-                            'on conflict do nothing')
-            for put in puts:
-                opt_volume = 0 if put.get('volume') is None \
-                             else put['volume']['raw']
-                crs.execute('insert into opt_cache values' +
-                            crs.mogrify(
-                                '(%s,%s,%s,%s,%s,%s,%s,%s)',
-                                [put['expiration']['fmt'], stk, 'p',
-                                 put['strike']['raw'], crt_date,
-                                 put['bid']['raw'], put['ask']['raw'],
-                                 opt_volume]) +
-                            'on conflict do nothing')
-        print('Got {0:d} calls and {1:d} puts for {2:s} exp {3:s}'.format(
-            len(calls), len(puts), stk, exp_date))
-**/
-
+ 
+/* int main(void) { */
+/*     curl_global_init(CURL_GLOBAL_ALL); */
+/*     /\* we're done with libcurl, so clean it up *\/  */
+/*     curl_global_cleanup(); */
+/*     return 0; */
+/* } */
 #endif
