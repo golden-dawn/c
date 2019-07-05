@@ -1,6 +1,7 @@
 #ifndef __STX_ANA_H__
 #define __STX_ANA_H__
 
+#include <cjson/cJSON.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,8 +144,8 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
 	PQclear(res);
 	return leader;
     }
-    if (!strcmp(cal_current_busdate(10), as_of_date))
-	net_get_option_data(und, as_of_date, exp);
+/*     if (!strcmp(cal_current_busdate(10), as_of_date)) */
+/* 	net_get_option_data(und, as_of_date, exp); */
     ana_option_analysis(leader, res, spot);
     PQclear(res);
     return leader;
@@ -164,6 +165,7 @@ int ana_expiry_analysis(char* dt) {
 	    "analysis='leaders'", dt);
     PGresult *res = db_query(sql_cmd);
     int rows = PQntuples(res);
+    PQclear(res);
     if (rows >= 1) {
 	LOGINFO("Found %d leaders analyses for %s (expiry %s)\n", 
 		rows, dt, exp);
@@ -219,12 +221,68 @@ int ana_expiry_analysis(char* dt) {
 }
 
 
-void eod_analysis(char* dt) {
+cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
+		       int max_num_ldrs) {
+/*     cJSON *leaders = cJSON_CreateObject(); */
+/*     if (leaders == NULL) { */
+/* 	LOGERROR("Failed to create leaders cJSON Object.\n"); */
+/* 	goto end; */
+/*     } */
+    cJSON *leader_list = cJSON_CreateArray();
+    if (leader_list == NULL) {
+	LOGERROR("Failed to create leader_list cJSON Array.\n");
+	return NULL;
+    }
+/*     cJSON_AddItemToObject(leaders, "leaders", leader_list); */
+    char sql_cmd[256];
+    sprintf(sql_cmd, "select stk from leaders where expiry='%s'", exp);
+    if (max_atm_price > 0)
+	sprintf(sql_cmd, "%s and atm_price <= %d", sql_cmd, max_atm_price);
+    if (max_opt_spread > 0)
+	sprintf(sql_cmd, "%s and opt_spread <= %d", sql_cmd, max_opt_spread);
+    if (max_num_ldrs > 0)
+	sprintf(sql_cmd, "%s order by opt_spread limit %d", sql_cmd, 
+		max_num_ldrs);
+    LOGINFO("ana_get_leaders():\n  sql_cmd %s\n", sql_cmd);
+    PGresult *res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    LOGINFO("  returned %d leaders\n", rows);
+    cJSON *ldr_name = NULL;
+    char* stk = NULL;
+    for (int ix = 0; ix < rows; ix++) {
+	stk = PQgetvalue(res, ix, 0);
+	ldr_name = cJSON_CreateString(stk);
+	if (ldr_name == NULL) {
+	    LOGERROR("Failed to create cJSON string for %s\n", stk);
+	    continue;
+	}
+	cJSON_AddItemToArray(leader_list, ldr_name);
+    }
+    PQclear(res);
+    return leader_list;    
+}
+
+
+void ana_eod_analysis(char* dt) {
     /** this runs at the end of the trading day.
      * 1. Get prices and options for hte leaders
      * 2. calculate eod setups
      * 3. email the results
      **/
+    char* exp = NULL;
+    cal_expiry(cal_ix(dt), &exp);
+    cJSON *leaders = ana_get_leaders(exp, 500, 33, 0);
+    if (leaders == NULL) {
+	LOGERROR("ana_get_leaders failed, exiting ana_eod_analysis...\n");
+	return;
+    }
+    cJSON *ldr = NULL;
+    int num = 0;
+    cJSON_ArrayForEach(ldr, leaders) {
+	num++;
+    }
+    cJSON_Delete(leaders);
+    LOGINFO("Found %d leaders\n", num);
 }
 
 
