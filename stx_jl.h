@@ -575,6 +575,16 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     return jl;
 }
 
+int jl_advance(jl_data_ptr jl, char* end_date) {
+    int res = 0, num_days = 0;
+    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && 
+	  (res != -1)) {
+	res = jl_next(jl);
+	num_days++;
+    }
+    return num_days;    
+}
+
 /* jl_pivot_ptr jl_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) { */
 void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
     int n = num_pivs;
