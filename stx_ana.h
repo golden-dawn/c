@@ -158,7 +158,7 @@ int ana_expiry_analysis(char* dt) {
      * if the data is NULL, only run for the most recent business day
      * 1. wait until eoddata is downloaded. 
      **/
-    LOGINFO("started expiry_analysis\n");
+    LOGINFO("<begin>ana_expiry_analysis(%s)\n", dt);
     char sql_cmd[256], *exp;
     cal_expiry(cal_ix(dt) + 5, &exp);
     sprintf(sql_cmd, "select * from analyses where dt='%s' and "
@@ -217,6 +217,7 @@ int ana_expiry_analysis(char* dt) {
     db_upsert(sql_cmd);
     /* 6. Run JL on the adjusted data */
     /* 7. Run the setups */
+    LOGINFO("<end>ana_expiry_analysis(%s)\n", dt);
     return 0;
 }
 
