@@ -14,6 +14,10 @@ int main(int argc, char** argv) {
     char *end_date = (char *) calloc((size_t)16, sizeof(char));
 
     char sql_cmd[128];
+/*     strcpy(sql_cmd, "explain analyze select * from eods"); */
+/*     PGresult *all_res = db_query(sql_cmd); */
+/*     PQclear(all_res); */
+/*     LOGINFO("got all records from eods\n"); */
     strcpy(sql_cmd, "select max(dt) from eods");
     PGresult *res = db_query(sql_cmd);
     int num = PQntuples(res);
@@ -30,7 +34,8 @@ int main(int argc, char** argv) {
 	if (!strcmp(crs_date, exp_bdate)) {
 	    exp_ix = cal_expiry(ix + 1, &exp_date);
 	    exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
-	    LOGINFO("%s: ana_expiry(%s)\n", crs_date, exp_date);
+/* 	    LOGINFO("%s: ana_expiry(%s)\n", crs_date, exp_date); */
+	    ana_expiry_analysis(crs_date);
 	}
 /*         ana_eod() */
 	ix = cal_next_bday(ix, &crs_date);
