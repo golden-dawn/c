@@ -194,10 +194,10 @@ int ana_expiry_analysis(char* dt) {
 	    data = ts_load_stk(stk);
 	    if (data == NULL)
 		continue;
-	    ht_data = ht_new_data(stk, data);
+	    ht_data = ht_new_data(stk, (void*)data);
 	    ht_insert(ana_data(), ht_data);
 	} else
-	    data = ht_data->val.data;
+	    data = (stx_data_ptr) ht_data->val.data;
 	ldr_ptr leader = ana_leader(data, dt, exp);
 	if (leader->is_ldr)
 	    fprintf(fp, "%s\t%s\t%d\t%d\t%d\t%d\n", exp, stk, leader->activity,
