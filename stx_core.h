@@ -181,7 +181,7 @@ typedef enum { DIVI_HT, CAL_HT, DATA_HT } ht_type;
 union item_value {
     float ratio;
     cal_info_ptr cal;
-    stx_data_ptr data;
+    void* data;
 };
 
 typedef struct ht_item_t {
@@ -243,7 +243,7 @@ void ht_new_cal(ht_item_ptr i, const char* k, int dt_info) {
     i->val.cal->is_busday = (dt_info >= 0);
 }
 
-ht_item_ptr ht_new_data(const char* k, stx_data_ptr data) {
+ht_item_ptr ht_new_data(const char* k, void* data) {
     ht_item_ptr hi = (ht_item_ptr) calloc((size_t)1, sizeof(ht_item));
     strcpy(hi->key, k);
     hi->item_type = DATA_HT;
