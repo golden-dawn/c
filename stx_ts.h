@@ -61,6 +61,7 @@ stx_data_ptr ts_load_stk(char* stk) {
     strcpy(sd, PQgetvalue(res, 0, 5));
     strcpy(ed, PQgetvalue(res, num - 1, 5));
     int b_days = cal_num_busdays(sd, ed);
+    data->num_recs = b_days;
 #ifdef DEBUG
     LOGDEBUG("Found %d records for %s\n", num, stk);
 #endif
