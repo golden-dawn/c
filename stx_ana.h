@@ -23,11 +23,18 @@ typedef struct ldr_t {
 } ldr, *ldr_ptr;
 
 static hashtable_ptr stx = NULL;
+static hashtable_ptr jl = NULL;
 
 hashtable_ptr ana_data() {
     if (stx == NULL) 
 	stx = ht_new(NULL, 20000);
     return stx;
+} 
+
+hashtable_ptr ana_jl() {
+    if (jl == NULL) 
+	jl = ht_new(NULL, 20000);
+    return jl;
 } 
 
 void ana_option_analysis(ldr_ptr leader, PGresult* sql_res, int spot) {
@@ -224,17 +231,11 @@ int ana_expiry_analysis(char* dt) {
 
 cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
 		       int max_num_ldrs) {
-/*     cJSON *leaders = cJSON_CreateObject(); */
-/*     if (leaders == NULL) { */
-/* 	LOGERROR("Failed to create leaders cJSON Object.\n"); */
-/* 	goto end; */
-/*     } */
     cJSON *leader_list = cJSON_CreateArray();
     if (leader_list == NULL) {
 	LOGERROR("Failed to create leader_list cJSON Array.\n");
 	return NULL;
     }
-/*     cJSON_AddItemToObject(leaders, "leaders", leader_list); */
     char sql_cmd[256];
     sprintf(sql_cmd, "select stk from leaders where expiry='%s'", exp);
     if (max_atm_price > 0)
@@ -264,23 +265,21 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
 }
 
 
-void ana_eod_analysis(char* dt) {
+void ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     /** this runs at the end of the trading day.
      * 1. Get prices and options for hte leaders
      * 2. calculate eod setups
      * 3. email the results
      **/
-    char* exp = NULL;
-    cal_expiry(cal_ix(dt), &exp);
-    cJSON *leaders = ana_get_leaders(exp, 500, 33, 0);
-    if (leaders == NULL) {
-	LOGERROR("ana_get_leaders failed, exiting ana_eod_analysis...\n");
-	return;
-    }
     cJSON *ldr = NULL;
     int num = 0;
+:   int total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
+	ana_setups(ldr_name, dt);
 	num++;
+	if (num % 100 == 0) {
+	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+	}
     }
     cJSON_Delete(leaders);
     LOGINFO("Found %d leaders\n", num);
