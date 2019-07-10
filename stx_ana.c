@@ -30,16 +30,22 @@ int main(int argc, char** argv) {
     printf("end_date = %s\n", end_date);
     int ix = cal_ix(crs_date), end_ix = cal_ix(end_date);
     int exp_ix = ix, exp_bix = cal_exp_bday(ix, &exp_bdate);
+    cJSON *leaders = NULL;
     while(ix <= end_ix) {
 	if (!strcmp(crs_date, exp_bdate)) {
+	    if (leaders != NULL)
+		cJSON_Delete(leaders);
 	    exp_ix = cal_expiry(ix + 1, &exp_date);
 	    exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
 /* 	    LOGINFO("%s: ana_expiry(%s)\n", crs_date, exp_date); */
 	    ana_expiry_analysis(crs_date);
+	    leaders = ana_get_leaders(exp_date, 500, 33, 0);
 	}
-/*         ana_eod() */
+	ana_eod_analysis(crs_date, leaders);
 	ix = cal_next_bday(ix, &crs_date);
     }
+    if (leaders != NULL)
+	cJSON_Delete(leaders);
     /*
       v 1. Implement cal_exp_bday() function
       v 2. Retrieve max(dt) from eods.  This is the end_date
