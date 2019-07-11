@@ -264,25 +264,51 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
     return leader_list;    
 }
 
+void ana_setups(FILE* fp, char* stk, char* dt) {
 
-void ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
+}
+
+int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     /** this runs at the end of the trading day.
      * 1. Get prices and options for hte leaders
      * 2. calculate eod setups
      * 3. email the results
      **/
-    cJSON *ldr = NULL;
-    int num = 0;
-:   int total = cJSON_GetArraySize(leaders);
-    cJSON_ArrayForEach(ldr, leaders) {
-	ana_setups(ldr_name, dt);
-	num++;
-	if (num % 100 == 0) {
-	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-	}
+    char sql_cmd[256];
+    sprintf(sql_cmd, "select * from analyses where dt='%s' and "
+	    "analysis='%s'", dt, ana_name);
+    PGresult *res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    PQclear(res);
+    if (rows >= 1) {
+	LOGINFO("Found %d %s analyses for %s\n", rows, ana_name, dt);
+	LOGINFO("Will skip %s analysis for %s\n", ana_name, dt);
+	return 0;
     }
+    FILE* fp = NULL;
+    char *filename = "/tmp/leaders.csv";
+    if((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	return -1;
+    }
+    cJSON *ldr = NULL;
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    cJSON_ArrayForEach(ldr, leaders) {
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	    ana_setups(fp, ldr->valuestring, dt);
+	num++;
+	if (num % 100 == 0)
+	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+    }
+    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     cJSON_Delete(leaders);
-    LOGINFO("Found %d leaders\n", num);
+    fclose(fp);
+    db_upload_file("setups", filename);
+    LOGINFO("%s: uploaded %s setups in the database\n", dt, ana_name);
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', '%s')", dt, ana_name);
+    db_upsert(sql_cmd);
+    return 0;
 }
 
 
