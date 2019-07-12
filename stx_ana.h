@@ -265,7 +265,32 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
 }
 
 void ana_setups(FILE* fp, char* stk, char* dt) {
+    ht_item_ptr ht_jl = ht_get(ana_jl(), stk);
+    jl_data_ptr jl_recs = NULL;
+    if (ht_jl == NULL) {
+	stx_data_ptr data = ts_load_stk(stk);
+	if (data == NULL) {
+	    LOGERROR("Could not load %s, skipping...\n", stk);
+	    return;
+	}
+	jl_recs = jl_jl(data, dt, JL_FACTOR_200);
+	ht_jl = ht_new_data(stk, (void*)jl_recs);
+	ht_insert(ana_jl(), ht_jl);
+    } else {
+	jl_recs = (jl_data_ptr) ht_data->val.data;
+	jl_advance(jl_recs, dt);
+    }
+    daily_record_ptr dr = jl_recs->data->data;
+    int ix = jl_recs->data->pos;
+    /** Use ~/soft/hell/soft/archive/030630/setups.h for setup calculation **/
+    if ((jl_recs->last->prim_state == UPTREND) && 
+	(jl_recs->last->state == UPTREND)) {
 
+	if ((dr[ix].high > dr[ix - 1].high) &&
+	    (dr[ix - 1].high <= dr[ix - 1].high) &&
+    } else if ((jl_recs->last->prim_state == DOWNTREND) && 
+	       (jl_recs->last->state == DOWNTREND)) {
+    }
 }
 
 int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
