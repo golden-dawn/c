@@ -8,6 +8,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include "stx_core.h"
+#include "stx_setups.h"
 #include "stx_ts.h"
 
 #define AVG_DAYS 50
@@ -281,15 +282,17 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
 	jl_advance(jl_recs, dt);
     }
     daily_record_ptr dr = jl_recs->data->data;
-    int ix = jl_recs->data->pos;
-    /** Use ~/soft/hell/soft/archive/030630/setups.h for setup calculation **/
+    int ix = jl_recs->data->pos, res;
     if ((jl_recs->last->prim_state == UPTREND) && 
 	(jl_recs->last->state == UPTREND)) {
-
-	if ((dr[ix].high > dr[ix - 1].high) &&
-	    (dr[ix - 1].high <= dr[ix - 1].high) &&
+	/** TODO: check if previous day was a setup **/
+	/** TODO: if yes, check whether it was triggered today or not **/
+	res = stp_jc_1234(dr, ix, 1);
     } else if ((jl_recs->last->prim_state == DOWNTREND) && 
 	       (jl_recs->last->state == DOWNTREND)) {
+	/** TODO: check if previous day was a setup **/
+	/** TODO: if yes, check whether it was triggered today or not **/
+	res = stp_jc_1234(dr, ix, -1);
     }
 }
 
