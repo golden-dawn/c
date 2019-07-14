@@ -14,6 +14,8 @@
 #define AVG_DAYS 50
 #define MIN_ACT 8
 #define MIN_RCR 15
+#define UP 1
+#define DOWN -1
 
 typedef struct ldr_t {
     int activity;
@@ -282,17 +284,21 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
 	jl_advance(jl_recs, dt);
     }
     daily_record_ptr dr = jl_recs->data->data;
-    int ix = jl_recs->data->pos, res;
+    int ix = jl_recs->data->pos, trigrd = 1;
+    bool res;
     if ((jl_recs->last->prim_state == UPTREND) && 
-	(jl_recs->last->state == UPTREND)) {
-	/** TODO: check if previous day was a setup **/
-	/** TODO: if yes, check whether it was triggered today or not **/
-	res = stp_jc_1234(dr, ix, 1);
+	(jl_recs->last->state == UPTREND) && (dr[ix].high > dr[ix - 1].high)) {
+	if (stp_jc_1234(dr, ix - 1, UP))
+	    fprintf(fp, "%s\t%s\t%d\tJC_1234\t%d\n", dt, stk, UP, trigrd);
+	if (stp_jc_5days(dr, ix - 1, UP))
+	    fprintf(fp, "%s\t%s\t%d\tJC_5DAYS\t%d\n", dt, stk, UP, trigrd);
     } else if ((jl_recs->last->prim_state == DOWNTREND) && 
-	       (jl_recs->last->state == DOWNTREND)) {
-	/** TODO: check if previous day was a setup **/
-	/** TODO: if yes, check whether it was triggered today or not **/
-	res = stp_jc_1234(dr, ix, -1);
+	       (jl_recs->last->state == DOWNTREND) && 
+	       (dr[ix].low < dr[ix - 1].low)) {
+	if (stp_jc_1234(dr, ix - 1, DOWN))
+	    fprintf(fp, "%s\t%s\t%d\tJC_1234\t%d\n", dt, stk, DOWN, trigrd);
+	if (stp_jc_5days(dr, ix - 1, DOWN))
+	    fprintf(fp, "%s\t%s\t%d\tJC_5DAYS\t%d\n", dt, stk, DOWN, trigrd);
     }
 }
 
