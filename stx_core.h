@@ -292,6 +292,8 @@ void ht_insert(hashtable_ptr ht, ht_item_ptr item) {
 }
 
 ht_item_ptr ht_get(hashtable_ptr ht, const char* key) {
+    if (ht == NULL)
+	return NULL;
     int index = ht_get_hash(key, ht->size, 0);
     ht_item_ptr item = ht->items[index];
     int i = 1;
