@@ -321,12 +321,12 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 	LOGINFO("Will skip %s analysis for %s\n", ana_name, dt);
 	return 0;
     }
-    FILE* fp = NULL;
-    char *filename = "/tmp/leaders.csv";
-    if((fp = fopen(filename, "w")) == NULL) {
-	LOGERROR("Failed to open file %s for writing\n", filename);
-	return -1;
-    }
+    FILE* fp = stdout;
+/*     char *filename = "/tmp/setups.csv"; */
+/*     if((fp = fopen(filename, "w")) == NULL) { */
+/* 	LOGERROR("Failed to open file %s for writing\n", filename); */
+/* 	return -1; */
+/*     } */
     cJSON *ldr = NULL;
     int num = 0, total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
@@ -337,12 +337,13 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     }
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-    cJSON_Delete(leaders);
-    fclose(fp);
-    db_upload_file("setups", filename);
+    /** TODO: uncomment this, and also define setups table in the database **/
+/*     fclose(fp); */
+/*     db_upload_file("setups", filename); */
     LOGINFO("%s: uploaded %s setups in the database\n", dt, ana_name);
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', '%s')", dt, ana_name);
+    LOGINFO("sql_cmd = %s\n", sql_cmd);
     db_upsert(sql_cmd);
     return 0;
 }
