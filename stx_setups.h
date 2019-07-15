@@ -52,7 +52,7 @@ bool stp_jc_5days(daily_record_ptr data, int ix, int trend) {
     float min = 0, max = 0;
     if (ix < JC_5D_DAYS - 1)
 	return false;
-    for(int ixx = ix; ixx > ix - nb_days; ixx--) {
+    for(int ixx = ix; ixx > ix - JC_5D_DAYS; ixx--) {
 	if (max < data[ixx].high)
 	    max = data[ixx].high;
 	if (min > data[ixx].low)
