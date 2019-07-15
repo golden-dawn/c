@@ -8,6 +8,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include "stx_core.h"
+#include "stx_jl.h"
 #include "stx_setups.h"
 #include "stx_ts.h"
 
@@ -16,6 +17,7 @@
 #define MIN_RCR 15
 #define UP 1
 #define DOWN -1
+#define JL_FACTOR 2.00
 
 typedef struct ldr_t {
     int activity;
@@ -276,11 +278,11 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
 	    LOGERROR("Could not load %s, skipping...\n", stk);
 	    return;
 	}
-	jl_recs = jl_jl(data, dt, JL_FACTOR_200);
+	jl_recs = jl_jl(data, dt, JL_FACTOR);
 	ht_jl = ht_new_data(stk, (void*)jl_recs);
 	ht_insert(ana_jl(), ht_jl);
     } else {
-	jl_recs = (jl_data_ptr) ht_data->val.data;
+	jl_recs = (jl_data_ptr) ht_jl->val.data;
 	jl_advance(jl_recs, dt);
     }
     daily_record_ptr dr = jl_recs->data->data;
