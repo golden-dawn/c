@@ -247,7 +247,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
     daily_record_ptr sr = &(jl->data->data[ix]);
     jl_record_ptr jlr = &(jl->recs[ix]);
-#ifdef DEBUG
+#ifdef DDEBUGG
     fprintf(stderr, "%s: upstate = %d, downstate = %d\n", 
 	    jl->data->data[ix].date, upstate, downstate);
 #endif
@@ -276,7 +276,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	    jl_update_lns_and_pivots(jl, ix);
     }
     jl->pos++;
-#ifdef DEBUG
+#ifdef DDEBUGG
 	fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
 		jlr->lns, jlr->ls, jlr->rg);
 	for(int ixxx = 0; ixxx < jl->window; ixxx++)
