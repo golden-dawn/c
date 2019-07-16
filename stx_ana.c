@@ -41,7 +41,8 @@ int main(int argc, char** argv) {
 	    ana_expiry_analysis(crs_date);
 	    leaders = ana_get_leaders(exp_date, 500, 33, 0);
 	}
-	ana_eod_analysis(crs_date, leaders);
+	/** TODO: pass the setup type as a parameter **/
+	ana_eod_analysis(crs_date, leaders, "JC_Pullback");
 	ix = cal_next_bday(ix, &crs_date);
     }
     if (leaders != NULL)
