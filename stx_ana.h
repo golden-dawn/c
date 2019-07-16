@@ -15,8 +15,8 @@
 #define AVG_DAYS 50
 #define MIN_ACT 8
 #define MIN_RCR 15
-#define UP 1
-#define DOWN -1
+#define UP 'U'
+#define DOWN 'D'
 #define JL_FACTOR 2.00
 
 typedef struct ldr_t {
@@ -291,16 +291,16 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
     if ((jl_recs->last->prim_state == UPTREND) && 
 	(jl_recs->last->state == UPTREND) && (dr[ix].high > dr[ix - 1].high)) {
 	if (stp_jc_1234(dr, ix - 1, UP))
-	    fprintf(fp, "%s\t%s\t%d\tJC_1234\t%d\n", dt, stk, UP, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, UP, trigrd);
 	if (stp_jc_5days(dr, ix - 1, UP))
-	    fprintf(fp, "%s\t%s\t%d\tJC_5DAYS\t%d\n", dt, stk, UP, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, UP, trigrd);
     } else if ((jl_recs->last->prim_state == DOWNTREND) && 
 	       (jl_recs->last->state == DOWNTREND) && 
 	       (dr[ix].low < dr[ix - 1].low)) {
 	if (stp_jc_1234(dr, ix - 1, DOWN))
-	    fprintf(fp, "%s\t%s\t%d\tJC_1234\t%d\n", dt, stk, DOWN, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, DOWN, trigrd);
 	if (stp_jc_5days(dr, ix - 1, DOWN))
-	    fprintf(fp, "%s\t%s\t%d\tJC_5DAYS\t%d\n", dt, stk, DOWN, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, DOWN, trigrd);
     }
 }
 
@@ -322,11 +322,11 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 	return 0;
     }
     FILE* fp = stdout;
-/*     char *filename = "/tmp/setups.csv"; */
-/*     if((fp = fopen(filename, "w")) == NULL) { */
-/* 	LOGERROR("Failed to open file %s for writing\n", filename); */
-/* 	return -1; */
-/*     } */
+    char *filename = "/tmp/setups.csv";
+    if((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	return -1;
+    }
     cJSON *ldr = NULL;
     int num = 0, total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
@@ -337,9 +337,8 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     }
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-    /** TODO: uncomment this, and also define setups table in the database **/
-/*     fclose(fp); */
-/*     db_upload_file("setups", filename); */
+    fclose(fp);
+    db_upload_file("setups", filename);
     LOGINFO("%s: uploaded %s setups in the database\n", dt, ana_name);
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', '%s')", dt, ana_name);
