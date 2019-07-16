@@ -147,6 +147,7 @@ int main() {
 	"stk VARCHAR(16) NOT NULL, "			 \
 	"setup VARCHAR(16) NOT NULL, "			 \
 	"direction CHAR(1) NOT NULL, "			 \
+	"triggered BOOLEAN NOT NULL, "			 \
 	"PRIMARY KEY(dt, stk, setup, direction))";
     create_table_if_missing(cnx, "setups", create_setups);
     char* create_setups_stk_idx = "CREATE INDEX setups_stk_idx ON " \
