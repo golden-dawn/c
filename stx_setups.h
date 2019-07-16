@@ -15,10 +15,10 @@
 #define JC_5D_LB 30
 #define JC_5D_UB 70
 
-bool stp_jc_1234(daily_record_ptr data, int ix, int trend) {
+bool stp_jc_1234(daily_record_ptr data, int ix, char trend) {
     bool result = false;
     int inside_days = 0, ixx;
-    if (trend > 0) {
+    if (trend == 'U') {
 	for(ixx = ix; ixx > ix - 2; ixx--) {
 	    if (ixx < 0)
 		break;
@@ -48,7 +48,7 @@ bool stp_jc_1234(daily_record_ptr data, int ix, int trend) {
     return result;
 }
 
-bool stp_jc_5days(daily_record_ptr data, int ix, int trend) {
+bool stp_jc_5days(daily_record_ptr data, int ix, char trend) {
     float min = 0, max = 0;
     if (ix < JC_5D_DAYS - 1)
 	return false;
@@ -61,7 +61,8 @@ bool stp_jc_5days(daily_record_ptr data, int ix, int trend) {
     if (max == min)
 	return false;
     float fs = 100 * (data[ix].close - min) / (max - min);
-    if (((trend > 0) && (fs < JC_5D_LB)) || ((trend < 0) && (fs > JC_5D_UB)))
+    if (((trend == 'U') && (fs < JC_5D_LB)) || 
+	((trend == 'D') && (fs > JC_5D_UB)))
 	return true;
     return false;
 }
