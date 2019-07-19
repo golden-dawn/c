@@ -9,6 +9,7 @@
 #include <libpq-fe.h>
 #include "stx_core.h"
 #include "stx_jl.h"
+#include "stx_net.h"
 #include "stx_setups.h"
 #include "stx_ts.h"
 
@@ -138,14 +139,21 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
             *dot = '\0';
     }
     char sql_cmd[256];
-    sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and dt='%s'",
-	    und, as_of_date);
+    bool current_analysis = !strcmp(as_of_date, cal_current_busdate(5));
+    if (current_analysis) 
+	sprintf(sql_cmd, "select c from eods where stk='%s' and dt='%s' "
+		"and oi=0", und, as_of_date);
+    else
+	sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and "
+		"dt='%s'", und, as_of_date);
     PGresult* res = db_query(sql_cmd);
     if (PQntuples(res) != 1) {
 	PQclear(res);
 	return leader;
     }
     int spot = atoi(PQgetvalue(res, 0, 0));
+    if (current_analysis)
+	;
     PQclear(res);
     sprintf(sql_cmd, "select cp, strike, bid, ask from options where "
 	    "und='%s' and dt='%s' and expiry='%s' order by cp, strike",
