@@ -1,4 +1,5 @@
 #include <libpq-fe.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,12 +8,22 @@
 
 
 int main(int argc, char** argv) {
+    bool rt_analysis = false;
+    if (argc == 2) {
+	rt_analysis = true;
+	char* crt_busdate = cal_current_busdate(5);
+	if (!strcmp(argv[1], "-expiry"))
+	    ana_expiry_analysis(crt_busdate, rt_analysis);
+	else if (!strcmp(argv[1], "-intraday"))
+	    ana_intraday_analysis(crt_busdate, rt_analysis);
+	else if (!strcmp(argv[1], "-eod"))
+	    ana_eod_analysis(crt_busdate, leaders, ana_name);
+    }
     char *crs_date = "2002-02-15";
     char *exp_date = "2002-02-16";
     char *exp_bdate;
     char *prev_exp_date = "2002-01-19";
     char *end_date = (char *) calloc((size_t)16, sizeof(char));
-
     char sql_cmd[128];
 /*     strcpy(sql_cmd, "explain analyze select * from eods"); */
 /*     PGresult *all_res = db_query(sql_cmd); */
