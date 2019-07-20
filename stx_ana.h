@@ -2,6 +2,7 @@
 #define __STX_ANA_H__
 
 #include <cjson/cJSON.h>
+#include <curl/curl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,8 @@
 #define AVG_DAYS 50
 #define MIN_ACT 8
 #define MIN_RCR 15
+#define MAX_OPT_SPREAD 33
+#define MAX_ATM_PRICE 500
 #define UP 'U'
 #define DOWN 'D'
 #define JL_FACTOR 2.00
@@ -105,7 +108,8 @@ void ana_option_analysis(ldr_ptr leader, PGresult* sql_res, int spot) {
     This function returns the average option spread for stocks that are
     leaders, or -1, if the stock is not a leader. 
 **/
-ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
+ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp, 
+		   bool realtime_analysis) {
     /** 
 	A stock is a leader at a given date if:
 	1. Its average activity is above a threshold.
@@ -134,13 +138,13 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
     char und[16];
     strcpy(und, data->stk);
     char* dot = strchr(und, '.');
-    if(dot != NULL) {
-	if (( '0' <= *(dot + 1)) && (*(dot + 1)<= '9'))
+    if (dot != NULL) {
+	if (('0' <= *(dot + 1)) && (*(dot + 1) <= '9'))
             *dot = '\0';
     }
     char sql_cmd[256];
     bool current_analysis = !strcmp(as_of_date, cal_current_busdate(5));
-    if (current_analysis) 
+    if (realtime_analysis) 
 	sprintf(sql_cmd, "select c from eods where stk='%s' and dt='%s' "
 		"and oi=0", und, as_of_date);
     else
@@ -152,9 +156,19 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
 	return leader;
     }
     int spot = atoi(PQgetvalue(res, 0, 0));
-    if (current_analysis)
-	;
     PQclear(res);
+    if (realtime_analysis) {
+	FILE *opt_fp = fopen("/tmp/options.csv", "w");
+	if (opt_fp == NULL) {
+	    LOGERROR("Failed to open /tmp/options.csv file");
+	    opt_fp = stderr;
+	} else {
+	    net_get_option_data(NULL, opt_fp, und, as_of_date, exp, 
+				cal_long_expiry(exp));
+	    fclose(opt_fp);
+	    db_upload_file("options", "/tmp/options.csv");
+	}
+    }
     sprintf(sql_cmd, "select cp, strike, bid, ask from options where "
 	    "und='%s' and dt='%s' and expiry='%s' order by cp, strike",
 	    und, as_of_date, exp);
@@ -172,7 +186,7 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp) {
 }
 
 
-int ana_expiry_analysis(char* dt) {
+int ana_expiry_analysis(char* dt, bool realtime_analysis) {
     /** 
      * special case when the date is an option expiry date
      * if the data is NULL, only run for the most recent business day
@@ -193,8 +207,8 @@ int ana_expiry_analysis(char* dt) {
 	return 0;
     }
     char *sql_1 = "select distinct stk from eods where dt='";
-    char *sql_2 = "' and stk not like '#%' and stk not like '^%' and "
-	"(c/100)*(v/100)>100";
+    char *sql_2 = "' and stk not like '#%' and stk not like '^%' and oi=0 "
+	"and (c/100)*(v/100)>100";
     sprintf(sql_cmd, "%s%s%s", sql_1, dt, sql_2);
     res = db_query(sql_cmd);
     rows = PQntuples(res);
@@ -218,7 +232,7 @@ int ana_expiry_analysis(char* dt) {
 	    ht_insert(ana_data(), ht_data);
 	} else
 	    data = (stx_data_ptr) ht_data->val.data;
-	ldr_ptr leader = ana_leader(data, dt, exp);
+	ldr_ptr leader = ana_leader(data, dt, exp, realtime_analysis);
 	if (leader->is_ldr)
 	    fprintf(fp, "%s\t%s\t%d\t%d\t%d\t%d\n", exp, stk, leader->activity,
 		    leader->range_ratio, leader->opt_spread, 
@@ -356,13 +370,53 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 }
 
 
-void intraday_analysis() {
+void ana_intraday_analysis(char* dt) {
     /** this runs during the trading day
      * 1. download price data only for option spread leaders
      * 2. determine which EOD setups were triggered today
      * 3. Calculate intraday setups (?)
      * 4. email the results
      **/
+    char filename[64];
+    sprintf(filename, "/tmp/intraday.csv");
+    sprintf(filename, "/tmp/intraday_%s.csv", dt);
+    FILE *fp = NULL;
+    if ((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	return;
+    }
+    curl_global_init(CURL_GLOBAL_ALL);
+    char *exp_date;
+    cal_expiry(cal_ix(dt) + 1, &exp_date);
+    cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
+						  MAX_OPT_SPREAD, 0);
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    cJSON_ArrayForEach(ldr, leaders) {
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	    net_get_eod_data(fp, ldr->valuestring, dt);
+	num++;
+	if (num % 100 == 0)
+	    LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
+    }
+    LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
+    fclose(fp);
+    sprintf(filename, "/tmp/intraday_%s.csv", dt);
+    fp = NULL;
+    if ((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	fp = stderr;
+    }
+    cJSON_ArrayForEach(ldr, leaders) {
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	    ana_setups(fp, ldr->valuestring, dt);
+	num++;
+	if (num % 100 == 0)
+	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+    }
+    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+    fclose(fp);
+    cJSON_Delete(leaders);
+    curl_global_cleanup();
 }
 
 #endif
