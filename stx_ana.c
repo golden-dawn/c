@@ -12,12 +12,28 @@ int main(int argc, char** argv) {
     if (argc == 2) {
 	rt_analysis = true;
 	char* crt_busdate = cal_current_busdate(5);
-	if (!strcmp(argv[1], "-expiry"))
+	if (!strcmp(argv[1], "-expiry")) {
+	    curl_global_init(CURL_GLOBAL_ALL);
 	    ana_expiry_analysis(crt_busdate, rt_analysis);
-	else if (!strcmp(argv[1], "-intraday"))
-	    ana_intraday_analysis(crt_busdate, rt_analysis);
-	else if (!strcmp(argv[1], "-eod"))
-	    ana_eod_analysis(crt_busdate, leaders, ana_name);
+	    curl_global_cleanup();
+	    return 0;
+	}
+	else if (!strcmp(argv[1], "-intraday")) {
+	    curl_global_init(CURL_GLOBAL_ALL);
+	    ana_intraday_analysis(crt_busdate);
+	    curl_global_cleanup();
+	    return 0;
+	}
+	else if (!strcmp(argv[1], "-eod")) {
+	    curl_global_init(CURL_GLOBAL_ALL);
+	    char *exp_date;
+	    cal_expiry(cal_ix(crt_busdate) + 1, &exp_date);
+	    cJSON *leaders = ana_get_leaders(exp_date, MAX_OPT_SPREAD,
+					     MAX_ATM_PRICE, 0);
+	    ana_eod_analysis(crt_busdate, leaders, "JC_Pullback");
+	    curl_global_cleanup();
+	    return 0;
+	}
     }
     char *crs_date = "2002-02-15";
     char *exp_date = "2002-02-16";
@@ -49,8 +65,9 @@ int main(int argc, char** argv) {
 	    exp_ix = cal_expiry(ix + 1, &exp_date);
 	    exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
 /* 	    LOGINFO("%s: ana_expiry(%s)\n", crs_date, exp_date); */
-	    ana_expiry_analysis(crs_date);
-	    leaders = ana_get_leaders(exp_date, 500, 33, 0);
+	    ana_expiry_analysis(crs_date, false);
+	    leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
+				      MAX_OPT_SPREAD, 0);
 	}
 	/** TODO: pass the setup type as a parameter **/
 	ana_eod_analysis(crs_date, leaders, "JC_Pullback");
