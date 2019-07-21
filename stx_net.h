@@ -199,8 +199,8 @@ void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
 	ask = net_number_from_json(opt, "ask", true);
 	if (ask == -1)
 	    continue;
-	fprintf(opt_fp, "%s\t%s\t%c\t%d\t%d\t%d\t%d\t1\n",
-		exp, und, opt_type[0], strike, bid, ask, volume / 100);
+	fprintf(opt_fp, "%s\t%s\t%c\t%d\t%s\t%d\t%d\t%d\t1\n",
+		exp, und, opt_type[0], strike, dt, bid, ask, volume / 100);
     }
 }
 
