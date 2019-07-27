@@ -246,7 +246,7 @@ int ana_expiry_analysis(char* dt, bool realtime_analysis) {
     LOGINFO("%s: uploaded leaders in the database as of date %s\n", exp, dt);
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', 'leaders')", dt);
-    db_upsert(sql_cmd);
+    db_transaction(sql_cmd);
     /* 6. Run JL on the adjusted data */
     /* 7. Run the setups */
     LOGINFO("<end>ana_expiry_analysis(%s)\n", dt);
@@ -363,7 +363,7 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', '%s')", dt, ana_name);
     LOGINFO("sql_cmd = %s\n", sql_cmd);
-    db_upsert(sql_cmd);
+    db_transaction(sql_cmd);
     return 0;
 }
 
@@ -375,9 +375,7 @@ void ana_intraday_analysis(char* dt) {
      * 3. Calculate intraday setups (?)
      * 4. email the results
      **/
-    char filename[64];
-    sprintf(filename, "/tmp/intraday.csv");
-    sprintf(filename, "/tmp/intraday_%s.csv", dt);
+    char *filename = "/tmp/intraday.csv";
     FILE *fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
@@ -398,6 +396,10 @@ void ana_intraday_analysis(char* dt) {
     }
     LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
     fclose(fp);
+    char sql_cmd[256];
+    sprintf(sql_cmd, "DELETE FROM eods WHERE dt='%s' AND oi=1", dt);
+    db_transaction(sql_cmd);
+    db_upload_file("eods", filename);
     sprintf(filename, "/tmp/intraday_%s.csv", dt);
     fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
