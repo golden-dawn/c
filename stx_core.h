@@ -111,7 +111,7 @@ bool db_upload_file(char* table_name, char* file_name) {
     return success;
 }
 
-bool db_upsert(char* sql_cmd) {
+bool db_transaction(char* sql_cmd) {
     db_connect();
     PGresult *res;
     bool success = true;
