@@ -400,7 +400,6 @@ void ana_intraday_analysis(char* dt) {
     sprintf(sql_cmd, "DELETE FROM eods WHERE dt='%s' AND oi=1", dt);
     db_transaction(sql_cmd);
     db_upload_file("eods", filename);
-    sprintf(filename, "/tmp/intraday_%s.csv", dt);
     fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
