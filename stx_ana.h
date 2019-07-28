@@ -414,6 +414,21 @@ void ana_intraday_analysis(char* dt) {
     }
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     fclose(fp);
+    if((fp = fopen(filename, "r")) == NULL) {
+	LOGERROR("Failed to open file %s\n", filename);
+    } else {
+	char line[80], sql_cmd[256], stp_dir, stp_dt[16], stp[16], stp_stk[8];
+	int triggered;
+	while(fgets(line, 80, fp)) {
+	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
+		   &stp[0], &stp_dir, &triggered);
+	    sprintf(sql_cmd, "insert into setups values "
+		    "('%s','%s','%s','%c',%s) on conflict do nothing", 
+		    stp_dt, stp_stk, stp, stp_dir, triggered? "true": "false");
+	    fprintf(stderr, "%s\n", sql_cmd);
+	    db_transaction(sql_cmd);
+	}
+    }
     cJSON_Delete(leaders);
     curl_global_cleanup();
 }
