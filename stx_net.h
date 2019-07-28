@@ -205,7 +205,9 @@ void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
 }
 
 void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
-    LOGINFO("%s: Getting quote for %s\n", dt, stk);
+#ifdef DEBUG
+    LOGDEBUG("%s: Getting quote for %s\n", dt, stk);
+#endif
     char url[256];
     sprintf(url, "%s/quote%s&symbols=%s%s%s", Y_1, Y_3, stk, Y_4, Y_5);
     net_mem_ptr chunk = net_get_quote(url);
