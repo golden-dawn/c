@@ -368,28 +368,43 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 }
 
 
-void ana_intraday_analysis(char* dt) {
+void ana_intraday_analysis(char* dt, bool eod) {
     /** this runs during the trading day
      * 1. download price data only for option spread leaders
      * 2. determine which EOD setups were triggered today
      * 3. Calculate intraday setups (?)
      * 4. email the results
      **/
-    char *filename = "/tmp/intraday.csv";
-    FILE *fp = NULL;
+    char *filename = "/tmp/intraday.csv", *opt_filename = "/tmp/options.csv";
+    FILE *fp = NULL, *opt_fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
 	return;
     }
     curl_global_init(CURL_GLOBAL_ALL);
-    char *exp_date;
-    cal_expiry(cal_ix(dt) + 1, &exp_date);
+    char *exp_date, *exp_date2;
+    int exp_ix = cal_expiry(cal_ix(dt) + 1, &exp_date);
+    cal_expiry(exp_ix + 1, &exp_date2);
     cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
 						  MAX_OPT_SPREAD, 0);
     int num = 0, total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    net_get_eod_data(fp, ldr->valuestring, dt);
+	    if (eod) {
+		FILE *opt_fp = fopen("/tmp/options.csv", "w");
+		if (opt_fp == NULL)
+		    LOGERROR("Failed to open /tmp/options.csv file");
+		else {
+		    net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
+					exp_date, cal_long_expiry(exp_date));
+		    net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
+					exp_date2, cal_long_expiry(exp_date2));
+		    fclose(opt_fp);
+		    db_upload_file("options", "/tmp/options.csv");
+		}
+	    }
+	}
 	num++;
 	if (num % 100 == 0)
 	    LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
