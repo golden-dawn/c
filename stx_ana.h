@@ -420,6 +420,7 @@ void ana_intraday_analysis(char* dt, bool eod) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
 	fp = stderr;
     }
+    num = 0;
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
 	    ana_setups(fp, ldr->valuestring, dt);
