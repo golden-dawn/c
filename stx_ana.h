@@ -324,6 +324,40 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
     }
 }
 
+void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
+    ht_item_ptr ht_jl = ht_get(ana_jl(), stk);
+    jl_data_ptr jl_recs = NULL;
+    if (ht_jl == NULL) {
+	stx_data_ptr data = ts_load_stk(stk);
+	if (data == NULL) {
+	    LOGERROR("Could not load %s, skipping...\n", stk);
+	    return;
+	}
+	jl_recs = jl_jl(data, dt, JL_FACTOR);
+	ht_jl = ht_new_data(stk, (void*)jl_recs);
+	ht_insert(ana_jl(), ht_jl);
+    } else {
+	jl_recs = (jl_data_ptr) ht_jl->val.data;
+	jl_advance(jl_recs, dt);
+    }
+    daily_record_ptr dr = jl_recs->data->data;
+    int ix = jl_recs->data->pos, trigrd = 0;
+    bool res;
+    if ((jl_recs->last->prim_state == UPTREND) && 
+	(jl_recs->last->state == UPTREND)) {
+	if (stp_jc_1234(dr, ix, UP))
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, UP, trigrd);
+	if (stp_jc_5days(dr, ix, UP))
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, UP, trigrd);
+    } else if ((jl_recs->last->prim_state == DOWNTREND) && 
+	       (jl_recs->last->state == DOWNTREND)) {
+	if (stp_jc_1234(dr, ix, DOWN))
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, DOWN, trigrd);
+	if (stp_jc_5days(dr, ix, DOWN))
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, DOWN, trigrd);
+    }
+}
+
 int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     /** this runs at the end of the trading day.
      * 1. Get prices and options for hte leaders
