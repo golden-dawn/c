@@ -20,17 +20,13 @@ int main(int argc, char** argv) {
 	}
 	else if (!strcmp(argv[1], "-intraday")) {
 	    curl_global_init(CURL_GLOBAL_ALL);
-	    ana_intraday_analysis(crt_busdate);
+	    ana_intraday_analysis(crt_busdate, false);
 	    curl_global_cleanup();
 	    return 0;
 	}
 	else if (!strcmp(argv[1], "-eod")) {
 	    curl_global_init(CURL_GLOBAL_ALL);
-	    char *exp_date;
-	    cal_expiry(cal_ix(crt_busdate) + 1, &exp_date);
-	    cJSON *leaders = ana_get_leaders(exp_date, MAX_OPT_SPREAD,
-					     MAX_ATM_PRICE, 0);
-	    ana_eod_analysis(crt_busdate, leaders, "JC_Pullback");
+	    ana_intraday_analysis(crt_busdate, true);
 	    curl_global_cleanup();
 	    return 0;
 	}
