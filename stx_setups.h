@@ -49,7 +49,7 @@ bool stp_jc_1234(daily_record_ptr data, int ix, char trend) {
 }
 
 bool stp_jc_5days(daily_record_ptr data, int ix, char trend) {
-    float min = 0, max = 0;
+    float min = 1000000000, max = 0;
     if (ix < JC_5D_DAYS - 1)
 	return false;
     for(int ixx = ix; ixx > ix - JC_5D_DAYS; ixx--) {
