@@ -22,6 +22,7 @@
 #define UP 'U'
 #define DOWN 'D'
 #define JL_FACTOR 2.00
+#define JL_200 "200"
 
 typedef struct ldr_t {
     int activity;
@@ -40,10 +41,18 @@ hashtable_ptr ana_data() {
     return stx;
 } 
 
-hashtable_ptr ana_jl() {
+hashtable_ptr ana_jl(const char* factor) {
     if (jl == NULL) 
-	jl = ht_new(NULL, 20000);
-    return jl;
+	jl = ht_new(NULL, 5);
+    ht_item_ptr jlht = ht_get(jl, factor);
+    hashtable_ptr jl_factor_ht = NULL;
+    if (jlht == NULL) {
+	jl_factor_ht = ht_new(NULL, 20000);
+	jlht = ht_new_data(factor, (void *) jl_factor_ht);
+	ht_insert(jl, jlht);
+    } else
+	jl_factor_ht = (hashtable_ptr) jlht->val.data;
+    return jl_factor_ht;
 } 
 
 void ana_option_analysis(ldr_ptr leader, PGresult* sql_res, int spot) {
@@ -289,8 +298,8 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
     return leader_list;    
 }
 
-void ana_setups(FILE* fp, char* stk, char* dt) {
-    ht_item_ptr ht_jl = ht_get(ana_jl(), stk);
+void ana_pullbacks(FILE* fp, char* stk, char* dt) {
+    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
     jl_data_ptr jl_recs = NULL;
     if (ht_jl == NULL) {
 	stx_data_ptr data = ts_load_stk(stk);
@@ -300,7 +309,7 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
 	}
 	jl_recs = jl_jl(data, dt, JL_FACTOR);
 	ht_jl = ht_new_data(stk, (void*)jl_recs);
-	ht_insert(ana_jl(), ht_jl);
+	ht_insert(ana_jl(JL_200), ht_jl);
     } else {
 	jl_recs = (jl_data_ptr) ht_jl->val.data;
 	jl_advance(jl_recs, dt);
@@ -324,8 +333,16 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
     }
 }
 
+void ana_gaps_8(FILE* fp, char* stk, char* dt) {
+    
+}
+
+void ana_setups(FILE* fp, char* stk, char* dt) {
+    ana_gaps_8(fp, stk, dt);
+}
+
 void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
-    ht_item_ptr ht_jl = ht_get(ana_jl(), stk);
+    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
     jl_data_ptr jl_recs = NULL;
     if (ht_jl == NULL) {
 	stx_data_ptr data = ts_load_stk(stk);
@@ -335,7 +352,7 @@ void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
 	}
 	jl_recs = jl_jl(data, dt, JL_FACTOR);
 	ht_jl = ht_new_data(stk, (void*)jl_recs);
-	ht_insert(ana_jl(), ht_jl);
+	ht_insert(ana_jl(JL_200), ht_jl);
     } else {
 	jl_recs = (jl_data_ptr) ht_jl->val.data;
 	jl_advance(jl_recs, dt);
@@ -384,8 +401,12 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     cJSON *ldr = NULL;
     int num = 0, total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-	    ana_setups(fp, ldr->valuestring, dt);
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
+	    if (!strcmp(ana_name, "JC_Pullback"))
+		ana_pullbacks(fp, ldr->valuestring, dt);
+	    else
+		ana_setups(fp, ldr->valuestring, dt);
+	}
 	num++;
 	if (num % 100 == 0)
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
