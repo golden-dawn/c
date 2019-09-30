@@ -181,6 +181,16 @@ int ts_next(stx_data_ptr data) {
     return 0;
 }
 
+int ts_advance(stx_data_ptr data, char* end_date) {
+    int res = 0, num_days = 0;
+    while ((strcmp(data->data[data->pos].date, end_date) <= 0) &&
+	   (res != -1)) {
+	res = ts_next(data);
+	num_days++;
+    }
+    return num_days;
+}
+
 void ts_free_data(stx_data_ptr data) {
     ht_free(data->splits);
     free(data->data);
