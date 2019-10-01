@@ -32,9 +32,11 @@ int main(int argc, char** argv) {
 	}
     }
     char ana_name[64];
-    memset(ana_name, 64, 0);
+    memset(ana_name, 0, 64);
     strcpy(ana_name, "JC_Pullback");
-    char *crs_date = "2002-02-15",  *exp_date = "2002-02-16", *exp_bdate;
+/*     char *crs_date = "2002-02-15",  *exp_date = "2002-02-16", *exp_bdate; */
+    char *crs_date = (char *) calloc((size_t)16, sizeof(char));
+    char *exp_date = (char *) calloc((size_t)16, sizeof(char)), *exp_bdate;
     char *end_date = (char *) calloc((size_t)16, sizeof(char)), sql_cmd[128];
 
     strcpy(sql_cmd, "select max(dt) from eods");
@@ -46,16 +48,29 @@ int main(int argc, char** argv) {
     }
     strcpy(end_date, PQgetvalue(res, 0, 0));
     PQclear(res);
+    strcpy(crs_date, "2002-02-15");
+    strcpy(exp_date, "2002-02-16");
 
-    for (int ix = 0; ix < argc; ix++) {
-	if (!strcmp(argv[ix++], "--ana-name")) {
-	    memset(ana_name, 64, 0);
+    printf("argc = %d\n", argc);
+    for (int ix = 1; ix < argc; ix++) {
+	printf("argv[%d] = %s\n", ix, argv[ix]);
+	if (!strcmp(argv[ix], "--ana-name") && (ix++ < argc - 1)) {
+	    memset(ana_name, 0, 64);
 	    strcpy(ana_name, argv[ix]);
-	} else if (!strcmp(argv[ix++], "--start-date"))
+	    printf("ana_name = %s\n", ana_name);
+	} else if (!strcmp(argv[ix], "--start-date") && (ix++ < argc - 1)) {
+	    fprintf(stderr, "ix = %d\n", ix);
+	    fprintf(stderr, "ix = %d, crs_date = %s\n", ix, argv[ix]);
 	    strcpy(crs_date, argv[ix]);
-	else if (!strcmp(argv[ix++], "--end-date"))
+	    fprintf(stderr, "crs_date = %s\n", crs_date);
+	}
+	else if (!strcmp(argv[ix++], "--end-date") && (ix++ < argc - 1)) {
 	    strcpy(end_date, argv[ix]);
+	    printf("end_date = %s\n", end_date);
+	}
+
     }
+    LOGINFO("crs_date = %s\n", crs_date);
     LOGINFO("end_date = %s\n", end_date);
     int ix = cal_ix(crs_date), end_ix = cal_ix(end_date);
     int exp_ix = ix, exp_bix = cal_exp_bday(ix, &exp_bdate);
@@ -77,4 +92,6 @@ int main(int argc, char** argv) {
     if (leaders != NULL)
 	cJSON_Delete(leaders);
     free(end_date);
+    free(crs_date);
+    free(exp_date);
 }
