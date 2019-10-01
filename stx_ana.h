@@ -338,7 +338,7 @@ void ana_gaps_8(FILE* fp, char* stk, char* dt) {
 }
 
 void ana_setups(FILE* fp, char* stk, char* dt) {
-    ana_gaps_8(fp, stk, dt);
+    ana_pullbacks(fp, stk, dt);
 }
 
 void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
