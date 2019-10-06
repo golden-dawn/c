@@ -334,7 +334,40 @@ void ana_pullbacks(FILE* fp, char* stk, char* dt) {
 }
 
 void ana_gaps_8(FILE* fp, char* stk, char* dt) {
-    
+    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
+    jl_data_ptr jl_recs = NULL;
+    if (ht_jl == NULL) {
+	stx_data_ptr data = ts_load_stk(stk);
+	if (data == NULL) {
+	    LOGERROR("Could not load %s, skipping...\n", stk);
+	    return;
+	}
+	jl_recs = jl_jl(data, dt, JL_FACTOR);
+	ht_jl = ht_new_data(stk, (void*)jl_recs);
+	ht_insert(ana_jl(JL_200), ht_jl);
+    } else {
+	jl_recs = (jl_data_ptr) ht_jl->val.data;
+	jl_advance(jl_recs, dt);
+    }
+    daily_record_ptr dr = jl_recs->data->data;
+    int ix = jl_recs->data->pos;
+    bool res;
+    char setup_name[16];
+    /* Find gaps */
+    if ((dr[ix].open > dr[ix - 1].high) || (dr[ix].open < dr[ix - 1].low)) {
+	strcpy(setup_name,  (dr[ix].volume > 1.1 * jl_recs->recs[ix].volume)? 
+	       "GAP_HV": "GAP");
+	fprintf(fp, "%s\t%s\t%s\t%c\t1\n", dt, stk, setup_name, 
+		(dr[ix].open > dr[ix - 1].high)? UP: DOWN);
+    }
+    /* Find strong closes on significant range and volume */
+    if ((ts_true_range(jl_recs->data, ix) >= jl_recs->recs[ix].rg) && 
+	(dr[ix].volume >= jl_recs->recs[ix].volume)) {
+	if (4 * dr[ix].close >= 3 * dr[ix].high + dr[ix].low)
+	    fprintf(fp, "%s\t%s\tSTRONG_CLOSE\t%c\t1\n", dt, stk, UP);
+	if (4 * dr[ix].close <= dr[ix].high + 3 * dr[ix].low)
+	    fprintf(fp, "%s\t%s\tSTRONG_CLOSE\t%c\t1\n", dt, stk, DOWN);
+    }     
 }
 
 void ana_setups(FILE* fp, char* stk, char* dt) {
@@ -404,6 +437,8 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    if (!strcmp(ana_name, "JC_Pullback"))
 		ana_pullbacks(fp, ldr->valuestring, dt);
+	    else if (!strcmp(ana_name, "Gap"))
+		ana_gaps_8(fp, ldr->valuestring, dt);
 	    else
 		ana_setups(fp, ldr->valuestring, dt);
 	}
