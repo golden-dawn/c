@@ -29,6 +29,7 @@
 typedef struct jl_record_t {
     int ix;
     int rg;
+    int volume;
     int state;
     int price;
     bool pivot;
@@ -60,6 +61,7 @@ typedef struct jl_data_t {
     int pos;
     float factor;
     int* rgs;
+    int* volumes;
     int window;
     int lp[8];
     stx_data_ptr data;
@@ -84,6 +86,8 @@ void jl_free(jl_data_ptr jl) {
     }
     free(jl->rgs);
     jl->rgs = NULL;
+    free(jl->volumes);
+    jl->volumes = NULL;
     free(jl->recs);
     jl->recs = NULL;
 }
@@ -104,13 +108,18 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
     }
     int rg = ts_true_range(jl->data, ix);
     jl->rgs[ix % jl->window] = rg;
-    if(ix < jl->window - 1)
+    jl->volumes[ix % jl->window] = jl->data->data[ix].volume;
+    if(ix < jl->window - 1) {
 	jlr->rg = 0;
-    else {
-	int sum_rg = 0;
-	for (int ixx = 0; ixx < jl->window; ixx++)
+	jlr->volume = 0;
+    } else {
+	int sum_rg = 0, sum_volume = 0;
+	for (int ixx = 0; ixx < jl->window; ixx++) {
 	    sum_rg += jl->rgs[ixx];
+	    sum_volume += jl->volumes[ixx];
+	}
 	jlr->rg = sum_rg / jl->window;
+	jlr->volume = sum_volume / jl->window;
     }
 }
 
@@ -313,6 +322,7 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
     jl->last->price = (jl->last->prim_price = -1);
     jl->last->state = (jl->last->prim_state = NONE);
     jl->rgs = (int *) calloc(window, sizeof(int));
+    jl->volumes = (int *) calloc(window, sizeof(int));
     jl->num_pivots = 0;
     jl->pivots = NULL;
     int max = 0, max_ix, min = 2000000000, min_ix;
@@ -347,13 +357,14 @@ void jl_split_adjust(jl_data_ptr jl, ht_item_ptr split) {
     float ratio = split->val.ratio;
     for(int ix = 0; ix < jl->pos; ix++) {
 	jl->recs[ix].rg = (int) (jl->recs[ix].rg * ratio);
+	jl->recs[ix].volume = (int) (jl->recs[ix].volume / ratio);
 	jl->recs[ix].price = (int) (jl->recs[ix].price * ratio);
 	jl->recs[ix].price2 = (int) (jl->recs[ix].price2 * ratio);
     }
-    for(int ix = 0; ix < jl->window; ix++)
+    for(int ix = 0; ix < jl->window; ix++) {
 	jl->rgs[ix] = (int) (jl->rgs[ix] * ratio);
-    for(int ix = 0; ix < 8; ix++)
-	jl->rgs[ix] = (int) (jl->rgs[ix] * ratio);
+	jl->volumes[ix] = (int) (jl->volumes[ix] / ratio);
+    }
     jl->last->prim_price = (int) (jl->last->prim_price * ratio);
     jl->last->price = (int) (jl->last->price * ratio);
 }
