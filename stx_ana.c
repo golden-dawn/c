@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 	    strcpy(crs_date, argv[ix]);
 	    fprintf(stderr, "crs_date = %s\n", crs_date);
 	}
-	else if (!strcmp(argv[ix++], "--end-date") && (ix++ < argc - 1)) {
+	else if (!strcmp(argv[ix], "--end-date") && (ix++ < argc - 1)) {
 	    strcpy(end_date, argv[ix]);
 	    printf("end_date = %s\n", end_date);
 	}
