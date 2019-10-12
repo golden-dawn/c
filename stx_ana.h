@@ -372,12 +372,12 @@ void ana_gaps_8(FILE* fp, char* stk, char* dt) {
 
 void ana_setups(FILE* fp, char* stk, char* dt) {
     ana_pullbacks(fp, stk, dt);
+    ana_gaps_8(fp, stk, dt);
 }
 
 void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt) {
     ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
     jl_data_ptr jl_recs = NULL;
-    cal_next_bday(cal_ix(dt), &next_dt);
     if (ht_jl == NULL) {
 	stx_data_ptr data = ts_load_stk(stk);
 	if (data == NULL) {
@@ -434,6 +434,8 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
     }
     cJSON *ldr = NULL;
     int num = 0, total = cJSON_GetArraySize(leaders);
+    char* next_dt = (char *) calloc((size_t)16, sizeof(char));
+    cal_next_bday(cal_ix(dt), &next_dt);
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    if (!strcmp(ana_name, "JC_Pullback"))
@@ -442,11 +444,13 @@ int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
 		ana_gaps_8(fp, ldr->valuestring, dt);
 	    else
 		ana_setups(fp, ldr->valuestring, dt);
+	    ana_setups_tomorrow(fp, ldr->valuestring, dt, next_dt);
 	}
 	num++;
 	if (num % 100 == 0)
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     }
+    free(next_dt);
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     fclose(fp);
     db_upload_file("setups", filename);
@@ -513,8 +517,10 @@ void ana_intraday_analysis(char* dt, bool eod) {
     }
     num = 0;
     char* next_dt = NULL;
-    if (eod) 
+    if (eod) {
 	next_dt = (char *) calloc((size_t)16, sizeof(char));
+	cal_next_bday(cal_ix(dt), &next_dt);
+    }
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    if (eod) 
