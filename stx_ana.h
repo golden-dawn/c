@@ -374,9 +374,10 @@ void ana_setups(FILE* fp, char* stk, char* dt) {
     ana_pullbacks(fp, stk, dt);
 }
 
-void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
+void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt) {
     ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
     jl_data_ptr jl_recs = NULL;
+    cal_next_bday(cal_ix(dt), &next_dt);
     if (ht_jl == NULL) {
 	stx_data_ptr data = ts_load_stk(stk);
 	if (data == NULL) {
@@ -396,15 +397,15 @@ void ana_setups_tomorrow(FILE* fp, char* stk, char* dt) {
     if ((jl_recs->last->prim_state == UPTREND) && 
 	(jl_recs->last->state == UPTREND)) {
 	if (stp_jc_1234(dr, ix, UP))
-	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, UP, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t0\n", next_dt, stk, UP);
 	if (stp_jc_5days(dr, ix, UP))
-	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, UP, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t0\n", next_dt, stk, UP);
     } else if ((jl_recs->last->prim_state == DOWNTREND) && 
 	       (jl_recs->last->state == DOWNTREND)) {
 	if (stp_jc_1234(dr, ix, DOWN))
-	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t%d\n", dt, stk, DOWN, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_1234\t%c\t0\n", next_dt, stk, DOWN);
 	if (stp_jc_5days(dr, ix, DOWN))
-	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t%d\n", dt, stk, DOWN, trigrd);
+	    fprintf(fp, "%s\t%s\tJC_5DAYS\t%c\t0\n", next_dt, stk, DOWN);
     }
 }
 
@@ -511,15 +512,23 @@ void ana_intraday_analysis(char* dt, bool eod) {
 	fp = stderr;
     }
     num = 0;
+    char* next_dt = NULL;
+    if (eod) 
+	next_dt = (char *) calloc((size_t)16, sizeof(char));
     cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
+	    if (eod) 
+		ana_setups_tomorrow(fp, ldr->valuestring, dt, next_dt);
 	    ana_setups(fp, ldr->valuestring, dt);
+	}
 	num++;
 	if (num % 100 == 0)
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     }
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     fclose(fp);
+    if (eod)
+	free(next_dt);
     if((fp = fopen(filename, "r")) == NULL) {
 	LOGERROR("Failed to open file %s\n", filename);
     } else {
@@ -529,8 +538,11 @@ void ana_intraday_analysis(char* dt, bool eod) {
 	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
 		   &stp[0], &stp_dir, &triggered);
 	    sprintf(sql_cmd, "insert into setups values "
-		    "('%s','%s','%s','%c',%s) on conflict do nothing", 
-		    stp_dt, stp_stk, stp, stp_dir, triggered? "true": "false");
+		    "('%s','%s','%s','%c',%s) "
+		    "on conflict on constraint setups_pkey do "
+		    "update set triggered=%s", 
+		    stp_dt, stp_stk, stp, stp_dir, triggered? "true": "false",
+		    triggered? "true": "false");
 	    fprintf(stderr, "%s\n", sql_cmd);
 	    db_transaction(sql_cmd);
 	}
