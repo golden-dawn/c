@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     }
     char ana_name[64];
     memset(ana_name, 0, 64);
-    strcpy(ana_name, "JC_Pullback");
+    strcpy(ana_name, "All");
 /*     char *crs_date = "2002-02-15",  *exp_date = "2002-02-16", *exp_bdate; */
     char *crs_date = (char *) calloc((size_t)16, sizeof(char));
     char *exp_date = (char *) calloc((size_t)16, sizeof(char)), *exp_bdate;
