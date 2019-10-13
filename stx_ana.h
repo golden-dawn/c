@@ -192,7 +192,6 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp,
     return leader;
 }
 
-
 int ana_expiry_analysis(char* dt, bool realtime_analysis) {
     /** 
      * special case when the date is an option expiry date
@@ -298,22 +297,7 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
     return leader_list;    
 }
 
-void ana_pullbacks(FILE* fp, char* stk, char* dt) {
-    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
-    jl_data_ptr jl_recs = NULL;
-    if (ht_jl == NULL) {
-	stx_data_ptr data = ts_load_stk(stk);
-	if (data == NULL) {
-	    LOGERROR("Could not load %s, skipping...\n", stk);
-	    return;
-	}
-	jl_recs = jl_jl(data, dt, JL_FACTOR);
-	ht_jl = ht_new_data(stk, (void*)jl_recs);
-	ht_insert(ana_jl(JL_200), ht_jl);
-    } else {
-	jl_recs = (jl_data_ptr) ht_jl->val.data;
-	jl_advance(jl_recs, dt);
-    }
+void ana_pullbacks(FILE* fp, char* stk, char* dt, jl_data_ptr jl_recs) {
     daily_record_ptr dr = jl_recs->data->data;
     int ix = jl_recs->data->pos, trigrd = 1;
     bool res;
@@ -333,22 +317,7 @@ void ana_pullbacks(FILE* fp, char* stk, char* dt) {
     }
 }
 
-void ana_gaps_8(FILE* fp, char* stk, char* dt) {
-    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
-    jl_data_ptr jl_recs = NULL;
-    if (ht_jl == NULL) {
-	stx_data_ptr data = ts_load_stk(stk);
-	if (data == NULL) {
-	    LOGERROR("Could not load %s, skipping...\n", stk);
-	    return;
-	}
-	jl_recs = jl_jl(data, dt, JL_FACTOR);
-	ht_jl = ht_new_data(stk, (void*)jl_recs);
-	ht_insert(ana_jl(JL_200), ht_jl);
-    } else {
-	jl_recs = (jl_data_ptr) ht_jl->val.data;
-	jl_advance(jl_recs, dt);
-    }
+void ana_gaps_8(FILE* fp, char* stk, char* dt, jl_data_ptr jl_recs) {
     daily_record_ptr dr = jl_recs->data->data;
     int ix = jl_recs->data->pos;
     bool res;
@@ -370,27 +339,8 @@ void ana_gaps_8(FILE* fp, char* stk, char* dt) {
     }     
 }
 
-void ana_setups(FILE* fp, char* stk, char* dt) {
-    ana_pullbacks(fp, stk, dt);
-    ana_gaps_8(fp, stk, dt);
-}
-
-void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt) {
-    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
-    jl_data_ptr jl_recs = NULL;
-    if (ht_jl == NULL) {
-	stx_data_ptr data = ts_load_stk(stk);
-	if (data == NULL) {
-	    LOGERROR("Could not load %s, skipping...\n", stk);
-	    return;
-	}
-	jl_recs = jl_jl(data, dt, JL_FACTOR);
-	ht_jl = ht_new_data(stk, (void*)jl_recs);
-	ht_insert(ana_jl(JL_200), ht_jl);
-    } else {
-	jl_recs = (jl_data_ptr) ht_jl->val.data;
-	jl_advance(jl_recs, dt);
-    }
+void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt,
+			 jl_data_ptr jl_recs) {
     daily_record_ptr dr = jl_recs->data->data;
     int ix = jl_recs->data->pos, trigrd = 0;
     bool res;
@@ -409,94 +359,53 @@ void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt) {
     }
 }
 
-int ana_eod_analysis(char* dt, cJSON* leaders, char* ana_name) {
-    /** this runs at the end of the trading day.
-     * 1. Get prices and options for hte leaders
-     * 2. calculate eod setups
-     * 3. email the results
-     **/
-    char sql_cmd[256];
-    sprintf(sql_cmd, "select * from analyses where dt='%s' and "
-	    "analysis='%s'", dt, ana_name);
-    PGresult *res = db_query(sql_cmd);
-    int rows = PQntuples(res);
-    PQclear(res);
-    if (rows >= 1) {
-	LOGINFO("Found %d %s analyses for %s\n", rows, ana_name, dt);
-	LOGINFO("Will skip %s analysis for %s\n", ana_name, dt);
-	return 0;
-    }
-    FILE* fp = stdout;
-    char *filename = "/tmp/setups.csv";
-    if((fp = fopen(filename, "w")) == NULL) {
-	LOGERROR("Failed to open file %s for writing\n", filename);
-	return -1;
-    }
-    cJSON *ldr = NULL;
-    int num = 0, total = cJSON_GetArraySize(leaders);
-    char* next_dt = (char *) calloc((size_t)16, sizeof(char));
-    cal_next_bday(cal_ix(dt), &next_dt);
-    cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
-	    if (!strcmp(ana_name, "JC_Pullback"))
-		ana_pullbacks(fp, ldr->valuestring, dt);
-	    else if (!strcmp(ana_name, "Gap"))
-		ana_gaps_8(fp, ldr->valuestring, dt);
-	    else
-		ana_setups(fp, ldr->valuestring, dt);
-	    ana_setups_tomorrow(fp, ldr->valuestring, dt, next_dt);
+void ana_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
+    ht_item_ptr ht_jl = ht_get(ana_jl(JL_200), stk);
+    jl_data_ptr jl_recs = NULL;
+    if (ht_jl == NULL) {
+	stx_data_ptr data = ts_load_stk(stk);
+	if (data == NULL) {
+	    LOGERROR("Could not load %s, skipping...\n", stk);
+	    return;
 	}
-	num++;
-	if (num % 100 == 0)
-	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+	jl_recs = jl_jl(data, dt, JL_FACTOR);
+	ht_jl = ht_new_data(stk, (void*)jl_recs);
+	ht_insert(ana_jl(JL_200), ht_jl);
+    } else {
+	jl_recs = (jl_data_ptr) ht_jl->val.data;
+	jl_advance(jl_recs, dt);
     }
-    free(next_dt);
-    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-    fclose(fp);
-    db_upload_file("setups", filename);
-    LOGINFO("%s: uploaded %s setups in the database\n", dt, ana_name);
-    memset(sql_cmd, 0, 256 * sizeof(char));
-    sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', '%s')", dt, ana_name);
-    LOGINFO("sql_cmd = %s\n", sql_cmd);
-    db_transaction(sql_cmd);
-    return 0;
+    ana_pullbacks(fp, stk, dt, jl_recs);
+    ana_gaps_8(fp, stk, dt, jl_recs);
+    if (eod)
+	ana_setups_tomorrow(fp, stk, dt, next_dt, jl_recs);
 }
 
-
-void ana_intraday_analysis(char* dt, bool eod) {
-    /** this runs during the trading day
-     * 1. download price data only for option spread leaders
-     * 2. determine which EOD setups were triggered today
-     * 3. Calculate intraday setups (?)
-     * 4. email the results
-     **/
+void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
+		bool eod) {
     char *filename = "/tmp/intraday.csv", *opt_filename = "/tmp/options.csv";
-    FILE *fp = NULL, *opt_fp = NULL;
+    cJSON *ldr;
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    FILE *fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
 	return;
     }
     curl_global_init(CURL_GLOBAL_ALL);
-    char *exp_date, *exp_date2;
-    int exp_ix = cal_expiry(cal_ix(dt) + 1, &exp_date);
-    cal_expiry(exp_ix + 1, &exp_date2);
-    cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
-						  MAX_OPT_SPREAD, 0);
-    int num = 0, total = cJSON_GetArraySize(leaders);
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    net_get_eod_data(fp, ldr->valuestring, dt);
 	    if (eod) {
-		FILE *opt_fp = fopen("/tmp/options.csv", "w");
+		FILE *opt_fp = fopen(opt_filename, "w");
 		if (opt_fp == NULL)
-		    LOGERROR("Failed to open /tmp/options.csv file");
+		    LOGERROR("Failed to open %s file", opt_filename);
 		else {
 		    net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
 					exp_date, cal_long_expiry(exp_date));
 		    net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
 					exp_date2, cal_long_expiry(exp_date2));
 		    fclose(opt_fp);
-		    db_upload_file("options", "/tmp/options.csv");
+		    db_upload_file("options", opt_filename);
 		}
 	    }
 	}
@@ -511,6 +420,25 @@ void ana_intraday_analysis(char* dt, bool eod) {
     db_transaction(sql_cmd);
     db_upload_file("eods", filename);
     fp = NULL;
+    curl_global_cleanup();
+}
+
+void ana_daily_analysis(char* dt, bool eod, bool download_data) {
+    /** this can run during the trading day (eod is false), or at eod
+     * 1. Download price data only for option spread leaders
+     * 2. Determine which EOD setups were triggered today
+     * 3. Calculate intraday setups
+     **/
+    char *exp_date, *exp_date2;
+    int exp_ix = cal_expiry(cal_ix(dt) + 1, &exp_date);
+    cal_expiry(exp_ix + 1, &exp_date2);
+    cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
+						  MAX_OPT_SPREAD, 0);
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    if (download_data)
+	get_quotes(leaders, dt, exp_date, exp_date2, eod);
+    FILE *fp = NULL;
+    char *filename = "/tmp/setups.csv";
     if ((fp = fopen(filename, "w")) == NULL) {
 	LOGERROR("Failed to open file %s for writing\n", filename);
 	fp = stderr;
@@ -522,11 +450,8 @@ void ana_intraday_analysis(char* dt, bool eod) {
 	cal_next_bday(cal_ix(dt), &next_dt);
     }
     cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
-	    if (eod) 
-		ana_setups_tomorrow(fp, ldr->valuestring, dt, next_dt);
-	    ana_setups(fp, ldr->valuestring, dt);
-	}
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	    ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
 	num++;
 	if (num % 100 == 0)
 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
@@ -554,7 +479,6 @@ void ana_intraday_analysis(char* dt, bool eod) {
 	}
     }
     cJSON_Delete(leaders);
-    curl_global_cleanup();
 }
 
 #endif
