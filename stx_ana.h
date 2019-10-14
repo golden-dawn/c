@@ -460,7 +460,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     if((fp = fopen(filename, "r")) == NULL) {
 	LOGERROR("Failed to open file %s\n", filename);
     } else {
-	char line[80], sql_cmd[256], stp_dir, stp_dt[16], stp[16], stp_stk[8];
+	char line[80], sql_cmd[256], stp_dir, stp_dt[16], stp[16], stp_stk[16];
 	int triggered, num_triggered = 0, num_untriggered = 0;
 	while(fgets(line, 80, fp)) {
 	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
@@ -479,6 +479,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
 	LOGINFO("%s: inserted %d triggered setups\n", dt, num_triggered);
 	LOGINFO("%s: inserted %d not-triggered setups\n", next_dt, 
 		num_untriggered);
+	fclose(fp);
     }
     cJSON_Delete(leaders);
 }
