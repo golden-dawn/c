@@ -377,7 +377,7 @@ void ana_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
     }
     ana_pullbacks(fp, stk, dt, jl_recs);
     ana_gaps_8(fp, stk, dt, jl_recs);
-    if (eod)
+    if (eod == true)
 	ana_setups_tomorrow(fp, stk, dt, next_dt, jl_recs);
 }
 
@@ -395,7 +395,7 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    net_get_eod_data(fp, ldr->valuestring, dt);
-	    if (eod) {
+	    if (eod == true) {
 		FILE *opt_fp = fopen(opt_filename, "w");
 		if (opt_fp == NULL)
 		    LOGERROR("Failed to open %s file", opt_filename);
@@ -445,38 +445,40 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     }
     num = 0;
     char* next_dt = NULL;
-    if (eod) {
-	next_dt = (char *) calloc((size_t)16, sizeof(char));
+    if (eod == true)
 	cal_next_bday(cal_ix(dt), &next_dt);
-    }
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
 	    ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
 	num++;
 	if (num % 100 == 0)
-	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+ 	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     }
     LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
     fclose(fp);
-    if (eod)
-	free(next_dt);
+    LOGINFO("Closed fp\n");
     if((fp = fopen(filename, "r")) == NULL) {
 	LOGERROR("Failed to open file %s\n", filename);
     } else {
 	char line[80], sql_cmd[256], stp_dir, stp_dt[16], stp[16], stp_stk[8];
-	int triggered;
+	int triggered, num_triggered = 0, num_untriggered = 0;
 	while(fgets(line, 80, fp)) {
 	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
 		   &stp[0], &stp_dir, &triggered);
+	    char *trigger_str = triggered? "true": "false";
 	    sprintf(sql_cmd, "insert into setups values "
-		    "('%s','%s','%s','%c',%s) "
-		    "on conflict on constraint setups_pkey do "
-		    "update set triggered=%s", 
-		    stp_dt, stp_stk, stp, stp_dir, triggered? "true": "false",
-		    triggered? "true": "false");
-	    fprintf(stderr, "%s\n", sql_cmd);
+		    "('%s','%s','%s','%c',%s) on conflict on constraint "
+		    "setups_pkey do update set triggered=%s", 
+		    stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
 	    db_transaction(sql_cmd);
+	    if (triggered == 1) 
+		num_triggered++;
+	    else
+		num_untriggered++;
 	}
+	LOGINFO("%s: inserted %d triggered setups\n", dt, num_triggered);
+	LOGINFO("%s: inserted %d not-triggered setups\n", next_dt, 
+		num_untriggered);
     }
     cJSON_Delete(leaders);
 }
