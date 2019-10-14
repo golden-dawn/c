@@ -31,11 +31,9 @@ int main(int argc, char** argv) {
 	    return 0;
 	}
     }
-    char ana_name[8];
-    memset(ana_name, 0, 8);
-    strcpy(ana_name, "eod");
-    char *crs_date = (char *) calloc((size_t)16, sizeof(char));
-    char *exp_date = (char *) calloc((size_t)16, sizeof(char)), *exp_bdate;
+
+    char *ana_name = "eod", *crs_date = "2002-02-15";
+    char *exp_date = "2002-02-16", *exp_bdate;
     char *end_date = (char *) calloc((size_t)16, sizeof(char)), sql_cmd[128];
     strcpy(sql_cmd, "select max(dt) from eods");
     PGresult *res = db_query(sql_cmd);
@@ -46,17 +44,12 @@ int main(int argc, char** argv) {
     }
     strcpy(end_date, PQgetvalue(res, 0, 0));
     PQclear(res);
-    strcpy(crs_date, "2002-02-15");
-    strcpy(exp_date, "2002-02-16");
     for (int ix = 1; ix < argc; ix++) {
 	if (!strcmp(argv[ix], "--ana-name") && (ix++ < argc - 1)) {
-	    memset(ana_name, 0, 8);
-	    strcpy(ana_name, argv[ix]);
+	    ana_name = argv[ix];
 	    LOGINFO("ana_name = %s\n", ana_name);
 	} else if (!strcmp(argv[ix], "--start-date") && (ix++ < argc - 1)) {
-	    fprintf(stderr, "ix = %d\n", ix);
-	    fprintf(stderr, "ix = %d, crs_date = %s\n", ix, argv[ix]);
-	    strcpy(crs_date, argv[ix]);
+ 	    crs_date = argv[ix];
 	    LOGINFO("start_date = %s\n", crs_date);
 	}
 	else if (!strcmp(argv[ix], "--end-date") && (ix++ < argc - 1)) {
@@ -81,6 +74,5 @@ int main(int argc, char** argv) {
 	ix = cal_next_bday(ix, &crs_date);
     }
     free(end_date);
-    free(crs_date);
-    free(exp_date);
+    LOGINFO("All Done!!!\n");
 }
