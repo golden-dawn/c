@@ -430,7 +430,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
      * 3. Calculate intraday setups
      **/
     char *exp_date, *exp_date2;
-    int exp_ix = cal_expiry(cal_ix(dt) + 1, &exp_date);
+    int exp_ix = cal_expiry(cal_ix(dt), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
     cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
 						  MAX_OPT_SPREAD, 0);
