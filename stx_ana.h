@@ -434,6 +434,10 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cal_expiry(exp_ix + 1, &exp_date2);
     cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
 						  MAX_OPT_SPREAD, 0);
+    char sql_cmd[256];
+    sprintf(sql_cmd, "DELETE FROM setups WHERE dt='%s' AND setup IN "
+	    "('GAP', 'GAP_HV', 'STRONG_CLOSE')", dt);
+    db_transaction(sql_cmd);
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_data)
 	get_quotes(leaders, dt, exp_date, exp_date2, eod);
@@ -460,7 +464,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     if((fp = fopen(filename, "r")) == NULL) {
 	LOGERROR("Failed to open file %s\n", filename);
     } else {
-	char line[80], sql_cmd[256], stp_dir, stp_dt[16], stp[16], stp_stk[16];
+	char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
 	int triggered, num_triggered = 0, num_untriggered = 0;
 	while(fgets(line, 80, fp)) {
 	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
