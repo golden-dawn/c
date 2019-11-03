@@ -275,6 +275,7 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
 	sprintf(sql_cmd, "%s and atm_price <= %d", sql_cmd, max_atm_price);
     if (max_opt_spread > 0)
 	sprintf(sql_cmd, "%s and opt_spread <= %d", sql_cmd, max_opt_spread);
+    sprintf(sql_cmd, "%s and stk not in (select * from excludes)", sql_cmd);
     if (max_num_ldrs > 0)
 	sprintf(sql_cmd, "%s order by opt_spread limit %d", sql_cmd, 
 		max_num_ldrs);
