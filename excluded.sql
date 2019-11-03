@@ -1,3 +1,5 @@
+-- to run this file use:
+-- psql --file=excluded.sql stx
 INSERT into excludes values ('DUST');
 INSERT into excludes values ('FAZ');
 INSERT into excludes values ('SOXS');
