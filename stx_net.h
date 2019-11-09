@@ -70,6 +70,8 @@ int net_number_from_json(cJSON* json, char* name, bool has_raw) {
 	net_print_json_err(json, err_msg);
 	return -1;
     }
+    if (!strcmp(name, "regularMarketVolume"))
+	return (int)(num->valuedouble / 1000);
     return (int)(100 * num->valuedouble);
 }
 
@@ -156,16 +158,25 @@ cJSON* net_navigate_to_eod_quote(cJSON *json) {
 int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt, 
 		  bool has_raw) {
     int c = net_number_from_json(quote, "regularMarketPrice", has_raw);
-    if (c == -1)
+    char err_msg[80];
+    if (c == -1) {
+	sprintf(err_msg, "%s: no regularMarketPrice in 'result'", stk);
+	net_print_json_err(quote, err_msg);
 	return -1;
+    }
     if (eod_fp) {
 	int v = net_number_from_json(quote, "regularMarketVolume", has_raw);
 	int o = net_number_from_json(quote, "regularMarketOpen", has_raw);
 	int hi = net_number_from_json(quote, "regularMarketDayHigh", has_raw);
 	int lo = net_number_from_json(quote, "regularMarketDayLow", has_raw);
-	if (o > 0 && hi > 0 && lo > 0 && v >= 0)
+	if (o > 0 && hi > 0 && lo > 0 && v >= 0 && hi >= lo)
 	    fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
-		    stk, dt, o, hi, lo, c, v / 100000);
+		    stk, dt, o, hi, lo, c, v);
+	else {
+	    sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
+		    stk, v, o, hi, lo);
+	    net_print_json_err(quote, err_msg);
+	}
     }
     return c;
 }
@@ -211,18 +222,22 @@ void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
     char url[256];
     sprintf(url, "%s/quote%s&symbols=%s%s%s", Y_1, Y_3, stk, Y_4, Y_5);
     net_mem_ptr chunk = net_get_quote(url);
-    if (chunk == NULL)
+    if (chunk == NULL) {
+	LOGERROR("%s: net_get_quote() returned null\n", stk);
 	return;
+    }
     cJSON *json = net_parse_quote(chunk->memory);
     if (json == NULL) {
+	LOGERROR("%s: net_parse_quote() failed for %s\n", stk, chunk->memory);
 	free(chunk->memory);
 	free(chunk);
 	return;
     }
     cJSON *quote = net_navigate_to_eod_quote(json);
-    if (quote == NULL)
+    if (quote == NULL) {
+	LOGERROR("%s: failed to navigate to eod quote\n", stk);
 	net_print_json_err(json, "No 'quote' found in 'result'");
-    else
+    } else
 	net_parse_eod(eod_fp, quote, stk, dt, true);
     cJSON_Delete(json);
     free(chunk->memory);
