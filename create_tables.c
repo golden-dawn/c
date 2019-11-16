@@ -174,6 +174,28 @@ int main() {
 	"PRIMARY KEY(dt, analysis))";
     create_table_if_missing(cnx, "analyses", create_analyses);
 
+    char* create_trades = "CREATE TABLE trades("	 \
+	"dt DATE NOT NULL,"				 \
+	"in_dt DATE NOT NULL,"				 \
+	"out_dt DATE NOT NULL,"				 \
+	"stk VARCHAR(16) NOT NULL,"			 \
+	"setup VARCHAR(16) NOT NULL,"			 \
+	"cp VARCHAR(1) NOT NULL,"			 \
+	"exp_dt DATE NOT NULL,"				 \
+	"strike INTEGER NOT NULL,"			 \
+	"in_ask INTEGER,"      				 \
+	"out_bid INTEGER,"     				 \
+	"opt_pnl INTEGER NOT NULL,"			 \
+	"opt_pct_pnl INTEGER NOT NULL,"			 \
+	"moneyness INTEGER NOT NULL,"			 \
+	"in_spot INTEGER NOT NULL,"			 \
+	"in_range INTEGER NOT NULL,"			 \
+	"out_spot INTEGER NOT NULL,"			 \
+	"spot_pnl INTEGER NOT NULL,"			 \
+	"num_contracts INTEGER NOT NULL,"		 \
+	"PRIMARY KEY(dt, in_dt, out_dt, stk, setup, cp, exp_dt, strike))";
+    create_table_if_missing(cnx, "tradess", create_trades);
+
     PQfinish(cnx);
     return 0;
 }
