@@ -26,6 +26,10 @@ int main(int argc, char** argv) {
 	}
 	else if (!strcmp(argv[1], "-eod")) {
 	    curl_global_init(CURL_GLOBAL_ALL);
+	    char *exp_date;
+	    cal_expiry(cal_ix(crt_busdate), &exp_date);
+	    if (!strcmp(crt_busdate, exp_date))
+		ana_expiry_analysis(crt_busdate, true);
 	    ana_daily_analysis(crt_busdate, true, true);
 	    curl_global_cleanup();
 	    return 0;
