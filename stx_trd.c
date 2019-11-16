@@ -2,7 +2,7 @@
 
 
 /**
- * 1. Define a trade structure:
+ * 1. Define a trade structure, and a corresponding database table:
 
  typedef trade_t {
    char cp;
@@ -10,6 +10,7 @@
    char in_dt[16];
    char out_dt[16];
    char exp_dt[16];
+   char setup[16];
    int in_spot;
    int in_range;
    int out_spot;
