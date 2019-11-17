@@ -1,27 +1,14 @@
+#include <libpq-fe.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include "stx_core.h"
+#include "stx_trd.h"
 
 
 /**
  * 1. Define a trade structure, and a corresponding database table:
-
- typedef trade_t {
-   char cp;
-   char stk[16];
-   char in_dt[16];
-   char out_dt[16];
-   char exp_dt[16];
-   char setup[16];
-   int in_spot;
-   int in_range;
-   int out_spot;
-   float spot_pnl;
-   int num_contracts;
-   int strike;
-   int in_ask;
-   int out_bid;
-   float opt_pnl;
-   int moneyness;
- } trade, *trade_ptr;
 
  * 2. Define stop_loss rules. Exit a trade if:
       a. date reaches expiry
@@ -40,4 +27,39 @@
 **/
 
 int main(int argc, char** argv) {
+    char *stx = "", *setups = "JC_1234,JC_5DAYS", *start_date = "2002-02-15";
+    char *end_date = (char *) calloc((size_t)16, sizeof(char)), sql_cmd[128];
+    bool triggered = false;
+    strcpy(sql_cmd, "select max(dt) from eods");
+    PGresult *res = db_query(sql_cmd);
+    int num = PQntuples(res);
+    if (num < 1) {
+	LOGERROR("No data in the 'eods' table. Exiting!\n");
+	exit(-1);
+    }
+    strcpy(end_date, PQgetvalue(res, 0, 0));
+    PQclear(res);
+    for (int ix = 1; ix < argc; ix++) {
+	if (!strcmp(argv[ix], "--stocks") && (ix++ < argc - 1)) {
+	    stx = argv[ix];
+	    LOGINFO("stx = %s\n", stx);
+	} else if (!strcmp(argv[ix], "--setups") && (ix++ < argc - 1)) {
+	    setups = argv[ix];
+	    LOGINFO("setups = %s\n", setups);
+	} else if (!strcmp(argv[ix], "--start-date") && (ix++ < argc - 1)) {
+ 	    start_date = argv[ix];
+	    LOGINFO("start_date = %s\n", start_date);
+	}
+	else if (!strcmp(argv[ix], "--end-date") && (ix++ < argc - 1)) {
+	    strcpy(end_date, argv[ix]);
+	    LOGINFO("end_date = %s\n", end_date);
+	}
+	else if (!strcmp(argv[ix], "--triggered-only"))
+	    triggered = true;
+    }
+    LOGINFO("start_date = %s\n", start_date);
+    LOGINFO("end_date = %s\n", end_date);
+    LOGINFO("stx = %s\n", stx);
+    LOGINFO("setups = %s\n", setups);
+    trd_trade(start_date, end_date, stx, setups, triggered);
 }
