@@ -545,6 +545,13 @@ int cal_expiry(int ix, char** exp_date) {
     return exp_ix;
 }
 
+int cal_expiry_next(int ix, char** exp_date) {
+    ix = cal_expiry(ix, exp_date);
+    ix = cal_next_bday(ix, exp_date);
+    ix = cal_expiry(ix, exp_date);
+    return ix;
+}
+
 int cal_prev_expiry(int ix, char** prev_exp_date) {
     int next_ix = cal_expiry(ix, prev_exp_date);
     return cal_expiry(next_ix - 40, prev_exp_date);
