@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stx_core.h"
+#include "stx_jl.h"
 #include "stx_ts.h"
 
 #define TRD_CAPITAL 500
 #define JL_200 "200"
+#define JL_FACTOR 2.00
 
 typedef struct trade_t {
     char cp;
@@ -53,38 +55,40 @@ hashtable_ptr trd_jl(const char* factor) {
 }
 
 
-int init_trade(trade_ptr trd)
-
-
-void process_trade(trade_ptr trd) {
+int init_trade(trade_ptr trd) {
     ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), trd->stk);
-    jl_data_ptr jl_recs = NULL;
+    jl_data_ptr jl = NULL;
     if (ht_jl == NULL) {
         stx_data_ptr data = ts_load_stk(trd->stk);
         if (data == NULL) {
-            LOGERROR("Could not load %s, skipping...\n", trd->stk);
-            return;
+            LOGERROR("Could not load data for %s, skipping...\n", trd->stk);
+            return 0;
         }
-        jl_recs = jl_jl(data, dt, JL_FACTOR);
-        ht_jl = ht_new_data(stk, (void*)jl_recs);
-        ht_insert(ana_jl(JL_200), ht_jl);
+        jl = jl_jl(data, trd->in_dt, JL_FACTOR);
+        ht_jl = ht_new_data(trd->stk, (void*)jl);
+        ht_insert(trd_jl(JL_200), ht_jl);
     } else {
-        jl_recs = (jl_data_ptr) ht_jl->val.data;
-        jl_advance(jl_recs, trd->in_dt);
+        jl = (jl_data_ptr) ht_jl->val.data;
+	if (strcmp(jl->data->data[jl->pos].date, trd->in_dt) > 0) {
+	    LOGERROR("%s: skipping %s, as its current date is %s\n", 
+		     trd->in_dt, trd->stk, jl->data->data[jl->pos].date);
+	    return 0;
+	}
+        jl_advance(jl, trd->in_dt);
     }
     char *exp_date;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
-    strcpy(trd->exp_date, exp_date);
+    strcpy(trd->exp_dt, exp_date);
     char sql_cmd[128];
     sprintf(sql_cmd, "select strike, bid, ask from options where und='%s' and "
             "dt='%s' and expiry='%s' and cp='%c' order by strike", trd->stk,
             trd->in_dt, trd->exp_dt, trd->cp);
     PGresult *opt_res = db_query(sql_cmd);
     int rows = PQntuples(opt_res);
-    trd->in_spot = data->data[data->pos].close;
-    int dist, dist_1 = 1000000, strike, strike_1, ask = 1000000;
+    trd->in_spot = jl->data->data[jl->pos].close;
+    int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000;
     for(int ix = 0; ix < rows; ix++) {
-	strike = atoi(PQgetvalue(sql_res, ix, 0));
+	strike = atoi(PQgetvalue(opt_res, ix, 0));
 	dist = abs(strike - trd->in_spot);
 	if (dist > dist_1) {
 	    trd->strike = strike_1;
@@ -96,17 +100,76 @@ void process_trade(trade_ptr trd) {
 	/** TODO: check if the strike is further than two daily ranges **/
     }
     PQclear(opt_res);
+    if (strike == -1) {
+	LOGERROR("%s: no options data for %s, skipping...\n", 
+		 trd->in_dt, trd->stk);
+	return 0;
+    }
+    if (abs(strike - trd->in_spot) > 2 * jl->recs[jl->pos].rg) {
+	LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
+		 "skipping ...\n", trd->in_dt, strike, trd->in_spot, trd->stk,
+		 jl->recs[jl->pos].rg);
+	return 0;
+    }
+    trd->in_range = jl->recs[jl->pos].rg;
+    trd->num_contracts = TRD_CAPITAL / trd->in_ask;
+    trd->strike = strike;
+    int sign = (trd->cp == 'c')? 1: -1;
+    trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
+    LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt, 
+	    trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+    return sign;
+}
+
+
+void manage_trade(trade_ptr trd) {
     bool exit_trade = false;
+    ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), trd->stk);
+    jl_data_ptr jl = (jl_data_ptr) ht_jl->val.data;
     while (!exit_trade) {
-	if (ts_next(data) == -1) {
+	if (jl_next(jl) == -1) {
 	    exit_trade = true;
-	    data->pos = data->num_recs - 1;
+	    jl->pos = jl->size - 1;
 	} else {
-	    
+	    if (cal_num_busdays(jl->data->data[jl->pos].date, 
+				trd->exp_dt) <= 1)
+		exit_trade = true;
 	}
     }
-    sprintf(sql_cmd, "select "
+    strcpy(trd->out_dt, jl->data->data[jl->pos].date);
+    trd->out_spot = jl->data->data[jl->pos].close;
+    int sign = (trd->cp == 'c')? 1: -1;
+    trd->spot_pnl = (sign * (trd->out_spot - trd->in_spot) / trd->in_range - 1)
+	/ 2;
+    char sql_cmd[128];
+    sprintf(sql_cmd, "SELECT bid FROM options WHERE und='%s' AND expiry='%s' "
+	    "AND dt='%s' AND cp='%c' AND strike=%d", trd->stk, trd->exp_dt, 
+	    trd->out_dt, trd->cp, trd->strike);
+    PGresult *opt_res = db_query(sql_cmd);
+    int rows = PQntuples(opt_res);
+    if (rows == 0) {
+	LOGERROR("%s: no out options data found for %s, skipping ...\n",
+		 trd->out_dt, trd->stk);
+    } else {
+	trd->out_bid = atoi(PQgetvalue(opt_res, 0, 0));
+	trd->opt_pnl = trd->num_contracts * (trd->out_bid - trd->in_ask);
+	trd->opt_pct_pnl = 100 * trd->out_bid / trd->in_ask - 100;
+	LOGINFO("");
+	LOGINFO("%s: closed trade: %d contracts %s %s %c %d\n", trd->out_dt, 
+	    trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+	LOGINFO("   in_ask=%d, out_bid=%d, opt_pnl=%d, opt_pct_pnl=%d\n",
+		trd->in_ask, trd->out_bid, trd->opt_pnl, trd->opt_pct_pnl);
+    }
+    PQclear(opt_res);
+    
+}
 
+
+void process_trade(trade_ptr trd) {
+    int res = init_trade(trd);
+    if (res == 0) 
+	return;
+    manage_trade(trd);
 }
 
 void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
@@ -173,6 +236,10 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	strcpy(trd.stk, PQgetvalue(setup_recs, ix, 1));
 	strcpy(trd.setup, PQgetvalue(setup_recs, ix, 2));
 	trd.cp = *(PQgetvalue(setup_recs, ix, 3));
+	if (trd.cp == 'D')
+	    trd.cp = 'p';
+	else
+	    trd.cp = 'c';
         if (ix % 100 == 0)
             LOGINFO("Analyzed %5d/%5d setups\n", ix, rows);
 	process_trade(&trd);
