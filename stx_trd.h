@@ -86,18 +86,23 @@ int init_trade(trade_ptr trd) {
     PGresult *opt_res = db_query(sql_cmd);
     int rows = PQntuples(opt_res);
     trd->in_spot = jl->data->data[jl->pos].close;
-    int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000;
+    int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000, ask_1;
     for(int ix = 0; ix < rows; ix++) {
 	strike = atoi(PQgetvalue(opt_res, ix, 0));
+	ask = atoi(PQgetvalue(opt_res, ix, 2));
 	dist = abs(strike - trd->in_spot);
 	if (dist > dist_1) {
 	    trd->strike = strike_1;
-	    trd->in_ask = ask;
+	    trd->in_ask = ask_1;
 	    break;
+	}
+	if (ix == rows - 1) {
+	    trd->strike = strike;
+	    trd->in_ask = ask;
 	}
 	strike_1 = strike;
 	dist_1 = dist;
-	/** TODO: check if the strike is further than two daily ranges **/
+	ask_1 = ask;
     }
     PQclear(opt_res);
     if (strike == -1) {
@@ -105,13 +110,18 @@ int init_trade(trade_ptr trd) {
 		 trd->in_dt, trd->stk);
 	return 0;
     }
-    if (abs(strike - trd->in_spot) > 2 * jl->recs[jl->pos].rg) {
+    if (abs(strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
 	LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
 		 "skipping ...\n", trd->in_dt, strike, trd->in_spot, trd->stk,
-		 jl->recs[jl->pos].rg);
+		 jl->recs[jl->pos - 1].rg);
 	return 0;
     }
-    trd->in_range = jl->recs[jl->pos].rg;
+    trd->in_range = jl->recs[jl->pos - 1].rg;
+    if (trd->in_ask == 0) {
+	LOGERROR("%s: %s %s %c %d, ask price = 0, skipping ...\n", trd->in_dt, 
+	    trd->stk, trd->exp_dt, trd->cp, trd->strike);
+	return 0;
+    }
     trd->num_contracts = TRD_CAPITAL / trd->in_ask;
     trd->strike = strike;
     int sign = (trd->cp == 'c')? 1: -1;
@@ -132,7 +142,7 @@ void manage_trade(trade_ptr trd) {
 	    jl->pos = jl->size - 1;
 	} else {
 	    if (cal_num_busdays(jl->data->data[jl->pos].date, 
-				trd->exp_dt) <= 1)
+				trd->exp_dt) < 3)
 		exit_trade = true;
 	}
     }
