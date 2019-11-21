@@ -134,6 +134,7 @@ int init_trade(trade_ptr trd) {
 
 void manage_trade(trade_ptr trd) {
     bool exit_trade = false;
+    int sign = (trd->cp == 'c')? 1: -1;
     ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), trd->stk);
     jl_data_ptr jl = (jl_data_ptr) ht_jl->val.data;
     while (!exit_trade) {
@@ -141,14 +142,19 @@ void manage_trade(trade_ptr trd) {
 	    exit_trade = true;
 	    jl->pos = jl->size - 1;
 	} else {
-	    if (cal_num_busdays(jl->data->data[jl->pos].date, 
-				trd->exp_dt) < 3)
+	    daily_record_ptr sr = jl->data->data + jl->pos, 
+		sr_1 = jl->data->data + jl->pos - 1,
+		sr_2 = jl->data->data + jl->pos - 2;
+	    if (cal_num_busdays(sr->date, trd->exp_dt) < 3)
 		exit_trade = true;
+ 	    if ((sr->volume > jl->recs[jl->pos - 1].volume) &&  
+ 		((sign == 1 && sr->close < sr_1->close) ||
+		 (sign == -1 && sr->close > sr_1->close)))
+		exit_trade = true; 
 	}
     }
     strcpy(trd->out_dt, jl->data->data[jl->pos].date);
     trd->out_spot = jl->data->data[jl->pos].close;
-    int sign = (trd->cp == 'c')? 1: -1;
     trd->spot_pnl = (sign * (trd->out_spot - trd->in_spot) / trd->in_range - 1)
 	/ 2;
     char sql_cmd[128];
