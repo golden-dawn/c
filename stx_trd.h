@@ -80,6 +80,12 @@ int init_trade(trade_ptr trd) {
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
     strcpy(trd->exp_dt, exp_date);
     char sql_cmd[128];
+
+
+    sprintf(sql_cmd, "select dt, direction from setups where stk='%s' and "
+            "dt='%s' and expiry='%s' and cp='%c' order by strike", trd->stk,
+            trd->in_dt, trd->exp_dt, trd->cp);
+
     sprintf(sql_cmd, "select strike, bid, ask from options where und='%s' and "
             "dt='%s' and expiry='%s' and cp='%c' order by strike", trd->stk,
             trd->in_dt, trd->exp_dt, trd->cp);
