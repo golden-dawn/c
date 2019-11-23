@@ -495,6 +495,15 @@ int cal_next_bday(int crt_ix, char** next_date) {
     return next_ix;
 }
 
+int cal_move_bdays(int crt_ix, int num_days, char** new_date) {
+    int next_ix = crt_ix + 1;
+    for (ht_item_ptr crs = cal_get()->list + next_ix; !crs->val.cal->is_busday;
+	 crs++)
+	next_ix++;
+    *next_date = &(cal_get()->list[next_ix].key[0]);
+    return next_ix;
+}
+
 int cal_prev_bday(int crt_ix, char** prev_date) {
     int prev_ix = crt_ix - 1;
     for (ht_item_ptr crs = cal_get()->list + prev_ix; !crs->val.cal->is_busday;
