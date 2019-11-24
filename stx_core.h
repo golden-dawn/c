@@ -495,15 +495,6 @@ int cal_next_bday(int crt_ix, char** next_date) {
     return next_ix;
 }
 
-int cal_move_bdays(int crt_ix, int num_days, char** new_date) {
-    int next_ix = crt_ix + 1;
-    for (ht_item_ptr crs = cal_get()->list + next_ix; !crs->val.cal->is_busday;
-	 crs++)
-	next_ix++;
-    *next_date = &(cal_get()->list[next_ix].key[0]);
-    return next_ix;
-}
-
 int cal_prev_bday(int crt_ix, char** prev_date) {
     int prev_ix = crt_ix - 1;
     for (ht_item_ptr crs = cal_get()->list + prev_ix; !crs->val.cal->is_busday;
@@ -511,6 +502,28 @@ int cal_prev_bday(int crt_ix, char** prev_date) {
 	prev_ix--;
     *prev_date = &(cal_get()->list[prev_ix].key[0]);
     return prev_ix;
+}
+
+int cal_move_bdays(char* crt_date, int num_days, char** new_date) {
+    int crt_ix = cal_ix(crt_date);
+    int ix = 0;
+    if (num_days == 0) {
+	if (cal_bix(crt_date) == -1)
+	    crt_ix = cal_prev_bday(crt_ix, new_date);
+	else
+	    *new_date = &(cal_get()->list[crt_ix].key[0]);
+    } else if (num_days > 0) {
+	while(ix < num_days) {
+	    crt_ix = cal_next_bday(crt_ix, new_date);
+	    ix++;
+	}
+    } else {
+	while(ix > num_days) {
+	    crt_ix = cal_prev_bday(crt_ix, new_date);
+	    ix--;
+	}
+    }
+    return crt_ix;
 }
 
 int cal_expiry(int ix, char** exp_date) {
