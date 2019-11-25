@@ -76,18 +76,16 @@ int init_trade(trade_ptr trd) {
 	}
         jl_advance(jl, trd->in_dt);
     }
-    char *exp_date;
+    char *exp_date, *dt_n;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
     strcpy(trd->exp_dt, exp_date);
     char sql_cmd[128];
-
-
-    sprintf(sql_cmd, "select dt, direction from setups where stk='%s' and "
-            "dt='%s' and expiry='%s' and cp='%c' order by strike", trd->stk,
+    cal_move_bdays(trd->in_dt, -8, &dt_n);
+    sprintf(sql_cmd, "SELECT dt, direction FROM setups WHERE stk='%s' AND "
+            "dt BETWEEN '%s' AND '%s' ORDER BY dt DESC", trd->stk,
             trd->in_dt, trd->exp_dt, trd->cp);
-
-    sprintf(sql_cmd, "select strike, bid, ask from options where und='%s' and "
-            "dt='%s' and expiry='%s' and cp='%c' order by strike", trd->stk,
+    sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
+            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->stk,
             trd->in_dt, trd->exp_dt, trd->cp);
     PGresult *opt_res = db_query(sql_cmd);
     int rows = PQntuples(opt_res);
