@@ -28,7 +28,7 @@ typedef struct trade_t {
     int opt_pnl;
     int opt_pct_pnl;
     int moneyness;
-    bool triggered;
+    char triggered;
 } trade, *trade_ptr;
 
 
@@ -95,11 +95,13 @@ int init_trade(trade_ptr trd) {
     }
     PQclear(stp_res);
     if (abs(stp_dir) < 3) {
-	LOGINFO("%s: skipping %s, because stp_dir = %d\n", trd->in_dt,
+#ifdef DEBUG
+	LOGDEBUG("%s: skipping %s, because stp_dir = %d\n", trd->in_dt,
 		trd->stk, stp_dir);
+#endif
 	return 0;
     }
-    if ((stp_dir > 0) && !trd->triggered) {
+    if ((stp_dir > 0) && (trd->triggered == 'f')) {
 	if (trd->cp == 'c') { 
 	    LOGINFO("%s: skipping %s, up, because not triggered\n", 
 		    trd->in_dt, trd->stk);
@@ -110,7 +112,7 @@ int init_trade(trade_ptr trd) {
 		    trd->stk);
 	}
     }
-    if ((stp_dir < 0) && !trd->triggered) {
+    if ((stp_dir < 0) && (trd->triggered == 'f')) {
 	if (trd->cp == 'p') {
 	    LOGINFO("%s: skipping %s, down, because not triggered\n", 
 		    trd->in_dt, trd->stk);
@@ -151,10 +153,10 @@ int init_trade(trade_ptr trd) {
 		 trd->in_dt, trd->stk);
 	return 0;
     }
-    if (abs(strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
+    if (abs(trd->strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
 	LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
-		 "skipping ...\n", trd->in_dt, strike, trd->in_spot, trd->stk,
-		 jl->recs[jl->pos - 1].rg);
+		 "skipping ...\n", trd->in_dt, trd->strike, trd->in_spot, 
+		 trd->stk, jl->recs[jl->pos - 1].rg);
 	return 0;
     }
     trd->in_range = jl->recs[jl->pos - 1].rg;
@@ -164,7 +166,6 @@ int init_trade(trade_ptr trd) {
 	return 0;
     }
     trd->num_contracts = TRD_CAPITAL / trd->in_ask;
-    trd->strike = strike;
     int sign = (trd->cp == 'c')? 1: -1;
     trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
     LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt, 
@@ -268,11 +269,9 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 					     sizeof(char));
 	strcpy(setup_tokens, setups);
  	strcat(sql_cmd, "AND setup IN ('");
-	printf("11\n");
 	int ix = 0;
 	char* token = strtok(setup_tokens, ",");
 	while (token) {
-	    printf("12 token = %s, ix = %d\n", token, ix);
 	    if (ix++ > 0)
 		strcat(sql_cmd, "', '");
 	    strcat(sql_cmd, token);
@@ -293,7 +292,7 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	strcpy(trd.stk, PQgetvalue(setup_recs, ix, 1));
 	strcpy(trd.setup, PQgetvalue(setup_recs, ix, 2));
 	trd.cp = *(PQgetvalue(setup_recs, ix, 3));
-	trd.triggered = PQgetvalue(setup_recs, ix, 4);
+	trd.triggered = *((char *)PQgetvalue(setup_recs, ix, 4));
 	if (trd.cp == 'D')
 	    trd.cp = 'p';
 	else
