@@ -28,6 +28,7 @@ typedef struct trade_t {
     int opt_pnl;
     int opt_pct_pnl;
     int moneyness;
+    bool triggered;
 } trade, *trade_ptr;
 
 
@@ -79,16 +80,52 @@ int init_trade(trade_ptr trd) {
     char *exp_date, *dt_n;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
     strcpy(trd->exp_dt, exp_date);
-    char sql_cmd[128];
+    char sql_cmd[256];
     cal_move_bdays(trd->in_dt, -8, &dt_n);
     sprintf(sql_cmd, "SELECT dt, direction FROM setups WHERE stk='%s' AND "
-            "dt BETWEEN '%s' AND '%s' ORDER BY dt DESC", trd->stk,
-            trd->in_dt, trd->exp_dt, trd->cp);
+            "dt BETWEEN '%s' AND '%s' and setup in ('STRONG_CLOSE', 'GAP_HV')"
+	    " ORDER BY dt DESC", trd->stk, dt_n, trd->in_dt);
+    PGresult *stp_res = db_query(sql_cmd);
+    int rows = PQntuples(stp_res), stp_dir = 0;
+    for(int ix = 0; ix < rows; ix++) {
+	char dir = *(PQgetvalue(stp_res, ix, 1));
+	stp_dir += ((dir == 'D')? -1: 1);
+	if (abs(stp_dir) >= 3)
+	    break;
+    }
+    PQclear(stp_res);
+    if (abs(stp_dir) < 3) {
+	LOGINFO("%s: skipping %s, because stp_dir = %d\n", trd->in_dt,
+		trd->stk, stp_dir);
+	return 0;
+    }
+    if ((stp_dir > 0) && !trd->triggered) {
+	if (trd->cp == 'c') { 
+	    LOGINFO("%s: skipping %s, up, because not triggered\n", 
+		    trd->in_dt, trd->stk);
+	    return 0;
+	} else {
+	    trd->cp = 'c';
+	    LOGINFO("%s: flipping the sign on %s, to up\n", trd->in_dt, 
+		    trd->stk);
+	}
+    }
+    if ((stp_dir < 0) && !trd->triggered) {
+	if (trd->cp == 'p') {
+	    LOGINFO("%s: skipping %s, down, because not triggered\n", 
+		    trd->in_dt, trd->stk);
+	    return 0;
+	} else {
+	    trd->cp = 'p';
+	    LOGINFO("%s: flipping the sign on %s, to down\n", trd->in_dt, 
+		    trd->stk);
+	}
+    }
     sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
             "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->stk,
             trd->in_dt, trd->exp_dt, trd->cp);
     PGresult *opt_res = db_query(sql_cmd);
-    int rows = PQntuples(opt_res);
+    rows = PQntuples(opt_res);
     trd->in_spot = jl->data->data[jl->pos].close;
     int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000, ask_1;
     for(int ix = 0; ix < rows; ix++) {
@@ -256,6 +293,7 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	strcpy(trd.stk, PQgetvalue(setup_recs, ix, 1));
 	strcpy(trd.setup, PQgetvalue(setup_recs, ix, 2));
 	trd.cp = *(PQgetvalue(setup_recs, ix, 3));
+	trd.triggered = PQgetvalue(setup_recs, ix, 4);
 	if (trd.cp == 'D')
 	    trd.cp = 'p';
 	else
