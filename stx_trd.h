@@ -174,9 +174,9 @@ int init_trade(trade_ptr trd) {
 }
 
 
-void manage_trade(trade_ptr trd) {
+int manage_trade(trade_ptr trd) {
     bool exit_trade = false;
-    int sign = (trd->cp == 'c')? 1: -1;
+    int sign = (trd->cp == 'c')? 1: -1, res = sign;
     ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), trd->stk);
     jl_data_ptr jl = (jl_data_ptr) ht_jl->val.data;
     while (!exit_trade) {
@@ -208,6 +208,7 @@ void manage_trade(trade_ptr trd) {
     if (rows == 0) {
 	LOGERROR("%s: no out options data found for %s, skipping ...\n",
 		 trd->out_dt, trd->stk);
+	res = 0;
     } else {
 	trd->out_bid = atoi(PQgetvalue(opt_res, 0, 0));
 	trd->opt_pnl = trd->num_contracts * (trd->out_bid - trd->in_ask);
@@ -218,17 +219,29 @@ void manage_trade(trade_ptr trd) {
 	LOGINFO("   in_ask=%d, out_bid=%d, opt_pnl=%d, opt_pct_pnl=%d\n",
 		trd->in_ask, trd->out_bid, trd->opt_pnl, trd->opt_pct_pnl);
     }
+
     PQclear(opt_res);
-    
+    return res;
 }
 
 
-void process_trade(trade_ptr trd) {
+int process_trade(trade_ptr trd) {
     int res = init_trade(trd);
     if (res == 0) 
-	return;
-    manage_trade(trd);
+	return 0;
+    return manage_trade(trd);
 }
+
+
+void record_trade(FILE *fp, trade_ptr trd, char* crt_busdate) {
+    fprintf(fp, "%s\t%s\t%s\t%s\t%s\t%c\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t"
+	    "%d\t%d\t%d\t%d\n", crt_busdate, trd->in_dt, trd->out_dt, 
+	    trd->stk, trd->setup, trd->cp, trd->exp_dt, trd->strike, 
+	    trd->in_ask, trd->out_bid, trd->opt_pnl, trd->opt_pct_pnl, 
+	    trd->moneyness, trd->in_spot, trd->in_range, trd->out_spot, 
+	    trd->spot_pnl, trd->num_contracts);
+}
+
 
 void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	       bool triggered) {
@@ -241,6 +254,13 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	  c. Iterate through the time series, check exit rules
 	  d. When exit rules are triggered, calculate PnLs, insert trade in DB
      **/
+    FILE* fp = NULL;
+    char *filename = "/tmp/trades.csv";
+    if((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	return;
+    }
+    char* crt_bd = cal_current_busdate(0);
     char *sql_cmd = (char *) calloc((size_t)256, sizeof(char));
     strcat(sql_cmd, "SELECT * FROM setups WHERE dt BETWEEN '");
     strcat(sql_cmd, start_date);
@@ -299,8 +319,11 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
 	    trd.cp = 'c';
         if (ix % 100 == 0)
             LOGINFO("Analyzed %5d/%5d setups\n", ix, rows);
-	process_trade(&trd);
+	if (process_trade(&trd) != 0) 
+	    record_trade(fp, &trd, crt_bd);
     }
     LOGINFO("Analyzed %5d/%5d setups\n", rows, rows);
     PQclear(setup_recs);
+    fclose(fp);
+    db_upload_file("trades", filename);
 }
