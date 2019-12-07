@@ -501,9 +501,10 @@ void jl_nre(jl_data_ptr jl, int factor) {
 }
 
 int jl_next(jl_data_ptr jl) {
-    if (jl->pos >= jl->size)
+    if (jl->pos >= jl->size - 1)
 	return -1;
-    ts_next(jl->data);
+    if (ts_next(jl->data) == -1)
+	return -1;
     ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
     if (split != NULL) 
 	jl_split_adjust(jl, split);
@@ -580,15 +581,15 @@ void jl_print_rec(int state, int price, bool pivot) {
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
-    jl->pos++;
-    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1))
+/*     jl->pos++; */
+    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1))
 	res = jl_next(jl);
     return jl;
 }
 
 int jl_advance(jl_data_ptr jl, char* end_date) {
     int res = 0, num_days = 0;
-    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && 
+    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && 
 	  (res != -1)) {
 	res = jl_next(jl);
 	num_days++;
