@@ -171,7 +171,7 @@ void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
 }
 
 int ts_next(stx_data_ptr data) {
-    if (data->pos >= data->num_recs)
+    if (data->pos >= data->num_recs - 1)
 	return -1;
     data->pos++;
     ht_item_ptr split = ht_get(data->splits, data->data[data->pos].date);
