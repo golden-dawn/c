@@ -35,12 +35,14 @@ typedef struct ldr_t {
 static hashtable_ptr stx = NULL;
 static hashtable_ptr jl = NULL;
 
+/** Return the hash table with EOD stock data. */
 hashtable_ptr ana_data() {
     if (stx == NULL) 
 	stx = ht_new(NULL, 20000);
     return stx;
-} 
+}
 
+/** Return the hash table with JL stock data for a given factor */
 hashtable_ptr ana_jl(const char* factor) {
     if (jl == NULL) 
 	jl = ht_new(NULL, 5);
@@ -55,6 +57,20 @@ hashtable_ptr ana_jl(const char* factor) {
     return jl_factor_ht;
 } 
 
+/** 
+ * Analyze option data to determine whether a stock is a leader or
+ * not. To be a leader a stock must:
+ * 1. Have at least 2 ATM/ITM calls and puts, and 2 ATM/OTM calls and puts.
+ * 2. Have a non-negative average spread for the calls and puts found above.
+ * 
+ * The average spread and ATM price (an average between ATM call and
+ * put) are stored for each leader.
+ * 
+ * Subsequently, leaders can be filtered, by choosing only those with
+ * the average spread less than a threshold, and the ATM price less
+ * than a max price.
+
+*/
 void ana_option_analysis(ldr_ptr leader, PGresult* sql_res, int spot) {
     int itm_calls = 0, otm_calls = 0, itm_puts = 0, otm_puts = 0;
     int avg_spread = 0, bid, ask, strike, num_calls = 0, num_puts = 0;
