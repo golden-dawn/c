@@ -268,11 +268,11 @@ int ana_expiry_analysis(char* dt, bool realtime_analysis) {
     PQclear(res);
     db_upload_file("leaders", filename);
     LOGINFO("%s: uploaded leaders in the database as of date %s\n", exp, dt);
-    memset(sql_cmd, 0, 256 * sizeof(char));
-    sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', 'leaders')", dt);
-    db_transaction(sql_cmd);
-    /* 6. Run JL on the adjusted data */
-    /* 7. Run the setups */
+    if (rows > 0) {
+	memset(sql_cmd, 0, 256 * sizeof(char));
+	sprintf(sql_cmd, "INSERT INTO analyses VALUES ('%s', 'leaders')", dt);
+	db_transaction(sql_cmd);
+    }
     LOGINFO("<end>ana_expiry_analysis(%s)\n", dt);
     return 0;
 }
