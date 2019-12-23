@@ -52,9 +52,9 @@ int net_number_from_json(cJSON* json, char* name, bool has_raw) {
     cJSON *num = cJSON_GetObjectItemCaseSensitive(json, name);
     char err_msg[80];
     if (num == NULL) {
-	sprintf(err_msg, "No '%s' found in 'quote'", name);
-	if (strcmp(name, "volume"))
-	    net_print_json_err(json, err_msg);
+/* 	sprintf(err_msg, "No '%s' found in 'quote'", name); */
+/* 	if (strcmp(name, "volume")) */
+/* 	    net_print_json_err(json, err_msg); */
 	return -1;
     }
     if (has_raw) {
