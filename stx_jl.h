@@ -52,6 +52,7 @@ typedef struct jl_pivot_t {
     int state;
     int price;
     int rg;
+    int obv;
     struct jl_pivot_t* next;
 } jl_pivot, *jl_pivot_ptr;
 
@@ -164,17 +165,36 @@ bool jl_down(int state) {
     return (state == DOWNTREND || state == REACTION);
 }
 
+jl_pivot_ptr jl_add_pivot(jl_data_ptr jl, jl_record_ptr jlr, 
+			  jl_record_ptr jlns, bool p2) {
 jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
 			  int piv_price, int piv_rg) {
+    char *piv_date = jl->data->data[jlr->lns].date;
     jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
     strcpy(piv->date, piv_date);
-    piv->state = piv_state;
-    piv->price = piv_price;
-    piv->rg = piv_rg;
-    if (pivots == NULL)
+    piv->state = p2? jlns->state2: jlns->state;
+    piv->price = p2? jlns->price2: jlns->price;
+    piv->rg = jlns->rg;
+    if (jl->pivots == NULL) {
+	piv->obv = 0;
 	piv->next = NULL;
-    else
-	piv->next = pivots;
+    } else {
+	int crt_pos = jlr->lns;
+	if (p2) {
+	    /**
+	       Calc the diff between previous day close and first pivot price.
+	       Calc the diff between the two pivot prices.
+	       Get a ratio between first and second difference.
+	       Multiply day's volume by the ratio to get the pivot volumes
+	     */
+	}
+	int last_piv_pos = ts_find_date_record(jl->data, jl->pivots->date, 0);
+	while(crt_pos >= last_piv_pos) {
+
+	    crt_pos--;
+	}
+	piv->next = jl->pivots;
+    }
     return piv;
 }
 
@@ -184,8 +204,6 @@ bool jl_is_pivot(int prev_state, int crt_state) {
 	    ((crt_state == REACTION || crt_state == DOWNTREND) &&
 	     (prev_state == RALLY || prev_state == UPTREND)));
 }
-
-/* TODO: handle the case when there are two pivots in the same day */
 
 void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     jl_record_ptr jlr = &(jl->recs[ix]);
@@ -199,6 +217,7 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
 		jlns->pivot2 = true;
 	    else
 		jlns->pivot = true;
+	    jl->pivots = jl_add_pivot(jl, jlr, jlns, p2);
 	    jl->pivots = jl_add_pivot(jl->pivots, 
 				      jl->data->data[jlr->lns].date, 
 				      p2? jlns->state2: jlns->state,
