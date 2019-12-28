@@ -22,6 +22,13 @@
 static float jl_factors[4] = { 0.6, 1.0, 1.5, 2.0 };
 static const char *jl_labels[] = { JL_060, JL_100, JL_150, JL_200 };
 
+void ana_jl(FILE* fp, char* stk, char* dt, jl_data_ptr* jl_recs) {
+    for (int ix = 0; ix < 4; ix++) {
+	if (ix < 2) {
+	     
+	}
+    }
+}
 /* void ana_gaps_8(FILE* fp, char* stk, char* dt, jl_data_ptr jl_recs) { */
 /*     daily_record_ptr dr = jl_recs->data->data; */
 /*     int ix = jl_recs->data->pos; */
@@ -43,6 +50,65 @@ static const char *jl_labels[] = { JL_060, JL_100, JL_150, JL_200 };
 /* 	    fprintf(fp, "%s\t%s\tSTRONG_CLOSE\t%c\t1\n", dt, stk, DOWN); */
 /*     }      */
 /* } */
+
+
+/* # check for breakouts / breakdowns. Consider only the setups where the */
+/* # length of the base is >= 30 business days */
+/* def check_for_breaks(ts, jl, pivs, sgn): */
+/*     if sgn == 0 or len(pivs) < 2: */
+/*         return None, None, None */
+/*     last_state = jl.last_rec('state') */
+/*     if(sgn == 1 and last_state != StxJL.UT) or \ */
+/*       (sgn == -1 and last_state != StxJL.DT): */
+/*         return None, None, None */
+/*     edt = ts.current_date() */
+/*     px = ts.current('h') if sgn == 1 else ts.current('l') */
+/*     pivs_len = -len(pivs) - 1 */
+/*     max_px = sgn * pivs[-2].price */
+/*     for ixx in range(-2, pivs_len, -2): */
+/*         if sgn * px < sgn * pivs[ixx].price: */
+/*             return None, None, None */
+/*         if sgn * pivs[ixx].price < max_px: */
+/*             continue */
+/*         max_px = sgn * pivs[ixx].price */
+/*         prev_lns = jl.last_rec('lns_px', 2) */
+/*         prev_state = jl.last_rec('lns_s') */
+/*         if sgn * prev_lns > max_px and prev_state != StxJL.NRe: */
+/*             continue */
+/*         sdt = pivs[ixx].dt */
+/*         base_length = stxcal.num_busdays(sdt, edt) */
+/*         if base_length >= 30: */
+/*             return 'call' if sgn == 1 else 'put', \ */
+/*                 'breakout' if sgn == 1 else 'breakdown', \ */
+/*                 jl.last_rec('rg') */
+/*     return None, None, None */
+
+
+/* def check_for_pullbacks(ts, jl, sgn): */
+/*     pivs = jl.get_num_pivots(4) */
+/*     if len(pivs) < 2 or sgn == 0: */
+/*         return None, None, None */
+/*     last_state = jl.last_rec('state') */
+/*     if last_state == StxJL.SRa: */
+/*         if sgn == 1 and pivs[-1].state == StxJL.UT and \ */
+/*            pivs[-2].state == StxJL.NRe and jl.last_rec('ls_s') == StxJL.NRe: */
+/*             return 'call', 'RevUpSRa', jl.last_rec('rg') */
+/*     elif last_state == StxJL.SRe: */
+/*         if sgn == -1 and pivs[-1].state == StxJL.DT and \ */
+/*            pivs[-2].state == StxJL.NRa and jl.last_rec('ls_s') == StxJL.NRa: */
+/*             return 'put', 'RevDnSRe', jl.last_rec('rg') */
+/*     elif last_state in [StxJL.NRa, StxJL.UT]: */
+/*         if sgn == 1 and pivs[-1].state == StxJL.NRe and \ */
+/*            pivs[-2].state == StxJL.UT and jl.last_rec('lns_s') == StxJL.NRe: */
+/*             return 'call', 'RevUpNRa' if last_state == StxJL.NRa \ */
+/*                 else 'RevUpUT', jl.last_rec('rg') */
+/*     elif last_state in [StxJL.NRe, StxJL.DT]: */
+/*         if sgn == -1 and pivs[-1].state == StxJL.NRa and \ */
+/*            pivs[-2].state == StxJL.DT and jl.last_rec('lns_s') == StxJL.NRa: */
+/*             return 'put', 'RevDnNRe' if last_state == StxJL.NRe \ */
+/*                 else 'RevDnDT', jl.last_rec('rg') */
+/*     return None, None, None */
+
 
 void ana_jl_setups(FILE* fp, char* stk, char* dt) {
     jl_data_ptr jl_recs[4];
