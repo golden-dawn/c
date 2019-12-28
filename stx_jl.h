@@ -180,18 +180,31 @@ jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state,
 	piv->next = NULL;
     } else {
 	int crt_pos = jlr->lns;
+	daily_record_ptr drp = &(jl->data->data[crt_pos]);
+	daily_record_ptr drp_1 = &(jl->data->data[crt_pos - 1]);
+	jl_record_ptr jlrp = &(jl->recs[crt_pos]);
 	if (p2) {
+	    int diff_1 = abs(drp_1->close - jlns->price);
+	    int diff_2 = abs(jlns->price - jlns->price2);
+	    
 	    /**
 	       Calc the diff between previous day close and first pivot price.
 	       Calc the diff between the two pivot prices.
 	       Get a ratio between first and second difference.
 	       Multiply day's volume by the ratio to get the pivot volumes
 	     */
-	}
-	int last_piv_pos = ts_find_date_record(jl->data, jl->pivots->date, 0);
-	while(crt_pos >= last_piv_pos) {
-
-	    crt_pos--;
+	} else {
+	    int last_piv_pos = ts_find_date_record(jl->data, jl->pivots->date,
+						   0);
+	    piv->obv = 0;
+	    while(crt_pos > last_piv_pos) {
+		int obv = 10 * drp->volume / jlrp->volume;
+		if (drp->close > drp_1->close) 
+		    piv->obv += obv;
+		else if (drp->close < drp_1->close)
+		    piv->obv -= obv;
+		crt_pos--;
+	    }
 	}
 	piv->next = jl->pivots;
     }
