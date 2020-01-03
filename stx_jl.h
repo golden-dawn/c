@@ -38,6 +38,7 @@ typedef struct jl_record_t {
     bool pivot2;
     int lns;
     int ls;
+    int obv[3];
 } jl_record, *jl_record_ptr;
 
 typedef struct jl_last_t {
@@ -165,8 +166,8 @@ bool jl_down(int state) {
     return (state == DOWNTREND || state == REACTION);
 }
 
-jl_pivot_ptr jl_add_pivot(jl_data_ptr jl, jl_record_ptr jlr, 
-			  jl_record_ptr jlns, bool p2) {
+/* jl_pivot_ptr jl_add_pivot(jl_data_ptr jl, jl_record_ptr jlr,  */
+/* 			  jl_record_ptr jlns, bool p2) { */
 jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
 			  int piv_price, int piv_rg) {
     char *piv_date = jl->data->data[jlr->lns].date;
@@ -284,6 +285,10 @@ char* jl_state_to_string(int state) {
     return _retval;
 }
 
+void jl_set_obv(jl_data_ptr jl, int ix) {
+
+}
+
 void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
     daily_record_ptr sr = &(jl->data->data[ix]);
@@ -311,6 +316,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	jlr->state = downstate;
 	jlr->price = sr->low;
     }
+    jl_set_obv(jl, ix);
     if (jlr->state != NONE) {
 	jl_update_last(jl, ix);
 	if (jl_primary(upstate) || jl_primary(downstate))
