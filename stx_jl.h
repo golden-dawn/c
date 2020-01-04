@@ -617,12 +617,15 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	if (jlr->state == NONE && (!print_nils))
 	    continue;
 	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
-	    continue;	
-	if (!print_pivots_only || jlr->pivot) {
+	    continue;
+	if (!print_pivots_only || jlr->pivot || 
+	    (strcmp(jl->data->data[ix].date, jl->pivots->date) == 1)){
 	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
 	}
-	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2)) {
+	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2 || 
+				    (strcmp(jl->data->data[ix].date, 
+					    jl->pivots->date) == 1))) {
 	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
 	}
