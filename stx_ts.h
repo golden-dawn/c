@@ -206,4 +206,9 @@ void ts_print(stx_data_ptr data, char* s_date, char* e_date) {
 		data->data[ix].high, data->data[ix].low, 
 		data->data[ix].close, data->data[ix].volume);
 }
+
+void ts_print_record(daily_record_ptr record) {
+    fprintf(stderr, "%s %7d %7d %7d %7d %7d", record->date, record->open, 
+	    record->high, record->low, record->close, record->volume);
+}
 #endif
