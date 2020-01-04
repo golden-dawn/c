@@ -255,6 +255,19 @@ char* jl_state_to_string(int state) {
     return _retval;
 }
 
+void jl_set_obv(jl_data_ptr jl, int ix) {
+    daily_record_ptr sr = &(jl->data->data[ix]);
+    int prev_close = (ix > 0)? jl->data->data[ix - 1].close: sr->open;
+    jl_record_ptr jlr = &(jl->recs[ix]);
+    bool hi_b4_lo = ((2 * sr->close) < (sr->high + sr->low));
+    int e1 = hi_b4_lo? sr->high: sr->low, e2 = hi_b4_lo? sr->low: sr->high;
+    int diff1 = e1 - prev_close, diff2 = e2 - e1, diff3 = sr->close - e2;
+    int sum = abs(diff1) + abs(diff2) + abs(diff3);
+    jlr->obv[0] = diff1 * sr->volume / sum;
+    jlr->obv[1] = diff2 * sr->volume / sum;
+    jlr->obv[2] = diff3 * sr->volume / sum;
+}
+
 void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     jl_init_rec(jl, ix);
     daily_record_ptr sr = &(jl->data->data[ix]);
@@ -287,6 +300,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	if (jl_primary(upstate) || jl_primary(downstate))
 	    jl_update_lns_and_pivots(jl, ix);
     }
+    jl_set_obv(jl, ix);
     jl->pos++;
 #ifdef DDEBUGG
 	fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
