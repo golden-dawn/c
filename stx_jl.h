@@ -501,9 +501,7 @@ void jl_nre(jl_data_ptr jl, int factor) {
 }
 
 int jl_next(jl_data_ptr jl) {
-    if (jl->pos >= jl->size - 1)
-	return -1;
-    if (ts_next(jl->data) == -1)
+    if (jl->pos >= jl->size)
 	return -1;
     ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
     if (split != NULL) 
@@ -533,6 +531,8 @@ int jl_next(jl_data_ptr jl) {
 		jl->last->state, jl->data->data[jl->pos].date);
 	break;
     }
+    if (ts_next(jl->data) == -1)
+	return -1;
     return 0;
 } 
 
@@ -582,7 +582,7 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
 /*     jl->pos++; */
-    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1))
+    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1))
 	res = jl_next(jl);
     return jl;
 }
@@ -612,20 +612,18 @@ void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
 
 void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
     int last_piv = ts_find_date_record(jl->data, jl->pivots->date, 0);
-    for(int ix = 0; ix <= jl->pos; ix++) {
+    for(int ix = 0; ix < jl->pos; ix++) {
 	jl_record_ptr jlr = &(jl->recs[ix]);
 	if (jlr->state == NONE && (!print_nils))
 	    continue;
 	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
 	    continue;
-	if (!print_pivots_only || jlr->pivot || 
-	    (strcmp(jl->data->data[ix].date, jl->pivots->date) == 1)){
+	if (!print_pivots_only || jlr->pivot || (ix > last_piv)) {
 	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
 	}
 	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2 || 
-				    (strcmp(jl->data->data[ix].date, 
-					    jl->pivots->date) == 1))) {
+				    (ix > last_piv))) {
 	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
 	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
 	}
