@@ -171,6 +171,8 @@ int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
     int obv = 0;
     int start = ts_find_date_record(jl->data, start_date, 0);
     jl_record_ptr jls = &(jl->recs[start]), jle = &(jl->recs[end]);
+    if (jls->volume == 0)
+	return 0;
     daily_record_ptr srs = &(jl->data->data[start]);
     daily_record_ptr sre = &(jl->data->data[end]);
     bool hi_b4_lo = ((2 * srs->close) < (srs->high + srs->low));
@@ -224,6 +226,8 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
 				      jl->data->data[jlr->lns].date, 
 				      p2? jlns->state2: jlns->state,
 				      p2? jlns->price2: jlns->price, jlns->rg);
+	    jl->pivots->obv = jl_calc_obv(jl, jl->pivots->date,
+					  jl->pivots->state, ix);
 	}
     }
     if (jl_is_pivot(jlr->state, jlr->state2)) {
@@ -235,8 +239,13 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
 	piv->rg = jlr->rg;
 	jl->pivots = jl_add_pivot(jl->pivots, jl->data->data[ix].date, 
 				  jlr->state, jlr->price, jlr->rg);
+	jl->pivots->obv = jl_calc_obv(jl, jl->pivots->date,
+				      jl->pivots->state, ix);
     }
     jlr->lns = ix;
+    jl->last->lns_obv = jl_calc_obv(jl, jl->data->data[ix].date,
+				    (jl_primary(jlr->state2)? jlr->state2:
+				     jlr->state), ix);
 }
 
 char* jl_state_to_string(int state) {
@@ -313,12 +322,26 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
 	jlr->state = downstate;
 	jlr->price = sr->low;
     }
+    jl_set_obv(jl, ix);
+    if (jlr->volume > 0) {
+	int jl_obv = 10 * (jlr->obv[0] + jlr->obv[1] + jlr->obv[2]) /
+	    jlr->volume;
+	jl->last->lns_obv += jl_obv;
+	jl_pivot_ptr piv_crs = jl->pivots;
+	jl_pivot_ptr piv_next = (piv_crs == NULL)? NULL: piv_crs->next;
+	if (piv_crs != NULL)
+	    piv_crs->obv += jl_obv;
+	while(piv_next != NULL) {
+	    piv_crs = piv_next;
+	    piv_crs->obv += jl_obv;
+	    piv_next = piv_crs->next;
+	}
+    }
     if (jlr->state != NONE) {
 	jl_update_last(jl, ix);
 	if (jl_primary(upstate) || jl_primary(downstate))
 	    jl_update_lns_and_pivots(jl, ix);
     }
-    jl_set_obv(jl, ix);
     jl->pos++;
 #ifdef DDEBUGG
 	fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
