@@ -167,6 +167,24 @@ bool jl_down(int state) {
     return (state == DOWNTREND || state == REACTION);
 }
 
+int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
+    int obv = 0;
+    int start = ts_find_date_record(jl->data, start_date, 0);
+    jl_record_ptr jls = &(jl->recs[start]), jle = &(jl->recs[end]);
+    daily_record_ptr srs = &(jl->data->data[start]);
+    daily_record_ptr sre = &(jl->data->data[end]);
+    bool hi_b4_lo = ((2 * srs->close) < (srs->high + srs->low));
+    if ((jl_up(start_state) && hi_b4_lo) || 
+	(jl_down(start_state) && !hi_b4_lo))
+	obv += 100 * jls->obv[1] / jls->volume;
+    obv += 100 * jls->obv[2] / jls->volume;
+    for(int ix = start + 1; ix <= end; ix++) {
+	jl_record_ptr jlr = &(jl->recs[ix]);
+	obv += (100 * (jlr->obv[0] + jlr->obv[1] + jlr->obv[2]) / jlr->volume);
+    }
+    return obv / 10;
+}
+
 jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
 			  int piv_price, int piv_rg) {
     jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
