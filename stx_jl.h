@@ -602,7 +602,8 @@ void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
     int n = num_pivs;
     jl_pivot_ptr crs = jl->pivots;
     while((n > 0) && (crs!= NULL) && (crs->next != NULL)) {
-	fprintf(stderr, "%s: %d, %8d\n", crs->date, crs->state, crs->price);
+	fprintf(stderr, "%6s %s", " ", crs->date);
+	jl_print_rec(crs->state, crs->price, true);
 	crs = crs->next;
 	n--;
     }
