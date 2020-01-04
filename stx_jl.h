@@ -38,6 +38,7 @@ typedef struct jl_record_t {
     bool pivot2;
     int lns;
     int ls;
+    int obv[3];
 } jl_record, *jl_record_ptr;
 
 typedef struct jl_last_t {
@@ -45,6 +46,7 @@ typedef struct jl_last_t {
     int prim_state;
     int price;
     int state;
+    int lns_obv;
 } jl_last, *jl_last_ptr;
 
 typedef struct jl_pivot_t {
@@ -52,6 +54,7 @@ typedef struct jl_pivot_t {
     int state;
     int price;
     int rg;
+    int obv;
     struct jl_pivot_t* next;
 } jl_pivot, *jl_pivot_ptr;
 
