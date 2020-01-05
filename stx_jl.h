@@ -25,6 +25,8 @@
 #define PGRN   "\x1B[4;32m"
 #define RESET "\x1B[0m"
 
+#define NO_OBV 1000000000
+#define NO_RANGE -1
 
 typedef struct jl_record_t {
     int ix;
@@ -39,6 +41,8 @@ typedef struct jl_record_t {
     int lns;
     int ls;
     int obv[3];
+    int piv_obv;
+    int piv_obv2;
 } jl_record, *jl_record_ptr;
 
 typedef struct jl_last_t {
@@ -124,6 +128,8 @@ void jl_init_rec(jl_data_ptr jl, int ix) {
 	jlr->rg = sum_rg / jl->window;
 	jlr->volume = sum_volume / jl->window;
     }
+    jlr->piv_obv = NO_OBV;
+    jlr->piv_obv2 = NO_OBV;
 }
 
 bool jl_primary(int state) {
@@ -594,7 +600,17 @@ int jl_next(jl_data_ptr jl) {
     return 0;
 } 
 
-void jl_print_rec(int state, int price, bool pivot) {
+void jl_print_rec(char* date, int state, int price, bool pivot, int rg, 
+		  int obv) {
+    if (obv == NO_OBV)
+	fprintf(stderr, "%6s", " ");
+    else
+	fprintf(stderr, "%6d", obv);
+    if (rg == NO_RANGE)
+	fprintf(stderr, "%6s", " ");
+    else
+	fprintf(stderr, "%6d", rg);
+    fprintf(stderr, " %s", date);
     switch(state) {
     case S_RALLY:
 	fprintf(stderr, "%8d\n", price);
@@ -660,8 +676,8 @@ void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
     int n = num_pivs;
     jl_pivot_ptr crs = jl->pivots;
     while((n > 0) && (crs!= NULL) && (crs->next != NULL)) {
-	fprintf(stderr, "%6s %s", " ", crs->date);
-	jl_print_rec(crs->state, crs->price, true);
+	jl_print_rec(crs->date, crs->state, crs->price, true, NO_RANGE, 
+		     crs->obv);
 	crs = crs->next;
 	n--;
     }
@@ -677,15 +693,13 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 	    continue;
 	if (ix < last_piv && !jlr->pivot && !jlr->pivot2 && print_pivots_only)
 	    continue;
-	if (!print_pivots_only || jlr->pivot || (ix > last_piv)) {
-	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
-	    jl_print_rec(jlr->state, jlr->price, jlr->pivot);
-	}
+	if (!print_pivots_only || jlr->pivot || (ix > last_piv))
+	    jl_print_rec(jl->data->data[ix].date, jlr->state, jlr->price, 
+			 jlr->pivot, jlr->rg, jlr->piv_obv);
 	if (jlr->state2 != NONE && (!print_pivots_only || jlr->pivot2 || 
-				    (ix > last_piv))) {
-	    fprintf(stderr, "%6d %s", jlr->rg, jl->data->data[ix].date);
-	    jl_print_rec(jlr->state2, jlr->price2, jlr->pivot2);
-	}
+				    (ix > last_piv)))
+	    jl_print_rec(jl->data->data[ix].date, jlr->state2, jlr->price2, 
+			 jlr->pivot2, jlr->rg, jlr->piv_obv2);
     }
 }
 #endif
