@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     strcpy(stk, "NFLX");
     strcpy(ed, "2019-05-17");
     float factor = 1.5;
-    int num_pivots = 4, num_lines = 3;
+    int num_pivots = 0, num_lines = 3;
     bool print_pivots_only = false, print_nils = false;
 
     for (int ix = 1; ix < argc; ix++) {
