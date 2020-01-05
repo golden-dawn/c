@@ -606,50 +606,57 @@ void jl_print_rec(char* date, int state, int price, bool pivot, int rg,
 	fprintf(stderr, "%6s", " ");
     else
 	fprintf(stderr, "%6d", obv);
-    if (rg == NO_RANGE)
-	fprintf(stderr, "%6s", " ");
-    else
-	fprintf(stderr, "%6d", rg);
-    fprintf(stderr, " %s", date);
+    fprintf(stderr, " %s ", date);
     switch(state) {
     case S_RALLY:
-	fprintf(stderr, "%8d\n", price);
+	fprintf(stderr, "|%7d|%7s|%7s|%7s|%7s|%7s|", price, "", "", "",
+		"", "");
 	break;
     case S_REACTION:
-	fprintf(stderr, "%40d\n", price);
+	fprintf(stderr, "|%7s|%7s|%7s|%7s|%7s|%7d|", "", "", "", "", "",
+		price);
 	break;
     case RALLY:
-	fprintf(stderr, "%8s", " ");
 	if (pivot)
-	    fprintf(stderr, "%s%8d%s\n", PRED, price, RESET);
+	    fprintf(stderr, "|%7s|%s%7d%s|%7s|%7s|%7s|%7s|", "", PRED,
+		    price, RESET, "", "", "", "");
 	else
-	    fprintf(stderr, "%8d\n", price);
+	    fprintf(stderr, "|%7s|%7d|%7s|%7s|%7s|%7s|", "", price, "",
+		    "", "", "");
 	break;
     case REACTION:
-	fprintf(stderr, "%32s", " ");
 	if (pivot)
-	    fprintf(stderr, "%s%8d%s\n", PGRN, price, RESET);
+	    fprintf(stderr, "|%7s|%7s|%7s|%7s|%s%7d%s|%7s|", "", "", "", "",
+		    PGRN, price, RESET, "");
 	else
-	    fprintf(stderr, "%8d\n", price);
+	    fprintf(stderr, "|%7s|%7s|%7s|%7s|%7d|%7s|", "", "", "", "",
+		    price, "");
 	break;
     case UPTREND:
-	fprintf(stderr, "%16s", " ");
 	if (pivot)
-	    fprintf(stderr, "%s%8d%s\n", PGRN, price, RESET);
+	    fprintf(stderr, "|%7s|%7s|%s%7d%s|%7s|%7s|%7s|", "", "", PGRN,
+		    price, RESET, "", "", "");
 	else
-	    fprintf(stderr, "%s%8d%s\n", GRN, price, RESET);
+	    fprintf(stderr, "|%7s|%7s|%7d|%7s|%7s|%7s|", "", "", price,
+		    "", "", "");
 	break;
     case DOWNTREND:
-	fprintf(stderr, "%24s", " ");
 	if (pivot)
-	    fprintf(stderr, "%s%8d%s\n", PRED, price, RESET);
+	    fprintf(stderr, "|%7s|%7s|%7s|%s%7d%s|%7s|%7s|", "", "", "",
+		    PRED, price, RESET, "", "");
 	else
-	    fprintf(stderr, "%s%8d%s\n", RED, price, RESET);
+	    fprintf(stderr, "|%7s|%7s|%7s|%7d|%7s|%7s|", "", "", "", price,
+		    "", "");
 	break;
     default:
-	fprintf(stderr, "\n");
+	fprintf(stderr, "|%7s|%7s|%7s|%7s|%7s|%7s|", "", "", "", "", "", "");
 	break;
     }
+    if (rg == NO_RANGE)
+	fprintf(stderr, "%6s\n", " ");
+    else
+	fprintf(stderr, "%6d\n", rg);
+
 }
 
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
