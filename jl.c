@@ -36,6 +36,13 @@ int main(int argc, char** argv) {
 	ts_print_record(&(jl->data->data[ix]));
 	fprintf(stderr, "\n");
     }
-    int num;
+    int num, ixx;
     jl_print_pivots(jl, num_pivots, &num);
+
+    jl_pivot_ptr pivots = jl_get_pivots(jl, 4, &num);
+    for(ixx = 0; ixx < num - 1; ixx++)
+	jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
+		     true, pivots[ixx].rg, pivots[ixx].obv);
+    jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
+		 false, pivots[ixx].rg, pivots[ixx].obv);
 }
