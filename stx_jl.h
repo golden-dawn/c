@@ -60,6 +60,7 @@ typedef struct jl_pivot_t {
     int rg;
     int obv;
     struct jl_pivot_t* next;
+    struct jl_pivot_t* prev;
 } jl_pivot, *jl_pivot_ptr;
 
 typedef struct jl_data_t {
@@ -193,6 +194,34 @@ int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
     return obv / 10;
 }
 
+jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
+    int n = num_pivots;
+    jl_pivot_ptr crs = jl->pivots;
+    while((n > 0) && (crs!= NULL) && (crs->next != NULL)) {
+	crs = crs->next;
+	n--;
+    }
+    *piv_num = (num_pivots - n + 1);
+    jl_pivot_ptr res = (jl_pivot_ptr) calloc(*piv_num + 1, sizeof(jl_pivot));
+    jl_pivot_ptr res_crs = res;
+    crs = crs->prev;
+    for(int ix = 0; ix < *piv_num - 1; ix++) {
+	memcpy(res_crs, crs, sizeof(jl_pivot));
+	res_crs++;
+	crs = crs->prev;
+    }
+    int last_lns = jl->recs[jl->pos - 1].lns;
+    jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
+    strcpy(res_crs->date, jl->data->data[last_lns].date);
+    res_crs->state = jl_primary(jlr_lns->state2)? jlr_lns->state2:
+	jlr_lns->state;
+    res_crs->price = jl_primary(jlr_lns->state2)? jlr_lns->price2:
+	jlr_lns->price;
+    res_crs->rg = jlr_lns->rg;
+    res_crs->obv = jl->last->lns_obv;
+    return res;
+}
+
 jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
 			  int piv_price, int piv_rg) {
     jl_pivot_ptr piv = (jl_pivot_ptr) malloc(sizeof(jl_pivot));
@@ -202,8 +231,10 @@ jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state,
     piv->rg = piv_rg;
     if (pivots == NULL)
 	piv->next = NULL;
-    else
+    else {
 	piv->next = pivots;
+	pivots->prev = piv;
+    }
     return piv;
 }
 
@@ -222,6 +253,10 @@ void jl_update_lns_and_pivots(jl_data_ptr jl, int ix) {
     int crt_s = jl_primary(jlr->state)? jlr->state: jlr->state2;
     if (jlns != NULL) {
 	bool p2 = jl_primary(jlns->state2);
+	if (p2)
+	    jlns->piv_obv2 = NO_OBV;
+	else
+	    jlns->piv_obv = NO_OBV;
 	int lns_s = p2? jlns->state2: jlns->state;
 	if (jl_is_pivot(lns_s, crt_s)) {
 	    if (p2)
@@ -689,7 +724,6 @@ void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
 	n--;
     }
     *piv_num = (num_pivs - n);
-    
 }
 
 void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
