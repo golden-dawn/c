@@ -1,3 +1,4 @@
+#include <cjson/cJSON.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,4 +46,35 @@ int main(int argc, char** argv) {
 		     true, pivots[ixx].rg, pivots[ixx].obv);
     jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
 		 false, pivots[ixx].rg, pivots[ixx].obv);
+
+    cJSON *json_jl = cJSON_CreateObject();
+    if (cJSON_AddNumberToObject(json_jl, "f", factor) == NULL)
+	goto end;
+    cJSON *pivs = NULL;
+    if ((pivs = cJSON_AddArrayToObject(json_jl, "pivs")) == NULL)
+	goto end;
+    for(int ix = 0; ix < num; ix++) {
+	cJSON * pivot = cJSON_CreateObject();
+	if (cJSON_AddStringToObject(pivot, "d", pivots[ix].date) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "x", pivots[ix].price) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "s", pivots[ix].state) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "r", pivots[ix].rg) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "v", pivots[ix].obv) == NULL)
+	    goto end;
+	if (cJSON_AddBoolToObject(pivot, "p", (ix != (num - 1))) == NULL)
+	    goto end;
+	cJSON_AddItemToArray(pivs, pivot);
+    }
+    char *string = cJSON_Print(json_jl);
+    if (string == NULL)
+        fprintf(stderr, "Failed to print jl.\n");
+    else
+        fprintf(stderr, "%s\n", string);
+ end:
+    cJSON_Delete(json_jl);
+    free(pivots);
 }
