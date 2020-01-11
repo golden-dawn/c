@@ -1,5 +1,6 @@
 #ifndef __STX_JL_H__
 #define __STX_JL_H__
+#include <cjson/cJSON.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -220,6 +221,36 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
     res_crs->rg = jlr_lns->rg;
     res_crs->obv = jl->last->lns_obv;
     return res;
+}
+
+cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
+    int num_pivs;
+    jl_pivot_ptr pivots = jl_get_pivots(jl, num_pivots, &num_pivs);
+    cJSON *json_jl = cJSON_CreateObject();
+    if (cJSON_AddNumberToObject(json_jl, "f", jl->factor) == NULL)
+	goto end;
+    cJSON *pivs = NULL;
+    if ((pivs = cJSON_AddArrayToObject(json_jl, "pivs")) == NULL)
+	goto end;
+    for(int ix = 0; ix < num_pivs; ix++) {
+	cJSON * pivot = cJSON_CreateObject();
+	if (cJSON_AddStringToObject(pivot, "d", pivots[ix].date) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "x", pivots[ix].price) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "s", pivots[ix].state) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "r", pivots[ix].rg) == NULL)
+	    goto end;
+	if (cJSON_AddNumberToObject(pivot, "v", pivots[ix].obv) == NULL)
+	    goto end;
+	if (cJSON_AddBoolToObject(pivot, "p", (ix != (num_pivs - 1))) == NULL)
+	    goto end;
+	cJSON_AddItemToArray(pivs, pivot);
+    }
+ end:
+    free(pivots);
+    return json_jl;
 }
 
 jl_pivot_ptr jl_add_pivot(jl_pivot_ptr pivots, char* piv_date, int piv_state, 
