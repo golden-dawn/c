@@ -223,6 +223,36 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
     return res;
 }
 
+
+jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
+    int n = 0;
+    jl_pivot_ptr crs = jl->pivots;
+    while((strcmp(dt, crs->date) <= 0) && (crs!= NULL) &&
+	  (crs->next != NULL)) {
+	crs = crs->next;
+	n++;
+    }
+    *piv_num = n + 1;
+    jl_pivot_ptr res = (jl_pivot_ptr) calloc(n + 1, sizeof(jl_pivot));
+    jl_pivot_ptr res_crs = res;
+    crs = crs->prev;
+    for(int ix = 0; ix < n; ix++) {
+	memcpy(res_crs, crs, sizeof(jl_pivot));
+	res_crs++;
+	crs = crs->prev;
+    }
+    int last_lns = jl->recs[jl->pos - 1].lns;
+    jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
+    strcpy(res_crs->date, jl->data->data[last_lns].date);
+    res_crs->state = jl_primary(jlr_lns->state2)? jlr_lns->state2:
+	jlr_lns->state;
+    res_crs->price = jl_primary(jlr_lns->state2)? jlr_lns->price2:
+	jlr_lns->price;
+    res_crs->rg = jlr_lns->rg;
+    res_crs->obv = jl->last->lns_obv;
+    return res;
+}
+
 cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
     int num_pivs;
     jl_pivot_ptr pivots = jl_get_pivots(jl, num_pivots, &num_pivs);
