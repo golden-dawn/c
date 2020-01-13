@@ -47,6 +47,16 @@ int main(int argc, char** argv) {
     jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
 		 false, pivots[ixx].rg, pivots[ixx].obv);
     free(pivots);
+    pivots = NULL;
+
+    pivots = jl_get_pivots_date(jl, "2018-01-01", &num);
+    for(ixx = 0; ixx < num - 1; ixx++)
+	jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
+		     true, pivots[ixx].rg, pivots[ixx].obv);
+    jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
+		 false, pivots[ixx].rg, pivots[ixx].obv);
+    free(pivots);
+    pivots = NULL;
 
     cJSON *json_jl = jl_pivots_json(jl, 4);
     char *string = cJSON_Print(json_jl);
