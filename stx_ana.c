@@ -17,14 +17,12 @@ int main(int argc, char** argv) {
 	    ana_expiry_analysis(crt_busdate, rt_analysis);
 	    curl_global_cleanup();
 	    return 0;
-	}
-	else if (!strcmp(argv[1], "-intraday")) {
+	} else if (!strcmp(argv[1], "-intraday")) {
 	    curl_global_init(CURL_GLOBAL_ALL);
 	    ana_daily_analysis(crt_busdate, false, true);
 	    curl_global_cleanup();
 	    return 0;
-	}
-	else if (!strcmp(argv[1], "-eod")) {
+	} else if (!strcmp(argv[1], "-eod")) {
 	    curl_global_init(CURL_GLOBAL_ALL);
 	    char *exp_date;
 	    cal_expiry(cal_ix(crt_busdate), &exp_date);
@@ -32,6 +30,9 @@ int main(int argc, char** argv) {
 		ana_expiry_analysis(crt_busdate, true);
 	    ana_daily_analysis(crt_busdate, true, true);
 	    curl_global_cleanup();
+	    return 0;
+	} else if (!strcmp(argv[1], "-ana")) {
+	    ana_daily_analysis(crt_busdate, true, false);
 	    return 0;
 	}
     }
