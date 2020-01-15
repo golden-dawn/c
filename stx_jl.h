@@ -190,7 +190,9 @@ int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
     obv += 100 * jls->obv[2] / jls->volume;
     for(int ix = start + 1; ix <= end; ix++) {
 	jl_record_ptr jlr = &(jl->recs[ix]);
-	obv += (100 * (jlr->obv[0] + jlr->obv[1] + jlr->obv[2]) / jlr->volume);
+	/* Deal with garbage when the average volume is 0 */
+	int jlrv = (jlr->volume > 0)? jlr->volume: 1000000;
+	obv += (100 * (jlr->obv[0] + jlr->obv[1] + jlr->obv[2]) / jlrv);
     }
     return obv / 10;
 }
@@ -392,6 +394,10 @@ void jl_set_obv(jl_data_ptr jl, int ix) {
     int e1 = hi_b4_lo? sr->high: sr->low, e2 = hi_b4_lo? sr->low: sr->high;
     int diff1 = e1 - prev_close, diff2 = e2 - e1, diff3 = sr->close - e2;
     int sum = abs(diff1) + abs(diff2) + abs(diff3);
+    /* Deal with garbage like first days with the same open/high/low/close */
+    /* or same previous close/high/low/close */
+    if (sum == 0)
+	sum = 1;
     jlr->obv[0] = diff1 * sr->volume / sum;
     jlr->obv[1] = diff2 * sr->volume / sum;
     jlr->obv[2] = diff3 * sr->volume / sum;
