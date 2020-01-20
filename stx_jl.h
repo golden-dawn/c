@@ -255,6 +255,17 @@ jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
     return res;
 }
 
+int jl_prev_ns(jl_data_ptr jl) {
+    int last_lns = jl->recs[jl->pos - 1].lns;
+    jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
+    int pns = jlr_lns->lns;
+    if (pns == lns)
+	return jlr_lns->state;
+    jl_record_ptr jlr_pns = &(jl->recs[pns]);
+    return jl_primary(jlr_pns->state2)? jlr_pns->state2:
+	jlr_pns->state;
+}
+
 cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
     int num_pivs;
     jl_pivot_ptr pivots = jl_get_pivots(jl, num_pivots, &num_pivs);
@@ -278,6 +289,10 @@ cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
 	    goto end;
 	if (cJSON_AddBoolToObject(pivot, "p", (ix != (num_pivs - 1))) == NULL)
 	    goto end;
+	if (ix == (num_pivs - 1)) {
+	    if (cJSON_AddNumberToObject(pivot, "s_1", jl_prev_ns(jl)) == NULL)
+		goto end;
+	}
 	cJSON_AddItemToArray(pivs, pivot);
     }
  end:
