@@ -199,11 +199,8 @@ int main() {
     char* create_jl_setups = "CREATE TABLE jl_setups( "	 \
 	"dt DATE NOT NULL, "				 \
 	"stk VARCHAR(16) NOT NULL, "			 \
-	"setup VARCHAR(16) NOT NULL, "			 \
-	"direction CHAR(1) NOT NULL, "			 \
-	"triggered BOOLEAN NOT NULL, "			 \
 	"info JSONB NOT NULL, "				 \
-	"PRIMARY KEY(dt, stk, setup, direction))";
+	"PRIMARY KEY(dt, stk))";
     create_table_if_missing(cnx, "jl_setups", create_jl_setups);
     char* create_jl_setups_stk_idx = "CREATE INDEX jl_setups_stk_idx ON " \
 	"jl_setups(stk)";
@@ -213,10 +210,6 @@ int main() {
 	"jl_setups(dt)";
     create_index_if_missing(cnx, "jl_setups", "jl_setups_dt_idx",
 			    create_jl_setups_dt_idx);
-    char* create_jl_setups_setup_idx = "CREATE INDEX jl_setups_setup_idx ON " \
-	"jl_setups(setup)";
-    create_index_if_missing(cnx, "jl_setups", "jl_setups_setup_idx",
-			    create_jl_setups_setup_idx);
 
     PQfinish(cnx);
     return 0;
