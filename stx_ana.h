@@ -22,6 +22,13 @@
 #define UP 'U'
 #define DOWN 'D'
 #define JL_FACTOR 2.00
+#define JLF_050 0.50
+#define JLF_100 1.0
+#define JLF_150 1.50
+#define JLF_200 2.00
+#define JL_050 "050"
+#define JL_100 "100"
+#define JL_150 "150"
 #define JL_200 "200"
 
 typedef struct ldr_t {
@@ -398,6 +405,44 @@ void ana_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	ana_setups_tomorrow(fp, stk, dt, next_dt, jl_recs);
 }
 
+jl_data_ptr ana_get_jl(char* stk, char* dt, const char* label, float factor) {
+    ht_item_ptr ht_jl = ht_get(ana_jl(label), stk);
+    jl_data_ptr jl_recs = NULL;
+    if (ht_jl == NULL) {
+	stx_data_ptr data = ts_load_stk(stk);
+	if (data == NULL) {
+	    LOGERROR("Could not load JL_%s for %s, skipping...\n", label, stk);
+	    return NULL;
+	}
+	jl_recs = jl_jl(data, dt, factor);
+	ht_jl = ht_new_data(stk, (void*)jl_recs);
+	ht_insert(ana_jl(label), ht_jl);
+    } else {
+	jl_recs = (jl_data_ptr) ht_jl->val.data;
+	jl_advance(jl_recs, dt);
+    }
+    return jl_recs;
+}
+
+void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
+    jl_data_ptr jl_recs_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
+    jl_data_ptr jl_recs_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
+    jl_data_ptr jl_recs_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
+    jl_data_ptr jl_recs_200 = ana_get_jl(stk, dt, JL_200, JLF_200);
+    if ((jl_recs_050 == NULL) || (jl_recs_100 == NULL) ||
+	(jl_recs_150 == NULL) || (jl_recs_200 == NULL)) {
+	return;
+    }
+    /** TODO:
+	1. Get 6 pivots for JL_150 and JL_200
+	2. Find least recent date lrdt for last 2 pivots for JL_150 and JL_200
+	3. Find all the JL_050 and JL_100 pivots up to lrdt
+	4. Look for 1-2-3 setups for JL_100, JL_150 and JL_200
+	5. Look for SR for JL_050, jl_100
+	6. Look for intersecting channels for ...
+    */
+}
+
 void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
 		bool eod) {
     char *filename = "/tmp/intraday.csv", *opt_filename = "/tmp/options.csv";
@@ -469,8 +514,10 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     if (eod == true)
 	cal_next_bday(cal_ix(dt), &next_dt);
     cJSON_ArrayForEach(ldr, leaders) {
-	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
+	    ana_jl_setups(fp, ldr->valuestring, dt, next_dt, eod);
+	}
 	num++;
 	if (num % 100 == 0)
  	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
@@ -499,6 +546,67 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
 	}
 	LOGINFO("%s: inserted %d triggered setups\n", dt, num_triggered);
 	LOGINFO("%s: inserted %d not-triggered setups\n", next_dt, 
+		num_untriggered);
+	fclose(fp);
+    }
+    cJSON_Delete(leaders);
+}
+
+
+void ana_jl_daily_analysis(char* dt, bool eod, bool download_data) {
+    char *exp_date, *exp_date2;
+    int exp_ix = cal_expiry(cal_ix(dt) + (eod? 1: 0), &exp_date);
+    cal_expiry(exp_ix + 1, &exp_date2);
+    cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
+						  MAX_OPT_SPREAD, 0);
+    char sql_cmd[256];
+    sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s' AND setup IN "
+	    "('JLR', 'JLS')", dt);
+    db_transaction(sql_cmd);
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    if (download_data)
+	get_quotes(leaders, dt, exp_date, exp_date2, eod);
+    FILE *fp = NULL;
+    char *filename = "/tmp/jl_setups.csv";
+    if ((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	fp = stderr;
+    }
+    num = 0;
+    char* next_dt = NULL;
+    if (eod == true)
+	cal_next_bday(cal_ix(dt), &next_dt);
+    cJSON_ArrayForEach(ldr, leaders) {
+/* 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) */
+/* 	    ana_jl_setups(fp, ldr->valuestring, dt, next_dt, eod); */
+	num++;
+	if (num % 100 == 0)
+	    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+    }
+    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
+    fclose(fp);
+    LOGINFO("Closed fp\n");
+    if((fp = fopen(filename, "r")) == NULL) {
+	LOGERROR("Failed to open file %s\n", filename);
+    } else {
+	char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
+	int triggered, num_triggered = 0, num_untriggered = 0;
+	while(fgets(line, 80, fp)) {
+	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
+		   &stp[0], &stp_dir, &triggered);
+	    char *trigger_str = triggered? "true": "false";
+	    sprintf(sql_cmd, "insert into setups values "
+		    "('%s','%s','%s','%c',%s) on conflict on constraint "
+		    "setups_pkey do update set triggered=%s",
+		    stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
+	    db_transaction(sql_cmd);
+	    if (triggered == 1)
+		num_triggered++;
+	    else
+		num_untriggered++;
+	}
+	LOGINFO("%s: inserted %d triggered setups\n", dt, num_triggered);
+	LOGINFO("%s: inserted %d not-triggered setups\n", next_dt,
 		num_untriggered);
 	fclose(fp);
     }
