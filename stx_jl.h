@@ -259,7 +259,7 @@ int jl_prev_ns(jl_data_ptr jl) {
     int last_lns = jl->recs[jl->pos - 1].lns;
     jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
     int pns = jlr_lns->lns;
-    if (pns == lns)
+    if (pns == last_lns)
 	return jlr_lns->state;
     jl_record_ptr jlr_pns = &(jl->recs[pns]);
     return jl_primary(jlr_pns->state2)? jlr_pns->state2:
