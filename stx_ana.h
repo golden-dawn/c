@@ -424,23 +424,64 @@ jl_data_ptr ana_get_jl(char* stk, char* dt, const char* label, float factor) {
     return jl_recs;
 }
 
+/** Calculates the point where trend channel defined by the points
+ *  (p1->date, p1->price), and (p2->date, p2->price) would intersect
+ *  the y-axis at the current day.
+ */
+int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
+    LOGINFO("p1dt = %s, p2dt = %s, p1px = %d, p2px = %d\n",
+	    p1->date, p2->date, p1->price, p2->price);
+    char *crt_date = jl->data->data[jl->data->pos - 1].date;
+    LOGINFO("crt_date = %s\n", crt_date);
+    float slope = (p2->price - p1->price) /
+	cal_num_busdays(p1->date, p2->date);
+    LOGINFO("The slope is: %f\n", slope);
+    int intersect_price = (int)
+	(p1->price + slope * cal_num_busdays(p1->date, crt_date));
+    LOGINFO("The intersect_price is: %d\n", intersect_price);
+    return intersect_price;
+}
+
 void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
-    jl_data_ptr jl_recs_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
-    jl_data_ptr jl_recs_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
-    jl_data_ptr jl_recs_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
-    jl_data_ptr jl_recs_200 = ana_get_jl(stk, dt, JL_200, JLF_200);
-    if ((jl_recs_050 == NULL) || (jl_recs_100 == NULL) ||
-	(jl_recs_150 == NULL) || (jl_recs_200 == NULL)) {
+    jl_data_ptr jl_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
+    jl_data_ptr jl_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
+    jl_data_ptr jl_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
+    jl_data_ptr jl_200 = ana_get_jl(stk, dt, JL_200, JLF_200);
+    if ((jl_050 == NULL) || (jl_100 == NULL) ||	(jl_150 == NULL) ||
+	(jl_200 == NULL))
 	return;
-    }
     /** TODO:
-	1. Get 6 pivots for JL_150 and JL_200
-	2. Find least recent date lrdt for last 2 pivots for JL_150 and JL_200
+	1. Get 4 pivots for JL_150 and JL_200
+	2. Find least recent date lrdt for last pivot for JL_150 and JL_200
 	3. Find all the JL_050 and JL_100 pivots up to lrdt
 	4. Look for 1-2-3 setups for JL_100, JL_150 and JL_200
 	5. Look for SR for JL_050, jl_100
 	6. Look for intersecting channels for ...
     */
+    int num_050, num_100, num_150, num_200;
+    jl_pivot_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
+	pivots_200 = NULL;
+    pivots_150 = jl_get_pivots(jl_150, 4, &num_150);
+    pivots_200 = jl_get_pivots(jl_200, 4, &num_200);
+    if ((num_150 < 5) || (num_200 < 5)) {
+	LOGERROR("Got %d %s pivots, needed 5\n", num_150, JL_150);
+	LOGERROR("Got %d %s pivots, needed 5\n", num_200, JL_200);
+	goto end;
+    }
+    char *lrdt_150 = pivots_150[1].date, *lrdt_200 = pivots_200[1].date;
+    char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
+    pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
+    pivots_050 = jl_get_pivots_date(jl_050, lrdt, &num_050);
+
+ end:
+    if (pivots_050 != NULL)
+	free(pivots_050);
+    if (pivots_100 != NULL)
+	free(pivots_100);
+    if (pivots_150 != NULL)
+	free(pivots_150);
+    if (pivots_200 != NULL)
+	free(pivots_200);
 }
 
 void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
