@@ -456,16 +456,16 @@ int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
  * channel break detection.
  */
 
-cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots) {
+cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
     cJSON *res = NULL;
     int i = jl->data->pos - 1;
     daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
-    int len_1 = cal_num_busdays(r->date, pivots[3].date);
-    int len_2 = cal_num_busdays(r->date, pivots[4].date);
+    int len_1 = cal_num_busdays(pivots[num - 4].date, r->date);
+    int len_2 = cal_num_busdays(pivots[num - 5].date, r->date);
     if ((len_1 < MIN_CHANNEL_LEN) && (len_2 < MIN_CHANNEL_LEN))
 	return NULL;
     int px_up = -1, px_down = -1, upper_channel_len, lower_channel_len;
-    if (jl_up(pivots[0].state)) { /* stock in uptrend/rally */
+    if (jl_up(pivots[num - 1].state)) { /* stock in uptrend/rally */
 	px_up = ana_interpolate(jl, &(pivots[2]), &(pivots[4]));
 	upper_channel_len = len_2;
 	px_down = ana_interpolate(jl, &(pivots[1]), &(pivots[3]));
@@ -539,7 +539,7 @@ void ana_check_for_support_resistance(FILE *fp,
 
 }
 
-void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
+void ana_jl_setups(char* stk, char* dt, bool eod) {
     jl_data_ptr jl_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
     jl_data_ptr jl_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
     jl_data_ptr jl_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
@@ -555,6 +555,7 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	5. Look for SR for JL_050, jl_100
 	6. Look for breakouts and/or intersecting channels for ...
     */
+    cJSON *res = NULL, *setups = cJSON_CreateArray();
     int num_050, num_100, num_150, num_200;
     jl_pivot_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
 	pivots_200 = NULL;
@@ -565,7 +566,8 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	LOGERROR("Got %d %s pivots, needed 5\n", num_200, JL_200);
 	goto end;
     }
-    char *lrdt_150 = pivots_150[1].date, *lrdt_200 = pivots_200[1].date;
+    char *lrdt_150 = pivots_150[num_150 - 2].date, 
+	*lrdt_200 = pivots_200[num_200 - 2].date;
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
     pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
     if (num_100 < 5) {
@@ -579,21 +581,29 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	pivots_050 = NULL;
 	pivots_050 = jl_get_pivots(jl_050, 4, &num_050);
     }
-    cJSON *res = NULL, setups = cJSON_CreateArray();
-    if ((res = ana_check_for_breaks(jl_050, pivots_050)) != NULL)
+    if ((res = ana_check_for_breaks(jl_050, pivots_050, num_050)) != NULL)
 	cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_100, pivots_100)) != NULL)
+    if ((res = ana_check_for_breaks(jl_100, pivots_100, num_100)) != NULL)
 	cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_150, pivots_150)) != NULL)
+    if ((res = ana_check_for_breaks(jl_150, pivots_150, num_150)) != NULL)
 	cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_200, pivots_200)) != NULL)
+    if ((res = ana_check_for_breaks(jl_200, pivots_200, num_200)) != NULL)
 	cJSON_AddItemToArray(setups, res);
+    int num_setups = cJSON_GetArraySize(setups);
+    if (num_setups > 0) {
+	LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
+	char *setup_string = cJSON_Print(setups);
+	char sql_cmd[16384];
+	sprintf(sql_cmd, "insert into jl_setups values ('%s','%s','%s')", 
+		dt, stk, setup_string);
+	db_transaction(sql_cmd);
+    }
 
-    ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100,
-			    jl_150, pivots_150, jl_200, pivots_200);
-    ana_check_for_support_resistance(fp, jl_050, pivots_050, jl_100,
-				     pivots_100, jl_150, pivots_150,
-				     jl_200, pivots_200);
+/*     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100, */
+/* 			    jl_150, pivots_150, jl_200, pivots_200); */
+/*     ana_check_for_support_resistance(fp, jl_050, pivots_050, jl_100, */
+/* 				     pivots_100, jl_150, pivots_150, */
+/* 				     jl_200, pivots_200); */
  end:
     if (pivots_050 != NULL)
 	free(pivots_050);
@@ -603,6 +613,7 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	free(pivots_150);
     if (pivots_200 != NULL)
 	free(pivots_200);
+    cJSON_Delete(setups);
 }
 
 void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
@@ -678,7 +689,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cJSON_ArrayForEach(ldr, leaders) {
 	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
 	    ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
-	    ana_jl_setups(fp, ldr->valuestring, dt, next_dt, eod);
+/* 	    ana_jl_setups(ldr->valuestring, dt, eod); */
 	}
 	num++;
 	if (num % 100 == 0)
@@ -712,6 +723,23 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
 	fclose(fp);
     }
     cJSON_Delete(leaders);
+}
+
+void stk_analysis(char* stk, char* start_date, char* end_date, bool clear_db) {
+    /** calculate setups for a single stock (stk) during the time
+     *interval [start_date, end_date]
+     */
+    char sql_cmd[256];
+    if (clear_db) {
+	sprintf(sql_cmd, "DELETE FROM jl_setups WHERE stk='%s' AND dt "\
+		"BETWEEN '%s' AND '%s'", stk, start_date, end_date);
+	db_transaction(sql_cmd);
+    }
+    char *crs_date = start_date;
+    while(strcmp(crs_date, end_date) < 0) {
+	ana_jl_setups(stk, crs_date, true);
+	cal_next_bday(cal_ix(crs_date), &crs_date);
+    }
 }
 
 #endif
