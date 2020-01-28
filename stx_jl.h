@@ -205,7 +205,7 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
 	n--;
     }
     *piv_num = (num_pivots - n + 1);
-    jl_pivot_ptr res = (jl_pivot_ptr) calloc(*piv_num + 1, sizeof(jl_pivot));
+    jl_pivot_ptr res = (jl_pivot_ptr) calloc(*piv_num, sizeof(jl_pivot));
     jl_pivot_ptr res_crs = res;
     crs = crs->prev;
     for(int ix = 0; ix < *piv_num - 1; ix++) {
@@ -787,7 +787,7 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
 
 int jl_advance(jl_data_ptr jl, char* end_date) {
     int res = 0, num_days = 0;
-    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && 
+    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) &&
 	  (res != -1)) {
 	res = jl_next(jl);
 	num_days++;
