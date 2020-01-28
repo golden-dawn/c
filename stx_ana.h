@@ -30,6 +30,7 @@
 #define JL_100 "100"
 #define JL_150 "150"
 #define JL_200 "200"
+#define MIN_CHANNEL_LEN 25
 
 typedef struct ldr_t {
     int activity;
@@ -429,17 +430,113 @@ jl_data_ptr ana_get_jl(char* stk, char* dt, const char* label, float factor) {
  *  the y-axis at the current day.
  */
 int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
-    LOGINFO("p1dt = %s, p2dt = %s, p1px = %d, p2px = %d\n",
-	    p1->date, p2->date, p1->price, p2->price);
+#ifdef DEBUGGGG
+    LOGDEBUG("p1dt = %s, p2dt = %s, p1px = %d, p2px = %d\n",
+	     p1->date, p2->date, p1->price, p2->price);
+#endif
     char *crt_date = jl->data->data[jl->data->pos - 1].date;
-    LOGINFO("crt_date = %s\n", crt_date);
+#ifdef DEBUGGGG
+    LOGDEBUG("crt_date = %s\n", crt_date);
+#endif
     float slope = (p2->price - p1->price) /
 	cal_num_busdays(p1->date, p2->date);
-    LOGINFO("The slope is: %f\n", slope);
+#ifdef DEBUGGGG
+    LOGDEBUG("The slope is: %f\n", slope);
+#endif
     int intersect_price = (int)
 	(p1->price + slope * cal_num_busdays(p1->date, crt_date));
-    LOGINFO("The intersect_price is: %d\n", intersect_price);
+#ifdef DEBUGGGG
+    LOGDEBUG("The intersect_price is: %d\n", intersect_price);
+#endif
     return intersect_price;
+}
+
+/** Check whether a given day intersects a channel built by connecting
+ * two pivots.  This applies to both breakout detection, and trend
+ * channel break detection.
+ */
+
+cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots) {
+    cJSON *res = NULL;
+    int i = jl->data->pos - 1;
+    daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
+    int len_1 = cal_num_busdays(r->date, pivots[3].date);
+    int len_2 = cal_num_busdays(r->date, pivots[4].date);
+    if ((len_1 < MIN_CHANNEL_LEN) && (len_2 < MIN_CHANNEL_LEN))
+	return NULL;
+    int px_up = -1, px_down = -1, upper_channel_len, lower_channel_len;
+    if (jl_up(pivots[0].state)) { /* stock in uptrend/rally */
+	px_up = ana_interpolate(jl, &(pivots[2]), &(pivots[4]));
+	upper_channel_len = len_2;
+	px_down = ana_interpolate(jl, &(pivots[1]), &(pivots[3]));
+	lower_channel_len = len_1;
+    } else { /* stock in downtrend/reaction */
+	px_up = ana_interpolate(jl, &(pivots[1]), &(pivots[3]));
+	upper_channel_len = len_1;
+	px_down = ana_interpolate(jl, &(pivots[2]), &(pivots[4]));
+	lower_channel_len = len_2;
+    }
+    /* filter cases when upper channel is below lower channel */
+    if (px_up <= px_down)
+	return NULL;
+    /* find the extremes for today's price either the high/low for the
+       day, or yesterday's close */
+    int ub = (r->high > r_1->close)? r->high: r_1->close; 
+    int lb = (r->low < r_1->close)? r->low: r_1->close; 
+    if ((upper_channel_len >= MIN_CHANNEL_LEN) &&
+	(px_up > lb) && (px_up < ub)) {
+	res = cJSON_CreateObject();
+	cJSON_AddStringToObject(res, "stp", "JL_B");
+	cJSON_AddNumberToObject(res, "dir", 1);
+	cJSON_AddNumberToObject(res, "ipx", px_up);
+	cJSON_AddNumberToObject(res, "len", upper_channel_len);
+	cJSON_AddNumberToObject(res, "vr", (float)r->volume /
+				jl->recs[jl->pos - 2].volume);
+	cJSON_AddNumberToObject(res, "f", jl->factor);
+    }
+    if ((lower_channel_len >= MIN_CHANNEL_LEN) &&
+	(px_up > lb) && (px_up < ub)) {
+	if (res == NULL)
+	    res = cJSON_CreateObject();
+	cJSON_AddStringToObject(res, "stp", "JL_B");
+	cJSON_AddNumberToObject(res, "dir", -1);
+	cJSON_AddNumberToObject(res, "ipx", px_down);
+	cJSON_AddNumberToObject(res, "len", lower_channel_len);
+	cJSON_AddNumberToObject(res, "vr", (float)r->volume /
+				jl->recs[jl->pos - 2].volume);
+	cJSON_AddNumberToObject(res, "f", jl->factor);
+    }
+    return res;
+}
+ 
+void ana_checks_for_breaks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
+			   jl_data_ptr jl_100, jl_pivot_ptr p_100,
+			   jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+			   jl_data_ptr jl_200, jl_pivot_ptr p_200) {
+
+}
+
+/** Check whether a given day creates a new pivot point, and determine
+ * if that pivot point represents a change in trend.
+ */
+void ana_check_for_pullbacks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
+			     jl_data_ptr jl_100, jl_pivot_ptr p_100,
+			     jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+			     jl_data_ptr jl_200, jl_pivot_ptr p_200) {
+
+}
+
+/** Check whether the action on a given day stops at a
+ * resistance/support point, or whether it pierces that
+ * resistance/support (on high volume), and whether it recovers after
+ * piercing or not
+ */
+void ana_check_for_support_resistance(FILE *fp, 
+				      jl_data_ptr jl_050, jl_pivot_ptr p_050,
+				      jl_data_ptr jl_100, jl_pivot_ptr p_100,
+				      jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+				      jl_data_ptr jl_200, jl_pivot_ptr p_200) {
+
 }
 
 void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
@@ -456,7 +553,7 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
 	3. Find all the JL_050 and JL_100 pivots up to lrdt
 	4. Look for 1-2-3 setups for JL_100, JL_150 and JL_200
 	5. Look for SR for JL_050, jl_100
-	6. Look for intersecting channels for ...
+	6. Look for breakouts and/or intersecting channels for ...
     */
     int num_050, num_100, num_150, num_200;
     jl_pivot_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
@@ -472,7 +569,13 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
     pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
     pivots_050 = jl_get_pivots_date(jl_050, lrdt, &num_050);
-
+    ana_checks_for_breaks(fp, jl_050, pivots_050, jl_100, pivots_100,
+			  jl_150, pivots_150, jl_200, pivots_200);
+    ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100,
+			    jl_150, pivots_150, jl_200, pivots_200);
+    ana_check_for_support_resistance(fp, jl_050, pivots_050, jl_100,
+				     pivots_100, jl_150, pivots_150,
+				     jl_200, pivots_200);
  end:
     if (pivots_050 != NULL)
 	free(pivots_050);
