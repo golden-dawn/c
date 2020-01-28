@@ -466,14 +466,14 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
 	return NULL;
     int px_up = -1, px_down = -1, upper_channel_len, lower_channel_len;
     if (jl_up(pivots[num - 1].state)) { /* stock in uptrend/rally */
-	px_up = ana_interpolate(jl, &(pivots[2]), &(pivots[4]));
+	px_up = ana_interpolate(jl, &(pivots[num - 5]), &(pivots[num - 3]));
 	upper_channel_len = len_2;
-	px_down = ana_interpolate(jl, &(pivots[1]), &(pivots[3]));
+	px_down = ana_interpolate(jl, &(pivots[num - 4]), &(pivots[num - 2]));
 	lower_channel_len = len_1;
     } else { /* stock in downtrend/reaction */
-	px_up = ana_interpolate(jl, &(pivots[1]), &(pivots[3]));
+	px_up = ana_interpolate(jl, &(pivots[num - 4]), &(pivots[num - 2]));
 	upper_channel_len = len_1;
-	px_down = ana_interpolate(jl, &(pivots[2]), &(pivots[4]));
+	px_down = ana_interpolate(jl, &(pivots[num - 5]), &(pivots[num - 3]));
 	lower_channel_len = len_2;
     }
     /* filter cases when upper channel is below lower channel */
@@ -495,7 +495,7 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
 	cJSON_AddNumberToObject(res, "f", jl->factor);
     }
     if ((lower_channel_len >= MIN_CHANNEL_LEN) &&
-	(px_up > lb) && (px_up < ub)) {
+	(px_down > lb) && (px_down < ub)) {
 	if (res == NULL)
 	    res = cJSON_CreateObject();
 	cJSON_AddStringToObject(res, "stp", "JL_B");
