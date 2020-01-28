@@ -481,8 +481,8 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots) {
 	return NULL;
     /* find the extremes for today's price either the high/low for the
        day, or yesterday's close */
-    int ub = (r->high > r_1->close)? r->high: r_1->close; 
-    int lb = (r->low < r_1->close)? r->low: r_1->close; 
+    int ub = (r->high > r_1->close)? r->high: r_1->close;
+    int lb = (r->low < r_1->close)? r->low: r_1->close;
     if ((upper_channel_len >= MIN_CHANNEL_LEN) &&
 	(px_up > lb) && (px_up < ub)) {
 	res = cJSON_CreateObject();
@@ -511,7 +511,7 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots) {
  
 void ana_checks_for_breaks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
 			   jl_data_ptr jl_100, jl_pivot_ptr p_100,
-			   jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+			   jl_data_ptr jl_150, jl_pivot_ptr p_150,
 			   jl_data_ptr jl_200, jl_pivot_ptr p_200) {
 
 }
@@ -521,7 +521,7 @@ void ana_checks_for_breaks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
  */
 void ana_check_for_pullbacks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
 			     jl_data_ptr jl_100, jl_pivot_ptr p_100,
-			     jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+			     jl_data_ptr jl_150, jl_pivot_ptr p_150,
 			     jl_data_ptr jl_200, jl_pivot_ptr p_200) {
 
 }
@@ -531,10 +531,10 @@ void ana_check_for_pullbacks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
  * resistance/support (on high volume), and whether it recovers after
  * piercing or not
  */
-void ana_check_for_support_resistance(FILE *fp, 
+void ana_check_for_support_resistance(FILE *fp,
 				      jl_data_ptr jl_050, jl_pivot_ptr p_050,
 				      jl_data_ptr jl_100, jl_pivot_ptr p_100,
-				      jl_data_ptr jl_150, jl_pivot_ptr p_150, 
+				      jl_data_ptr jl_150, jl_pivot_ptr p_150,
 				      jl_data_ptr jl_200, jl_pivot_ptr p_200) {
 
 }
@@ -568,9 +568,27 @@ void ana_jl_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
     char *lrdt_150 = pivots_150[1].date, *lrdt_200 = pivots_200[1].date;
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
     pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
+    if (num_100 < 5) {
+	free(pivots_100);
+	pivots_100 = NULL;
+	pivots_100 = jl_get_pivots(jl_100, 4, &num_100);
+    }
     pivots_050 = jl_get_pivots_date(jl_050, lrdt, &num_050);
-    ana_checks_for_breaks(fp, jl_050, pivots_050, jl_100, pivots_100,
-			  jl_150, pivots_150, jl_200, pivots_200);
+    if (num_050 < 5) {
+	free(pivots_050);
+	pivots_050 = NULL;
+	pivots_050 = jl_get_pivots(jl_050, 4, &num_050);
+    }
+    cJSON *res = NULL, setups = cJSON_CreateArray();
+    if ((res = ana_check_for_breaks(jl_050, pivots_050)) != NULL)
+	cJSON_AddItemToArray(setups, res);
+    if ((res = ana_check_for_breaks(jl_100, pivots_100)) != NULL)
+	cJSON_AddItemToArray(setups, res);
+    if ((res = ana_check_for_breaks(jl_150, pivots_150)) != NULL)
+	cJSON_AddItemToArray(setups, res);
+    if ((res = ana_check_for_breaks(jl_200, pivots_200)) != NULL)
+	cJSON_AddItemToArray(setups, res);
+
     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100,
 			    jl_150, pivots_150, jl_200, pivots_200);
     ana_check_for_support_resistance(fp, jl_050, pivots_050, jl_100,
