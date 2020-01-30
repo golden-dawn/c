@@ -32,6 +32,16 @@
 #define JL_200 "200"
 #define MIN_CHANNEL_LEN 25
 
+#define CANDLESTICK_MARUBOZU_RATIO 80
+#define CANDLESTICK_LONG_DAY_AVG_RATIO 1.3
+#define CANDLESTICK_SHORT_DAY_AVG_RATIO 0.5
+#define CANDLESTICK_ENGULFING_RATIO 0.7
+#define CANDLESTICK_HARAMI_RATIO 0.3
+#define CANDLESTICK_HAMMER_BODY_LONG_SHADOW_RATIO 0.5
+#define CANDLESTICK_HAMMER_SHORT_SHADOW_RANGE_RATIO 0.15
+#define CANDLESTICK_DOJI_BODY_RANGE_RATIO 0.025
+#define CANDLESTICK_EQUAL_VALUES_RANGE_RATIO 0.025
+
 typedef struct ldr_t {
     int activity;
     int range_ratio;
@@ -508,18 +518,11 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
     }
     return res;
 }
- 
-void ana_checks_for_breaks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
-			   jl_data_ptr jl_100, jl_pivot_ptr p_100,
-			   jl_data_ptr jl_150, jl_pivot_ptr p_150,
-			   jl_data_ptr jl_200, jl_pivot_ptr p_200) {
-
-}
 
 /** Check whether a given day creates a new pivot point, and determine
  * if that pivot point represents a change in trend.
  */
-void ana_check_for_pullbacks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
+void ana_check_for_pullbacks(jl_data_ptr jl_050, jl_pivot_ptr p_050,
 			     jl_data_ptr jl_100, jl_pivot_ptr p_100,
 			     jl_data_ptr jl_150, jl_pivot_ptr p_150,
 			     jl_data_ptr jl_200, jl_pivot_ptr p_200) {
@@ -531,11 +534,115 @@ void ana_check_for_pullbacks(FILE *fp, jl_data_ptr jl_050, jl_pivot_ptr p_050,
  * resistance/support (on high volume), and whether it recovers after
  * piercing or not
  */
-void ana_check_for_support_resistance(FILE *fp,
-				      jl_data_ptr jl_050, jl_pivot_ptr p_050,
+void ana_check_for_support_resistance(jl_data_ptr jl_050, jl_pivot_ptr p_050,
 				      jl_data_ptr jl_100, jl_pivot_ptr p_100,
-				      jl_data_ptr jl_150, jl_pivot_ptr p_150,
-				      jl_data_ptr jl_200, jl_pivot_ptr p_200) {
+				      jl_pivot_ptr p_150, jl_pivot_ptr p_200) {
+
+}
+
+/** Implement these candlestick patterns:
+ - hammer
+ - engulfing
+ - piercing/dark cloud cover/kicking
+ - harami
+ - star
+ - engulfing harami
+ - reversal day
+ */
+void ana_candlesticks(jl_data_ptr jl) {
+    daily_record_ptr r[6];
+    int ix_0 = jl->data->pos - 1;
+    for(int ix = 0; ix < 6; ix++)
+	r[ix] = &(jl->data->data[ix_0 - ix]);
+    int body[6];
+    for(int ix = 0; ix < 6; ix++)
+	body[ix] = r[ix]->close - r[ix]->open;
+    int marubozu[6], engulfing, harami[5], piercing;
+    for(int ix = 0; ix < 6; ix++) {
+	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
+	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
+	if (ix < 5) {
+/* 	    def haramifun(r): */
+/*             if(r['body_1'] >= r['avg_body'] * self.long_day_avg_ratio and */
+/*                r['body'] <= r['body_1'] * self.harami_ratio and */
+/*                max(r['o'], r['c']) <= max(r['o_1'], r['c_1']) and */
+/*                min(r['o'], r['c']) >= min(r['o_1'], r['c_1'])): */
+/*                 if r['o_1'] > r['c_1']: */
+/*                     return 2 if r['doji'] == 1 else 1 */
+/* 			    else: */
+/*                     return -2 if r['doji'] == 1 else -1 */
+/*             return 0 */
+	}
+    }
+
+/*     def engulfingfun(r): */
+/*     if r['body'] < self.engulfing_ratio * r['body_1']: */
+/*                 return 0 */
+/* 		    if(r['o'] >= r['c'] and r['o_1'] <= r['c_1'] and */
+/* 		       r['o'] >= r['c_1'] and r['c'] <= r['o_1']): */
+/*                 return -1 */
+/* 		    if(r['o'] <= r['c'] and r['o_1'] >= r['c_1'] and */
+/* 		       r['o'] <= r['c_1'] and r['c'] >= r['o_1']): */
+/*                 return 1 */
+/*             return 0 */
+
+/*     def piercingfun(r): */
+/*     if((r['o_1'] - r['c_1']) * (r['o'] - r['c']) >= 0 or */
+/*        r['body_1'] < self.long_day_avg_ratio * r['avg_body']): */
+/*                 return 0 */
+/* 		    if(r['o_1'] > r['c_1'] and r['o'] < r['lo_1'] and */
+/* 		       2 * r['c'] > r['o_1'] + r['c_1']): */
+/*                 return 1 */
+/* 		    if(r['o_1'] < r['c_1'] and r['o'] > r['hi_1'] and */
+/* 		       2 * r['c'] < r['o_1'] + r['c_1']): */
+/*                 return -1 */
+/*             return 0 */
+
+/* TODO: redo this */
+/*     def starfun(r): */
+/*     if((r['marubozu_2'] == 0 and */
+/* 	r['body_2'] < r['avg_body'] * self.long_day_avg_ratio) or */
+/*        (r['marubozu_2'] != 0 and r['body_2'] < r['avg_body']) or */
+/*                r['body'] < r['avg_body'] or */
+/*                r['body_1'] > r['body_2'] * self.harami_ratio or */
+/*        (r['o_2'] - r['c_2']) * (r['o'] - r['c']) >= 0): */
+/*                 return 0 */
+/* 		    if r['o_2'] > r['c_2']: */
+/*     if r['hi_1'] < min(r['lo_2'], r['lo']): */
+/*                     return 2 */
+/* 			if max(r['o_1'], r['c_1']) < min(r['c_2'], r['o']): */
+/*                     return 1 */
+/* 		    else: */
+/* 			if r['lo_1'] > max(r['hi_2'], r['hi']): */
+/*                     return -2 */
+/* 			if min(r['o_1'], r['c_1']) > max(r['c_2'], r['o']): */
+/*                     return -1 */
+/*             return 0 */
+
+/* TODO: redo this */
+/*     def engulfingharamifun(r): */
+/*     if(r['marubozu'] == 0 or */
+/*        (r['marubozu_3'] == 0 and r['marubozu_4'] == 0)): */
+/*                 return 0 */
+/* 		    if r['marubozu_3'] != 0: */
+/*     if r['marubozu'] * r['marubozu_3'] < 0: */
+/*                     return 0 */
+/* 			if r['harami_2'] == 1: */
+/*                     return r['engulfing'] */
+/* 		    else: */
+/* 			if r['marubozu'] * r['marubozu_4'] < 0: */
+/*                     return 0 */
+/* 			if(r['harami_3'] == 1 and */
+/* 			   r['hi_2'] < max(r['hi_1'], r['hi_3']) and */
+/* 			   r['lo_2'] > min(r['lo_1'], r['lo_3'])): */
+/*                     return r['engulfing'] */
+/*             return 0 */
+/* 			ts.df['engulfharami'] = ts.df.apply(engulfingharamifun, axis=1) */
+
+/* ts.df['avg_body'] = ts.df['body'].rolling(self.avg_range_days).mean() */
+/* ts.df['avg_v'] = ts.df['volume'].rolling(self.avg_volume_days).mean() */
+/* ts.df['upper_shadow'] = ts.df.apply(r['hi'] - max(r['o'], r['c'])) */
+/* ts.df['lower_shadow'] = ts.df.apply(min(r['o'], r['c']) - r['lo']) */
 
 }
 
