@@ -33,14 +33,17 @@
 #define MIN_CHANNEL_LEN 25
 
 #define CANDLESTICK_MARUBOZU_RATIO 80
-#define CANDLESTICK_LONG_DAY_AVG_RATIO 1.3
-#define CANDLESTICK_SHORT_DAY_AVG_RATIO 0.5
-#define CANDLESTICK_ENGULFING_RATIO 0.7
-#define CANDLESTICK_HARAMI_RATIO 0.3
+#define CANDLESTICK_LONG_DAY_AVG_RATIO 90
+#define CANDLESTICK_SHORT_DAY_AVG_RATIO 40
+#define CANDLESTICK_ENGULFING_RATIO 70
+#define CANDLESTICK_HARAMI_RATIO 30
 #define CANDLESTICK_HAMMER_BODY_LONG_SHADOW_RATIO 0.5
 #define CANDLESTICK_HAMMER_SHORT_SHADOW_RANGE_RATIO 0.15
 #define CANDLESTICK_DOJI_BODY_RANGE_RATIO 0.025
 #define CANDLESTICK_EQUAL_VALUES_RANGE_RATIO 0.025
+
+#define MAX(a, b) (a > b)? a: b
+#define MIN(a, b) (a < b)? a: b
 
 typedef struct ldr_t {
     int activity;
@@ -561,30 +564,25 @@ void ana_candlesticks(jl_data_ptr jl) {
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
-	if (ix < 5) {
-/* 	    def haramifun(r): */
-/*             if(r['body_1'] >= r['avg_body'] * self.long_day_avg_ratio and */
-/*                r['body'] <= r['body_1'] * self.harami_ratio and */
-/*                max(r['o'], r['c']) <= max(r['o_1'], r['c_1']) and */
-/*                min(r['o'], r['c']) >= min(r['o_1'], r['c_1'])): */
-/*                 if r['o_1'] > r['c_1']: */
-/*                     return 2 if r['doji'] == 1 else 1 */
-/* 			    else: */
-/*                     return -2 if r['doji'] == 1 else -1 */
-/*             return 0 */
-	}
+	if (ix >= 5)
+	    continue;
+	if ((100 * abs(body[ix - 1]) > jl->recs[ix_0 - ix - 2].rg *
+	     CANDLESTICK_LONG_DAY_AVG_RATIO) &&
+	    (100 * body[ix] <= CANDLESTICK_HARAMI_RATIO * body[ix - 1]) &&
+	    (MAX(r[ix]->open, r[ix]->close) <
+	     MAX(r[ix - 1]->open, r[ix - 1]->close)) &&
+	    (MIN(r[ix]->open, r[ix]->close) >
+	     MIN(r[ix - 1]->open, r[ix - 1]->close)))
+	    harami[ix] = 1;
+	else
+	    harami[ix] = 0;
     }
-
-/*     def engulfingfun(r): */
-/*     if r['body'] < self.engulfing_ratio * r['body_1']: */
-/*                 return 0 */
-/* 		    if(r['o'] >= r['c'] and r['o_1'] <= r['c_1'] and */
-/* 		       r['o'] >= r['c_1'] and r['c'] <= r['o_1']): */
-/*                 return -1 */
-/* 		    if(r['o'] <= r['c'] and r['o_1'] >= r['c_1'] and */
-/* 		       r['o'] <= r['c_1'] and r['c'] >= r['o_1']): */
-/*                 return 1 */
-/*             return 0 */
+    if ((body[0] * body[1] < 0) && (abs(body[0]) > abs(body[1])) &&
+	(MAX(r[0]->open, r[0]->close) >= MAX(r[1]->open, r[1]->close)) &&
+	(MIN(r[0]->open, r[0]->close) <= MIN(r[1]->open, r[1]->close)))
+	engulfing = (body[0] > 0)? 1: -1;
+    else
+	engulfing = 0;
 
 /*     def piercingfun(r): */
 /*     if((r['o_1'] - r['c_1']) * (r['o'] - r['c']) >= 0 or */
