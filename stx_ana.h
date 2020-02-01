@@ -560,7 +560,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     int body[6];
     for(int ix = 0; ix < 6; ix++)
 	body[ix] = r[ix]->close - r[ix]->open;
-    int marubozu[6], engulfing = 0, harami[5], piercing = 0;
+    int marubozu[6], engulfing = 0, harami[5], piercing = 0, star = 0, cbs = 0;
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
@@ -584,9 +584,9 @@ void ana_candlesticks(jl_data_ptr jl) {
     else
 	engulfing = 0;
     if ((body[0] * body[1] < 0) &&
-	(100 * abs(body[1]) > jl->recs[ix_0 - ix - 2].rg *
+	(100 * abs(body[1]) > jl->recs[ix_0 - 2].rg *
 	 CANDLESTICK_LONG_DAY_AVG_RATIO) &&
-	(100 * abs(body[0]) > jl->recs[ix_0 - ix - 1].rg *
+	(100 * abs(body[0]) > jl->recs[ix_0 - 1].rg *
 	 CANDLESTICK_LONG_DAY_AVG_RATIO)) {
 	if ((body[0] > 0) && (r[0]->open < r[1]->low) &&
 	    (2 * r[0]->close > (r[1]->low + r[1]->high)))
@@ -595,28 +595,30 @@ void ana_candlesticks(jl_data_ptr jl) {
 	    (2 * r[0]->close < (r[1]->low + r[1]->high)))
 	    piercing = -1;
     }
-
-
-/* TODO: redo this */
-/*     def starfun(r): */
-/*     if((r['marubozu_2'] == 0 and */
-/* 	r['body_2'] < r['avg_body'] * self.long_day_avg_ratio) or */
-/*        (r['marubozu_2'] != 0 and r['body_2'] < r['avg_body']) or */
-/*                r['body'] < r['avg_body'] or */
-/*                r['body_1'] > r['body_2'] * self.harami_ratio or */
-/*        (r['o_2'] - r['c_2']) * (r['o'] - r['c']) >= 0): */
-/*                 return 0 */
-/* 		    if r['o_2'] > r['c_2']: */
-/*     if r['hi_1'] < min(r['lo_2'], r['lo']): */
-/*                     return 2 */
-/* 			if max(r['o_1'], r['c_1']) < min(r['c_2'], r['o']): */
-/*                     return 1 */
-/* 		    else: */
-/* 			if r['lo_1'] > max(r['hi_2'], r['hi']): */
-/*                     return -2 */
-/* 			if min(r['o_1'], r['c_1']) > max(r['c_2'], r['o']): */
-/*                     return -1 */
-/*             return 0 */
+    /** Check for star patterns. Rules of Recognition
+     * 1. First day always the color established by ensuing trend
+     * 2. Second day always gapped from body of first day. Color not
+     *    important.
+     * 3. Third day always opposite color of first day.
+     * 4. First day, maybe the third day, are long days.
+     *
+     * If third day closes deeply (more than halfway) into first day
+     * body, a much stronger move should ensue, especially if heavy
+     * volume occurs on third day.
+     */
+    if ((100 * abs(body[2]) > jl->recs[ix_0 - 3].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO) && (body[0] * body[2] < 0) &&
+	(100 * abs(body[1]) < jl->recs[ix_0 - 2].rg *
+	 CANDLESTICK_SHORT_DAY_AVG_RATIO)) {
+	if ((body[2] < 0) && (MAX(r[1]->open, r[1]->close) < r[2]->close) &&
+	    (MAX(r[1]->open, r[1]->close) < r[0]->open) &&
+	    (2 * r[0]->close > r[2]->open + r[2]->close))
+	    star = 1;
+	if ((body[2] > 0) && (MIN(r[1]->open, r[1]->close) > r[2]->close) &&
+	    (MIN(r[1]->open, r[1]->close) > r[0]->open) &&
+	    (2 * r[0]->close < r[2]->open + r[2]->close))
+	    star = -1;
+    }
 
 /* TODO: redo this */
 /*     def engulfingharamifun(r): */
