@@ -561,7 +561,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     for(int ix = 0; ix < 6; ix++)
 	body[ix] = r[ix]->close - r[ix]->open;
     int marubozu[6], engulfing = 0, harami[5], piercing = 0, star = 0, cbs = 0;
-    int three = 0, eng_harami = 0;
+    int three = 0, three_in = 0, three_out = 0, kicking = 0, eng_harami = 0;
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
@@ -649,6 +649,18 @@ void ana_candlesticks(jl_data_ptr jl) {
 	    (4 * r[2]->close < 3 * r[2]->low + r[2]->high))
 	    three = -1;
     }
+    /** Kicking:
+     * 1. A Marubozu of one color is followed by another of opposite color
+     * 2. A gap must occur between the two lines.
+     */
+    if (marubozu[1] * marubozu[0] < 0) {
+	if ((marubozu[0] > 0) && (r[0]->open > r[1]->open))
+	    kicking = 1;
+	if ((marubozu[0] < 0) && (r[0]->open < r[1]->open))
+	    kicking = -1;
+    }
+
+    /** CBS, 3in, 3out, eng harami */
 
 /* TODO: redo this */
 /*     def engulfingharamifun(r): */
