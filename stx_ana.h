@@ -561,6 +561,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     for(int ix = 0; ix < 6; ix++)
 	body[ix] = r[ix]->close - r[ix]->open;
     int marubozu[6], engulfing = 0, harami[5], piercing = 0, star = 0, cbs = 0;
+    int three = 0, eng_harami = 0;
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
@@ -618,6 +619,35 @@ void ana_candlesticks(jl_data_ptr jl) {
 	    (MIN(r[1]->open, r[1]->close) > r[0]->open) &&
 	    (2 * r[0]->close < r[2]->open + r[2]->close))
 	    star = -1;
+    }
+    /** Three (white soldiers / black crows). 
+	1. Three consecutive long white days occur, each with a higher close.
+	2. Each day opens within the body of the previous day.
+	3. Each day closes at or near its high.
+	1. Three consecutive long black days occur, each with a lower close.
+	2. Each day opens within the body of the previous day.
+	3. Each day closes at or near its lows.
+     */
+    if (((body[2] > 0 && body[1] > 0 && body[0] > 0) ||
+	 (body[2] < 0 && body[1] < 0 && body[0] < 0)) &&
+	(100 * abs(body[2]) > jl->recs[ix_0 - 3].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO) &&
+	(100 * abs(body[1]) > jl->recs[ix_0 - 2].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO) &&
+	(100 * abs(body[0]) > jl->recs[ix_0 - 1].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO)) {
+	if ((r[1]->close > r[0]->close) && (r[2]->close > r[1]->close) &&
+	    (r[1]->open <= r[0]->close) && (r[2]->open <= r[1]->close) &&
+	    (4 * r[0]->close > 3 * r[0]->high + r[0]->low) &&
+	    (4 * r[1]->close > 3 * r[1]->high + r[1]->low) &&
+	    (4 * r[2]->close > 3 * r[2]->high + r[2]->low))
+	    three = 1;
+	if ((r[1]->close < r[0]->close) && (r[2]->close < r[1]->close) &&
+	    (r[1]->open >= r[0]->close) && (r[2]->open >= r[1]->close) &&
+	    (4 * r[0]->close < 3 * r[0]->low + r[0]->high) &&
+	    (4 * r[1]->close < 3 * r[1]->low + r[1]->high) &&
+	    (4 * r[2]->close < 3 * r[2]->low + r[2]->high))
+	    three = -1;
     }
 
 /* TODO: redo this */
