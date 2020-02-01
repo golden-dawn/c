@@ -659,8 +659,16 @@ void ana_candlesticks(jl_data_ptr jl) {
 	if ((marubozu[0] < 0) && (r[0]->open < r[1]->open))
 	    kicking = -1;
     }
-
     /** CBS, 3in, 3out, eng harami */
+    /** CBS:
+     * 1. First two days are Black Marubozu
+     * 2. Third day is black, gaps down at open, pierces previous day body.
+     * 3. Fourth black day completely engulfs third day, including shadow.
+     */
+    if ((marubozu[3] < 0) && (marubozu[2] < 0) && (body[1] < 0) &&
+	(r[1]->open < r[2]->close) && (body[0] < 0) &&
+	(r[0]->open > r[1]->high) && (r[0]->close < r[1]->low))
+	cbs = 1;
 
 /* TODO: redo this */
 /*     def engulfingharamifun(r): */
