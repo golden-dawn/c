@@ -560,7 +560,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     int body[6];
     for(int ix = 0; ix < 6; ix++)
 	body[ix] = r[ix]->close - r[ix]->open;
-    int marubozu[6], engulfing, harami[5], piercing;
+    int marubozu[6], engulfing = 0, harami[5], piercing = 0;
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
@@ -583,18 +583,19 @@ void ana_candlesticks(jl_data_ptr jl) {
 	engulfing = (body[0] > 0)? 1: -1;
     else
 	engulfing = 0;
+    if ((body[0] * body[1] < 0) &&
+	(100 * abs(body[1]) > jl->recs[ix_0 - ix - 2].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO) &&
+	(100 * abs(body[0]) > jl->recs[ix_0 - ix - 1].rg *
+	 CANDLESTICK_LONG_DAY_AVG_RATIO)) {
+	if ((body[0] > 0) && (r[0]->open < r[1]->low) &&
+	    (2 * r[0]->close > (r[1]->low + r[1]->high)))
+	    piercing = 1;
+	if ((body[0] < 0) && (r[0]->open > r[1]->high) &&
+	    (2 * r[0]->close < (r[1]->low + r[1]->high)))
+	    piercing = -1;
+    }
 
-/*     def piercingfun(r): */
-/*     if((r['o_1'] - r['c_1']) * (r['o'] - r['c']) >= 0 or */
-/*        r['body_1'] < self.long_day_avg_ratio * r['avg_body']): */
-/*                 return 0 */
-/* 		    if(r['o_1'] > r['c_1'] and r['o'] < r['lo_1'] and */
-/* 		       2 * r['c'] > r['o_1'] + r['c_1']): */
-/*                 return 1 */
-/* 		    if(r['o_1'] < r['c_1'] and r['o'] > r['hi_1'] and */
-/* 		       2 * r['c'] < r['o_1'] + r['c_1']): */
-/*                 return -1 */
-/*             return 0 */
 
 /* TODO: redo this */
 /*     def starfun(r): */
