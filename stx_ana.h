@@ -560,7 +560,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     int body[6];
     for(int ix = 0; ix < 6; ix++)
 	body[ix] = r[ix]->close - r[ix]->open;
-    int marubozu[6], engulfing = 0, harami[5], piercing = 0, star = 0, cbs = 0;
+    int marubozu[6], engulfing[2], harami[5], piercing = 0, star = 0, cbs = 0;
     int three = 0, three_in = 0, three_out = 0, kicking = 0, eng_harami = 0;
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
@@ -578,12 +578,19 @@ void ana_candlesticks(jl_data_ptr jl) {
 	else
 	    harami[ix] = 0;
     }
-    if ((body[0] * body[1] < 0) && (abs(body[0]) > abs(body[1])) &&
-	(MAX(r[0]->open, r[0]->close) >= MAX(r[1]->open, r[1]->close)) &&
-	(MIN(r[0]->open, r[0]->close) <= MIN(r[1]->open, r[1]->close)))
-	engulfing = (body[0] > 0)? 1: -1;
-    else
-	engulfing = 0;
+    /** Calculate engulfing pattern for the last two days */
+    for(int ix = 0; ix < 2; ix++) {
+	if ((body[ix] * body[ix + 1] < 0) &&
+	    (abs(body[ix]) > abs(body[ix + 1])) &&
+	    (MAX(r[ix]->open, r[ix]->close) >=
+	     MAX(r[ix + 1]->open, r[ix + 1]->close)) &&
+	    (MIN(r[ix]->open, r[ix]->close) <=
+	     MIN(r[ix + 1]->open, r[ix + 1]->close)))
+	    engulfing[ix] = (body[ix] > 0)? 1: -1;
+	else
+	    engulfing[ix] = 0;
+    }
+    /** Calculate piercing pattern */
     if ((body[0] * body[1] < 0) &&
 	(100 * abs(body[1]) > jl->recs[ix_0 - 2].rg *
 	 CANDLESTICK_LONG_DAY_AVG_RATIO) &&
@@ -659,7 +666,7 @@ void ana_candlesticks(jl_data_ptr jl) {
 	if ((marubozu[0] < 0) && (r[0]->open < r[1]->open))
 	    kicking = -1;
     }
-    /** CBS, 3in, 3out, eng harami */
+    /** 3in, 3out, eng harami */
     /** CBS:
      * 1. First two days are Black Marubozu
      * 2. Third day is black, gaps down at open, pierces previous day body.
