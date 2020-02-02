@@ -682,31 +682,26 @@ void ana_candlesticks(jl_data_ptr jl) {
 	three_out = 1;
     if ((engulfing[1] < 0) && (body[0] < 0) && (r[0]->close < r[1]->close))
 	three_out = -1;
-/* TODO: redo this */
-/*     def engulfingharamifun(r): */
-/*     if(r['marubozu'] == 0 or */
-/*        (r['marubozu_3'] == 0 and r['marubozu_4'] == 0)): */
-/*                 return 0 */
-/* 		    if r['marubozu_3'] != 0: */
-/*     if r['marubozu'] * r['marubozu_3'] < 0: */
-/*                     return 0 */
-/* 			if r['harami_2'] == 1: */
-/*                     return r['engulfing'] */
-/* 		    else: */
-/* 			if r['marubozu'] * r['marubozu_4'] < 0: */
-/*                     return 0 */
-/* 			if(r['harami_3'] == 1 and */
-/* 			   r['hi_2'] < max(r['hi_1'], r['hi_3']) and */
-/* 			   r['lo_2'] > min(r['lo_1'], r['lo_3'])): */
-/*                     return r['engulfing'] */
-/*             return 0 */
-/* 			ts.df['engulfharami'] = ts.df.apply(engulfingharamifun, axis=1) */
 
-/* ts.df['avg_body'] = ts.df['body'].rolling(self.avg_range_days).mean() */
-/* ts.df['avg_v'] = ts.df['volume'].rolling(self.avg_volume_days).mean() */
-/* ts.df['upper_shadow'] = ts.df.apply(r['hi'] - max(r['o'], r['c'])) */
-/* ts.df['lower_shadow'] = ts.df.apply(min(r['o'], r['c']) - r['lo']) */
-
+    /** The bearish engulfing harami pattern consists of two
+     * combination patterns. The first is a harami pattern and the
+     * second is an engulfing pattern. The end result is a pattern
+     * whose two sides are black marubozu candlesticks.
+     */
+    if ((harami[2] == 1) && (body[3] > 0) && engulfing[0] == 1)
+	eng_harami = 1;
+    if ((harami[3] == 1) && (body[4] > 0) && (engulfing[0] == 1) &&
+	(MAX(r[2]->close, r[2]->open) < MIN(r[4]->close, r[0]->close)) &&
+	(MIN(r[2]->close, r[2]->open) > MIN(r[4]->open, r[0]->open)))
+	eng_harami = 1;
+    if ((harami[2] == 1) && (body[3] < 0) && engulfing[0] == -1)
+	eng_harami = -1;
+    if ((harami[3] == 1) && (body[4] < 0) && (engulfing[0] == -1) &&
+	(MAX(r[2]->close, r[2]->open) < MAX(r[4]->open, r[0]->open)) &&
+	(MIN(r[2]->close, r[2]->open) > MIN(r[4]->close, r[0]->close)))
+	eng_harami = -1;
+    /** TODO: store here the candlestick patterns in the database
+     */
 }
 
 void ana_jl_setups(char* stk, char* dt, bool eod) {
