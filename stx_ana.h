@@ -562,6 +562,7 @@ void ana_candlesticks(jl_data_ptr jl) {
 	body[ix] = r[ix]->close - r[ix]->open;
     int marubozu[6], engulfing[2], harami[5], piercing = 0, star = 0, cbs = 0;
     int three = 0, three_in = 0, three_out = 0, kicking = 0, eng_harami = 0;
+    /** Calculate marubozu and harami patterns for the last 6 (5) days */
     for(int ix = 0; ix < 6; ix++) {
 	int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
 	marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
@@ -666,7 +667,6 @@ void ana_candlesticks(jl_data_ptr jl) {
 	if ((marubozu[0] < 0) && (r[0]->open < r[1]->open))
 	    kicking = -1;
     }
-    /** 3in, 3out, eng harami */
     /** CBS:
      * 1. First two days are Black Marubozu
      * 2. Third day is black, gaps down at open, pierces previous day body.
@@ -677,6 +677,11 @@ void ana_candlesticks(jl_data_ptr jl) {
 	(r[0]->open > r[1]->high) && (r[0]->close < r[1]->low))
 	cbs = 1;
 
+    /** 3in, 3out, eng harami */
+    if ((engulfing[1] > 0) && (body[0] > 0) && (r[0]->close > r[1]->close))
+	three_out = 1;
+    if ((engulfing[1] < 0) && (body[0] < 0) && (r[0]->close < r[1]->close))
+	three_out = -1;
 /* TODO: redo this */
 /*     def engulfingharamifun(r): */
 /*     if(r['marubozu'] == 0 or */
