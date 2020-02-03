@@ -529,20 +529,35 @@ void ana_check_for_pullbacks(jl_data_ptr jl_050, jl_pivot_ptr p_050,
 			     jl_data_ptr jl_100, jl_pivot_ptr p_100,
 			     jl_data_ptr jl_150, jl_pivot_ptr p_150,
 			     jl_data_ptr jl_200, jl_pivot_ptr p_200) {
-
 }
 
 /** Check whether the action on a given day stops at a
  * resistance/support point, or whether it pierces that
  * resistance/support (on high volume), and whether it recovers after
  * piercing or not
- */
-void ana_check_for_support_resistance(jl_data_ptr jl_050, jl_pivot_ptr p_050,
-				      jl_data_ptr jl_100, jl_pivot_ptr p_100,
-				      jl_pivot_ptr p_150, jl_pivot_ptr p_200) {
-
+ */ 
+cJSON* ana_check_for_support_resistance(jl_data_ptr jl, jl_pivot_ptr pivots) {
+    cJSON *res = NULL;
+    int i = jl->data->pos - 1;
+    daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
+    return res;
 }
 
+
+void ana_add_candle_setup(cJSON *candles, char* stp_name, int direction) {
+    cJSON *stp = cJSON_CreateObject();
+    cJSON_AddStringToObject(stp, "stp", stp_name);
+    cJSON_AddNumberToObject(stp, "dir", direction);
+    cJSON_AddItemToArray(candles, stp);
+}
+
+void ana_insert_candle_setup(char* stk, char* dt, char* stp_name, int dir) {
+    char sql_cmd[1024];
+	sprintf(sql_cmd, "insert into setups values ('%s','%s','%s',%d,'t')", 
+		dt, stk, stp_name, dir);
+	db_transaction(sql_cmd);
+
+}
 /** Implement these candlestick patterns:
  - hammer
  - engulfing
@@ -700,8 +715,30 @@ void ana_candlesticks(jl_data_ptr jl) {
 	(MAX(r[2]->close, r[2]->open) < MAX(r[4]->open, r[0]->open)) &&
 	(MIN(r[2]->close, r[2]->open) > MIN(r[4]->close, r[0]->close)))
 	eng_harami = -1;
-    /** TODO: store here the candlestick patterns in the database
-     */
+
+    /** TODO: store here the candlestick patterns in the database 
+     * engulfing, piercing, star, cbs, three, three_in, three_out, kicking, eng_harami
+    */
+    char *stk = jl->data->stk, *dt = r[0]->date;
+    if (engulfing[0] != 0)
+        ana_insert_candle_setup(stk, dt, "Engulfing", engulfing[0]);
+    if (piercing != 0)
+        ana_insert_candle_setup(stk, dt, "Piercing", piercing);
+        // ana_add_candle_setup(candles, "Piercing", piercing);
+    if (star != 0)
+        ana_insert_candle_setup(stk, dt, "Star", star);
+    if (cbs != 0)
+        ana_insert_candle_setup(stk, dt, "Cbs", cbs);
+    if (three != 0)
+        ana_insert_candle_setup(stk, dt, "3", three);
+    if (three_in != 0)
+        ana_insert_candle_setup(stk, dt, "3in", three_in);
+    if (three_out != 0)
+        ana_insert_candle_setup(stk, dt, "3out", three_out);
+    if (kicking != 0)
+        ana_insert_candle_setup(stk, dt, "Kicking", kicking);
+    if (eng_harami != 0)
+        ana_insert_candle_setup(stk, dt, "EngHarami", eng_harami);
 }
 
 void ana_jl_setups(char* stk, char* dt, bool eod) {
@@ -763,12 +800,10 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
 		dt, stk, setup_string);
 	db_transaction(sql_cmd);
     }
-
+    ana_candlesticks(jl_050);
 /*     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100, */
 /* 			    jl_150, pivots_150, jl_200, pivots_200); */
-/*     ana_check_for_support_resistance(fp, jl_050, pivots_050, jl_100, */
-/* 				     pivots_100, jl_150, pivots_150, */
-/* 				     jl_200, pivots_200); */
+    ana_check_for_support_resistance(jl_050, pivots_050);
  end:
     if (pivots_050 != NULL)
 	free(pivots_050);
