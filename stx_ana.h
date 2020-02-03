@@ -469,14 +469,14 @@ int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
  * channel break detection.
  */
 
-cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
-    cJSON *res = NULL;
+void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
+                          int num) {
     int i = jl->data->pos - 1;
     daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
     int len_1 = cal_num_busdays(pivots[num - 4].date, r->date);
     int len_2 = cal_num_busdays(pivots[num - 5].date, r->date);
     if ((len_1 < MIN_CHANNEL_LEN) && (len_2 < MIN_CHANNEL_LEN))
-        return NULL;
+        return;
     int px_up = -1, px_down = -1, upper_channel_len, lower_channel_len;
     if (jl_up(pivots[num - 1].state)) { /* stock in uptrend/rally */
         px_up = ana_interpolate(jl, &(pivots[num - 5]), &(pivots[num - 3]));
@@ -491,14 +491,14 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
     }
     /* filter cases when upper channel is below lower channel */
     if (px_up <= px_down)
-        return NULL;
+        return;
     /* find the extremes for today's price either the high/low for the
        day, or yesterday's close */
     int ub = (r->high > r_1->close)? r->high: r_1->close;
     int lb = (r->low < r_1->close)? r->low: r_1->close;
     if ((upper_channel_len >= MIN_CHANNEL_LEN) &&
         (px_up > lb) && (px_up < ub)) {
-        res = cJSON_CreateObject();
+        cJSON *res = cJSON_CreateObject();
         cJSON_AddStringToObject(res, "stp", "JL_B");
         cJSON_AddNumberToObject(res, "dir", 1);
         cJSON_AddNumberToObject(res, "ipx", px_up);
@@ -506,11 +506,13 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
         cJSON_AddNumberToObject(res, "vr", (float)r->volume /
                                 jl->recs[jl->pos - 2].volume);
         cJSON_AddNumberToObject(res, "f", jl->factor);
+        if (setups == NULL)
+            setups = cJSON_CreateArray();
+        cJSON_AddItemToArray(setups, res);
     }
     if ((lower_channel_len >= MIN_CHANNEL_LEN) &&
         (px_down > lb) && (px_down < ub)) {
-        if (res == NULL)
-            res = cJSON_CreateObject();
+        cJSON* res = cJSON_CreateObject();
         cJSON_AddStringToObject(res, "stp", "JL_B");
         cJSON_AddNumberToObject(res, "dir", -1);
         cJSON_AddNumberToObject(res, "ipx", px_down);
@@ -518,8 +520,10 @@ cJSON* ana_check_for_breaks(jl_data_ptr jl, jl_pivot_ptr pivots, int num) {
         cJSON_AddNumberToObject(res, "vr", (float)r->volume /
                                 jl->recs[jl->pos - 2].volume);
         cJSON_AddNumberToObject(res, "f", jl->factor);
+        if (setups == NULL)
+            setups = cJSON_CreateArray();
+        cJSON_AddItemToArray(setups, res);
     }
-    return res;
 }
 
 /** Check whether a given day creates a new pivot point, and determine
@@ -536,43 +540,40 @@ void ana_check_for_pullbacks(jl_data_ptr jl_050, jl_pivot_ptr p_050,
  * resistance/support (on high volume), and whether it recovers after
  * piercing or not
  */ 
-cJSON* ana_check_for_support_resistance(jl_data_ptr jl, jl_pivot_ptr pivots,
-                                        int num_pivots) {
-    cJSON *res = NULL;
+void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,                                                  jl_pivot_ptr pivots, int num_pivots) {
     int i = jl->data->pos - 1;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]);
     if (jl_primary(jlr->state)) {
         for(int ix = 0; ix < num_pivots; ix++) {
             if (abs(jlr->price - pivots[ix].price) < jlr->rg / 5) {
-                if (res == NULL)
-                    res = cJSON_CreateArray();
+                if (setups == NULL)
+                    setups = cJSON_CreateArray();
                 cJSON* stp = cJSON_CreateObject();
                 cJSON_AddStringToObject(stp, "stp", "JL_SR");
                 cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state)? 1: -1);
                 cJSON_AddNumberToObject(stp, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(stp, "vr", 
                                         (float) r->volume / jlr->volume);
-                cJSON_AddItemToArray(res, stp);
+                cJSON_AddItemToArray(setups, stp);
             }
         }
     }
     if (jl_primary(jlr->state2)) {
         for(int ix = 0; ix < num_pivots; ix++) {
             if (abs(jlr->price2 - pivots[ix].price) < jlr->rg / 5) {
-                if (res == NULL)
-                    res = cJSON_CreateArray();
+                if (setups == NULL)
+                    setups = cJSON_CreateArray();
                 cJSON* stp = cJSON_CreateObject();
                 cJSON_AddStringToObject(stp, "stp", "JL_SR");
                 cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state2)? 1: -1);
                 cJSON_AddNumberToObject(stp, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(stp, "vr", 
                                         (float) r->volume / jlr->volume);
-                cJSON_AddItemToArray(res, stp);
+                cJSON_AddItemToArray(setups, stp);
             }
         }
     }
-    return res;
 }
 
 
@@ -815,14 +816,14 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
         pivots_050 = NULL;
         pivots_050 = jl_get_pivots(jl_050, 4, &num_050);
     }
-    if ((res = ana_check_for_breaks(jl_050, pivots_050, num_050)) != NULL)
-        cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_100, pivots_100, num_100)) != NULL)
-        cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_150, pivots_150, num_150)) != NULL)
-        cJSON_AddItemToArray(setups, res);
-    if ((res = ana_check_for_breaks(jl_200, pivots_200, num_200)) != NULL)
-        cJSON_AddItemToArray(setups, res);
+    ana_check_for_breaks(setups, jl_050, pivots_050, num_050);
+    ana_check_for_breaks(setups, jl_100, pivots_100, num_100);
+    ana_check_for_breaks(setups, jl_150, pivots_150, num_150);
+    ana_check_for_breaks(setups, jl_200, pivots_200, num_200);
+    // ana_candlesticks(jl_050);
+/*     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100, */
+/*                          jl_150, pivots_150, jl_200, pivots_200); */
+    // ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050);
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
         LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
@@ -832,10 +833,6 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
                 dt, stk, setup_string);
         db_transaction(sql_cmd);
     }
-    ana_candlesticks(jl_050);
-/*     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100, */
-/*                          jl_150, pivots_150, jl_200, pivots_200); */
-    ana_check_for_support_resistance(jl_050, pivots_050, num_050);
  end:
     if (pivots_050 != NULL)
         free(pivots_050);
