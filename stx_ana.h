@@ -529,10 +529,37 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
 /** Check whether a given day creates a new pivot point, and determine
  * if that pivot point represents a change in trend.
  */
-void ana_check_for_pullbacks(jl_data_ptr jl_050, jl_pivot_ptr p_050,
-                             jl_data_ptr jl_100, jl_pivot_ptr p_100,
-                             jl_data_ptr jl_150, jl_pivot_ptr p_150,
-                             jl_data_ptr jl_200, jl_pivot_ptr p_200) {
+void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
+                             int num) {
+    int i = jl->data->pos - 1;
+    daily_record_ptr r = &(jl->data->data[i]);
+    jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
+    /** Return if the current record is not a primary record */
+    if (!strcmp(pivots[num - 1].date, r->date)) 
+        return;
+    /** Return if the current record is not the first record in a new trend */
+    int last_ns = pivots[num - 1].state;
+    int prev_ns = jl_prev_ns(jl);
+    if ((jl_up(last_ns) && jl_up(prev_ns)) ||
+        (jl_down(last_ns) && jl_down(prev_ns)))
+        return;
+    if (jl_up(last_ns)) {
+        if ((pivots[num - 2].state == REACTION) && 
+            (pivots[num - 4].state == DOWNTREND) &&
+            (pivots[num - 2].obv > pivots[num - 4].obv - 5)) {
+            cJSON *res = cJSON_CreateObject();
+            cJSON_AddStringToObject(res, "stp", "JL_P");
+            cJSON_AddNumberToObject(res, "dir", 1);
+            cJSON_AddNumberToObject(res, "vd", 
+                                    pivots[num - 2].obv > pivots[num - 4].obv);
+            cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
+            cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
+            cJSON_AddNumberToObject(res, "f", jl->factor);
+            if (setups == NULL)
+                setups = cJSON_CreateArray();
+            cJSON_AddItemToArray(setups, res);
+        }
+    }
 }
 
 /** Check whether the action on a given day stops at a
