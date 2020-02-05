@@ -848,8 +848,8 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
         LOGERROR("Got %d %s pivots, needed 5\n", num_200, JL_200);
         goto end;
     }
-    char *lrdt_150 = pivots_150[num_150 - 2].date, 
-        *lrdt_200 = pivots_200[num_200 - 2].date;
+    char *lrdt_150 = pivots_150[num_150 - 3].date,
+        *lrdt_200 = pivots_200[num_200 - 3].date;
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
     pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
     if (num_100 < 5) {
@@ -867,10 +867,10 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
     ana_check_for_breaks(setups, jl_100, pivots_100, num_100);
     ana_check_for_breaks(setups, jl_150, pivots_150, num_150);
     ana_check_for_breaks(setups, jl_200, pivots_200, num_200);
-    // ana_candlesticks(jl_050);
-/*     ana_check_for_pullbacks(fp, jl_050, pivots_050, jl_100, pivots_100, */
-/*                          jl_150, pivots_150, jl_200, pivots_200); */
-    // ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050);
+    ana_candlesticks(jl_050);
+    ana_check_for_pullbacks(setups, jl_050, pivots_050, num_050);
+    ana_check_for_pullbacks(setups, jl_100, pivots_100, num_100);
+    ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050);
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
         LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
@@ -1008,6 +1008,9 @@ void stk_analysis(char* stk, char* start_date, char* end_date, bool clear_db) {
     char sql_cmd[256];
     if (clear_db) {
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE stk='%s' AND dt "\
+                "BETWEEN '%s' AND '%s'", stk, start_date, end_date);
+        db_transaction(sql_cmd);
+        sprintf(sql_cmd, "DELETE FROM setups WHERE stk='%s' AND dt "\
                 "BETWEEN '%s' AND '%s'", stk, start_date, end_date);
         db_transaction(sql_cmd);
     }
