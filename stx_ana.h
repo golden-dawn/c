@@ -543,22 +543,42 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     if ((jl_up(last_ns) && jl_up(prev_ns)) ||
         (jl_down(last_ns) && jl_down(prev_ns)))
         return;
-    if (jl_up(last_ns)) {
-        if ((pivots[num - 2].state == REACTION) && 
-            (pivots[num - 4].state == DOWNTREND) &&
-            (pivots[num - 2].obv > pivots[num - 4].obv - 5)) {
-            cJSON *res = cJSON_CreateObject();
-            cJSON_AddStringToObject(res, "stp", "JL_P");
-            cJSON_AddNumberToObject(res, "dir", 1);
-            cJSON_AddNumberToObject(res, "vd", 
-                                    pivots[num - 2].obv > pivots[num - 4].obv);
-            cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
-            cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
-            cJSON_AddNumberToObject(res, "f", jl->factor);
-            if (setups == NULL)
-                setups = cJSON_CreateArray();
-            cJSON_AddItemToArray(setups, res);
-        }
+
+    if (jl_up(last_ns) &&
+        (((pivots[num - 2].state == REACTION) &&
+         (pivots[num - 4].state == DOWNTREND) &&
+         (pivots[num - 2].obv > pivots[num - 4].obv - 5)) ||
+         ((pivots[num - 2].state == DOWNTREND) &&
+         (pivots[num - 2].obv > pivots[num - 4].obv + 5)))) {
+        cJSON *res = cJSON_CreateObject();
+        cJSON_AddStringToObject(res, "stp", "JL_P");
+        cJSON_AddNumberToObject(res, "dir", 1);
+        cJSON_AddNumberToObject(res, "vd",
+                                pivots[num - 2].obv - pivots[num - 4].obv);
+        cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
+        cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
+        cJSON_AddNumberToObject(res, "f", jl->factor);
+        if (setups == NULL)
+            setups = cJSON_CreateArray();
+        cJSON_AddItemToArray(setups, res);
+    }
+    if (jl_down(last_ns) &&
+        (((pivots[num - 2].state == RALLY) &&
+         (pivots[num - 4].state == UPTREND) &&
+         (pivots[num - 2].obv < pivots[num - 4].obv - 5)) ||
+         ((pivots[num - 2].state == UPTREND) &&
+         (pivots[num - 2].obv < pivots[num - 4].obv + 5)))) {
+        cJSON *res = cJSON_CreateObject();
+        cJSON_AddStringToObject(res, "stp", "JL_P");
+        cJSON_AddNumberToObject(res, "dir", -1);
+        cJSON_AddNumberToObject(res, "vd",
+                                pivots[num - 2].obv - pivots[num - 4].obv);
+        cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
+        cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
+        cJSON_AddNumberToObject(res, "f", jl->factor);
+        if (setups == NULL)
+            setups = cJSON_CreateArray();
+        cJSON_AddItemToArray(setups, res);
     }
 }
 
