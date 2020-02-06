@@ -652,9 +652,12 @@ void ana_candlesticks(jl_data_ptr jl) {
     int ix_0 = jl->data->pos - 1;
     for(int ix = 0; ix < 6; ix++)
         r[ix] = &(jl->data->data[ix_0 - ix]);
-    int body[6];
-    for(int ix = 0; ix < 6; ix++)
+    int body[6], max_oc[6], min_oc[6];
+    for(int ix = 0; ix < 6; ix++) {
         body[ix] = r[ix]->close - r[ix]->open;
+        max_oc[ix] = MAX(r[ix]->open, r[ix]->close);
+        min_oc[ix] = MIN(r[ix]->open, r[ix]->close);
+    }
     int marubozu[6], engulfing[2], harami[5], piercing = 0, star = 0, cbs = 0;
     int three = 0, three_in = 0, three_out = 0, kicking = 0, eng_harami = 0;
     /** Calculate marubozu and harami patterns for the last 6 (5) days */
@@ -666,10 +669,7 @@ void ana_candlesticks(jl_data_ptr jl) {
         if ((100 * abs(body[ix + 1]) > jl->recs[ix_0 - ix - 2].rg *
              CANDLESTICK_LONG_DAY_AVG_RATIO) &&
             (100 * body[ix] <= CANDLESTICK_HARAMI_RATIO * body[ix + 1]) &&
-            (MAX(r[ix]->open, r[ix]->close) <
-             MAX(r[ix + 1]->open, r[ix + 1]->close)) &&
-            (MIN(r[ix]->open, r[ix]->close) >
-             MIN(r[ix + 1]->open, r[ix + 1]->close)))
+            (max_oc[ix] < max_oc[ix + 1]) && (min_oc[ix] > min_oc[ix + 1]))
             harami[ix] = 1;
         else
             harami[ix] = 0;
@@ -678,10 +678,8 @@ void ana_candlesticks(jl_data_ptr jl) {
     for(int ix = 0; ix < 2; ix++) {
         if ((body[ix] * body[ix + 1] < 0) &&
             (abs(body[ix]) > abs(body[ix + 1])) &&
-            (MAX(r[ix]->open, r[ix]->close) >=
-             MAX(r[ix + 1]->open, r[ix + 1]->close)) &&
-            (MIN(r[ix]->open, r[ix]->close) <=
-             MIN(r[ix + 1]->open, r[ix + 1]->close)))
+            (max_oc[ix] >= max_oc[ix + 1]) &&
+            (min_oc[ix] <= min_oc[ix + 1]))
             engulfing[ix] = (body[ix] > 0)? 1: -1;
         else
             engulfing[ix] = 0;
@@ -783,22 +781,21 @@ void ana_candlesticks(jl_data_ptr jl) {
      * second is an engulfing pattern. The end result is a pattern
      * whose two sides are black marubozu candlesticks.
      */
+    int min_40o = MIN(r[4]->open, r[0]->open);
+    int min_40c = MIN(r[4]->close, r[0]->close);
+    int max_40o = MAX(r[4]->open, r[0]->open);
+    int max_40c = MAX(r[4]->close, r[0]->close);
     if ((harami[2] == 1) && (body[3] > 0) && engulfing[0] == 1)
         eng_harami = 1;
     if ((harami[3] == 1) && (body[4] > 0) && (engulfing[0] == 1) &&
-        (MAX(r[2]->close, r[2]->open) < MIN(r[4]->close, r[0]->close)) &&
-        (MIN(r[2]->close, r[2]->open) > MIN(r[4]->open, r[0]->open)))
+        (max_oc[2] < max_40c) && (min_oc[2] > min_40o))
         eng_harami = 1;
     if ((harami[2] == 1) && (body[3] < 0) && engulfing[0] == -1)
         eng_harami = -1;
     if ((harami[3] == 1) && (body[4] < 0) && (engulfing[0] == -1) &&
-        (MAX(r[2]->close, r[2]->open) < MAX(r[4]->open, r[0]->open)) &&
-        (MIN(r[2]->close, r[2]->open) > MIN(r[4]->close, r[0]->close)))
+        (max_oc[2] < max_40o) && (min_oc[2] > min_40c))
         eng_harami = -1;
 
-    /** TODO: store here the candlestick patterns in the database 
-     * engulfing, piercing, star, cbs, three, three_in, three_out, kicking, eng_harami
-    */
     char *stk = jl->data->stk, *dt = r[0]->date;
     if (engulfing[0] != 0)
         ana_insert_candle_setup(stk, dt, "Engulfing", engulfing[0]);
