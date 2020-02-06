@@ -633,8 +633,8 @@ void ana_add_candle_setup(cJSON *candles, char* stp_name, int direction) {
 
 void ana_insert_candle_setup(char* stk, char* dt, char* stp_name, int dir) {
     char sql_cmd[1024];
-        sprintf(sql_cmd, "insert into setups values ('%s','%s','%s',%d,'t')", 
-                dt, stk, stp_name, dir) ;
+        sprintf(sql_cmd, "insert into setups values ('%s','%s','%s','%c',"
+                "TRUE)", dt, stk, stp_name, (dir == 1)? 'U': 'D') ;
         db_transaction(sql_cmd);
 
 }
@@ -663,13 +663,13 @@ void ana_candlesticks(jl_data_ptr jl) {
         marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
         if (ix >= 5)
             continue;
-        if ((100 * abs(body[ix - 1]) > jl->recs[ix_0 - ix - 2].rg *
+        if ((100 * abs(body[ix + 1]) > jl->recs[ix_0 - ix - 2].rg *
              CANDLESTICK_LONG_DAY_AVG_RATIO) &&
-            (100 * body[ix] <= CANDLESTICK_HARAMI_RATIO * body[ix - 1]) &&
+            (100 * body[ix] <= CANDLESTICK_HARAMI_RATIO * body[ix + 1]) &&
             (MAX(r[ix]->open, r[ix]->close) <
-             MAX(r[ix - 1]->open, r[ix - 1]->close)) &&
+             MAX(r[ix + 1]->open, r[ix + 1]->close)) &&
             (MIN(r[ix]->open, r[ix]->close) >
-             MIN(r[ix - 1]->open, r[ix - 1]->close)))
+             MIN(r[ix + 1]->open, r[ix + 1]->close)))
             harami[ix] = 1;
         else
             harami[ix] = 0;
