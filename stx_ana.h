@@ -592,7 +592,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,            
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]);
     if (jl_primary(jlr->state)) {
-        for(int ix = 0; ix < num_pivots; ix++) {
+        for(int ix = 0; ix < num_pivots - 1; ix++) {
             if (abs(jlr->price - pivots[ix].price) < jlr->rg / 5) {
                 if (setups == NULL)
                     setups = cJSON_CreateArray();
@@ -867,7 +867,8 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
     ana_candlesticks(jl_050);
     ana_check_for_pullbacks(setups, jl_050, pivots_050, num_050);
     ana_check_for_pullbacks(setups, jl_100, pivots_100, num_100);
-    ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050);
+    ana_check_for_support_resistance(setups, jl_100, pivots_100, num_100);
+    /* ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050); */
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
         LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
