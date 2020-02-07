@@ -256,14 +256,12 @@ jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
 }
 
 int jl_prev_ns(jl_data_ptr jl) {
-    int last_lns = jl->recs[jl->pos - 1].lns;
-    jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
-    int pns = jlr_lns->lns;
-    if (pns == last_lns)
-	return jlr_lns->state;
-    jl_record_ptr jlr_pns = &(jl->recs[pns]);
-    return jl_primary(jlr_pns->state2)? jlr_pns->state2:
-	jlr_pns->state;
+	jl_record_ptr jlr = &(jl->recs[jl->pos - 1]);
+	if (jl_primary(jlr->state2) && jl_primary(jlr->state))
+		return jlr->state;
+	jl_record_ptr jlr_1 = &(jl->recs[jl->pos - 2]);
+	jl_record_ptr jlr_pns = &(jl->recs[jlr_1->lns]);
+    return jl_primary(jlr_pns->state2)? jlr_pns->state2: jlr_pns->state;
 }
 
 cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
