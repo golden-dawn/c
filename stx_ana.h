@@ -535,7 +535,7 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
     /** Return if the current record is not a primary record */
-    if (!strcmp(pivots[num - 1].date, r->date)) 
+    if (strcmp(pivots[num - 1].date, r->date))
         return;
     /** Return if the current record is not the first record in a new trend */
     int last_ns = pivots[num - 1].state;
@@ -547,9 +547,9 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     if (jl_up(last_ns) &&
         (((pivots[num - 2].state == REACTION) &&
          (pivots[num - 4].state == DOWNTREND) &&
-         (pivots[num - 2].obv > pivots[num - 4].obv - 5)) ||
+         (pivots[num - 2].obv < pivots[num - 4].obv + 5)) ||
          ((pivots[num - 2].state == DOWNTREND) &&
-         (pivots[num - 2].obv > pivots[num - 4].obv + 5)))) {
+         (pivots[num - 2].obv < pivots[num - 4].obv - 5)))) {
         cJSON *res = cJSON_CreateObject();
         cJSON_AddStringToObject(res, "stp", "JL_P");
         cJSON_AddNumberToObject(res, "dir", 1);
@@ -565,9 +565,9 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     if (jl_down(last_ns) &&
         (((pivots[num - 2].state == RALLY) &&
          (pivots[num - 4].state == UPTREND) &&
-         (pivots[num - 2].obv < pivots[num - 4].obv - 5)) ||
+         (pivots[num - 2].obv > pivots[num - 4].obv + 5)) ||
          ((pivots[num - 2].state == UPTREND) &&
-         (pivots[num - 2].obv < pivots[num - 4].obv + 5)))) {
+         (pivots[num - 2].obv > pivots[num - 4].obv + 5)))) {
         cJSON *res = cJSON_CreateObject();
         cJSON_AddStringToObject(res, "stp", "JL_P");
         cJSON_AddNumberToObject(res, "dir", -1);
@@ -598,7 +598,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,            
                     setups = cJSON_CreateArray();
                 cJSON* stp = cJSON_CreateObject();
                 cJSON_AddStringToObject(stp, "stp", "JL_SR");
-                cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state)? 1: -1);
+                cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state)? -1: 1);
                 cJSON_AddNumberToObject(stp, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(stp, "vr", 
                                         (float) r->volume / jlr->volume);
