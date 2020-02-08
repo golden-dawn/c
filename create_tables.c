@@ -200,7 +200,7 @@ int main() {
         "dt DATE NOT NULL, "                             \
         "stk VARCHAR(16) NOT NULL, "                     \
         "setup VARCHAR(16) NOT NULL, "                   \
-		"factor INTEGER NOT NULL,"						 \
+        "factor INTEGER NOT NULL, "                      \
         "direction CHAR(1) NOT NULL, "                   \
         "triggered BOOLEAN NOT NULL, "                   \
         "info JSONB NOT NULL, "                          \
