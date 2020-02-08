@@ -464,6 +464,21 @@ int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
     return intersect_price;
 }
 
+/** Utility function to add a setup to an array for jl_setups table */
+void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
+                       char *dir, cJSON *info, bool triggered) {
+    if (setups == NULL)
+        setups = cJSON_CreateArray();
+    int factor = (jl == NULL)? 0: (int) (100 * jl->factor);
+    cJSON *res = cJSON_CreateObject();
+    cJSON_AddStringToObject(res, "setup", setup_name);
+    cJSON_AddNumberToObject(res, "factor", factor);
+    cJSON_AddStringToObject(res, "direction", dir);
+    cJSON_AddStringToObject(res, "triggered", triggered? "TRUE": "FALSE");
+    cJSON_AddItemToObject(res, "info", info);
+    cJSON_AddItemToArray(setups, res);
+}
+
 /** Check whether a given day intersects a channel built by connecting
  * two pivots.  This applies to both breakout detection, and trend
  * channel break detection.
@@ -498,31 +513,21 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     int lb = (r->low < r_1->close)? r->low: r_1->close;
     if ((upper_channel_len >= MIN_CHANNEL_LEN) &&
         (px_up > lb) && (px_up < ub)) {
-        cJSON *res = cJSON_CreateObject();
-        cJSON_AddStringToObject(res, "stp", "JL_B");
-        cJSON_AddNumberToObject(res, "dir", 1);
-        cJSON_AddNumberToObject(res, "ipx", px_up);
-        cJSON_AddNumberToObject(res, "len", upper_channel_len);
-        cJSON_AddNumberToObject(res, "vr", (float)r->volume /
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "ipx", px_up);
+        cJSON_AddNumberToObject(info, "len", upper_channel_len);
+        cJSON_AddNumberToObject(info, "vr", (float)r->volume /
                                 jl->recs[jl->pos - 2].volume);
-        cJSON_AddNumberToObject(res, "f", jl->factor);
-        if (setups == NULL)
-            setups = cJSON_CreateArray();
-        cJSON_AddItemToArray(setups, res);
+        ana_add_to_setups(setups, jl, "JL_B", "U", info, true);
     }
     if ((lower_channel_len >= MIN_CHANNEL_LEN) &&
         (px_down > lb) && (px_down < ub)) {
-        cJSON* res = cJSON_CreateObject();
-        cJSON_AddStringToObject(res, "stp", "JL_B");
-        cJSON_AddNumberToObject(res, "dir", -1);
-        cJSON_AddNumberToObject(res, "ipx", px_down);
-        cJSON_AddNumberToObject(res, "len", lower_channel_len);
-        cJSON_AddNumberToObject(res, "vr", (float)r->volume /
+        cJSON* info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "ipx", px_down);
+        cJSON_AddNumberToObject(info, "len", lower_channel_len);
+        cJSON_AddNumberToObject(info, "vr", (float)r->volume /
                                 jl->recs[jl->pos - 2].volume);
-        cJSON_AddNumberToObject(res, "f", jl->factor);
-        if (setups == NULL)
-            setups = cJSON_CreateArray();
-        cJSON_AddItemToArray(setups, res);
+        ana_add_to_setups(setups, jl, "JL_B", "D", info, true);
     }
 }
 
@@ -550,17 +555,12 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
          (pivots[num - 2].obv < pivots[num - 4].obv + 5)) ||
          ((pivots[num - 2].state == DOWNTREND) &&
          (pivots[num - 2].obv < pivots[num - 4].obv - 5)))) {
-        cJSON *res = cJSON_CreateObject();
-        cJSON_AddStringToObject(res, "stp", "JL_P");
-        cJSON_AddNumberToObject(res, "dir", 1);
-        cJSON_AddNumberToObject(res, "vd",
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "vd",
                                 pivots[num - 2].obv - pivots[num - 4].obv);
-        cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
-        cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
-        cJSON_AddNumberToObject(res, "f", jl->factor);
-        if (setups == NULL)
-            setups = cJSON_CreateArray();
-        cJSON_AddItemToArray(setups, res);
+        cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
+        cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
+        ana_add_to_setups(setups, jl, "JL_P", "U", info, true);
     }
     if (jl_down(last_ns) &&
         (((pivots[num - 2].state == RALLY) &&
@@ -568,17 +568,12 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
          (pivots[num - 2].obv > pivots[num - 4].obv + 5)) ||
          ((pivots[num - 2].state == UPTREND) &&
          (pivots[num - 2].obv > pivots[num - 4].obv + 5)))) {
-        cJSON *res = cJSON_CreateObject();
-        cJSON_AddStringToObject(res, "stp", "JL_P");
-        cJSON_AddNumberToObject(res, "dir", -1);
-        cJSON_AddNumberToObject(res, "vd",
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "vd",
                                 pivots[num - 2].obv - pivots[num - 4].obv);
-        cJSON_AddNumberToObject(res, "s1", pivots[num - 2].state);
-        cJSON_AddNumberToObject(res, "s2", pivots[num - 4].state);
-        cJSON_AddNumberToObject(res, "f", jl->factor);
-        if (setups == NULL)
-            setups = cJSON_CreateArray();
-        cJSON_AddItemToArray(setups, res);
+        cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
+        cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
+        ana_add_to_setups(setups, jl, "JL_P", "D", info, true);
     }
 }
 
@@ -594,35 +589,28 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,            
     if (jl_primary(jlr->state)) {
         for(int ix = 0; ix < num_pivots - 1; ix++) {
             if (abs(jlr->price - pivots[ix].price) < jlr->rg / 5) {
-                if (setups == NULL)
-                    setups = cJSON_CreateArray();
-                cJSON* stp = cJSON_CreateObject();
-                cJSON_AddStringToObject(stp, "stp", "JL_SR");
-                cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state)? -1: 1);
-                cJSON_AddNumberToObject(stp, "sr", pivots[ix].price);
-                cJSON_AddNumberToObject(stp, "vr", 
+                cJSON* info = cJSON_CreateObject();
+                char *dir = jl_up(jlr->state)? "D": "U";
+                cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
+                cJSON_AddNumberToObject(info, "vr",
                                         (float) r->volume / jlr->volume);
-                cJSON_AddItemToArray(setups, stp);
+                ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
     }
     if (jl_primary(jlr->state2)) {
         for(int ix = 0; ix < num_pivots; ix++) {
             if (abs(jlr->price2 - pivots[ix].price) < jlr->rg / 5) {
-                if (setups == NULL)
-                    setups = cJSON_CreateArray();
-                cJSON* stp = cJSON_CreateObject();
-                cJSON_AddStringToObject(stp, "stp", "JL_SR");
-                cJSON_AddNumberToObject(stp, "dir", jl_up(jlr->state2)? 1: -1);
-                cJSON_AddNumberToObject(stp, "sr", pivots[ix].price);
-                cJSON_AddNumberToObject(stp, "vr", 
+                cJSON* info = cJSON_CreateObject();
+                char *dir = jl_up(jlr->state2)? "D": "U";
+                cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
+                cJSON_AddNumberToObject(info, "vr",
                                         (float) r->volume / jlr->volume);
-                cJSON_AddItemToArray(setups, stp);
+                ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
     }
 }
-
 
 void ana_add_candle_setup(cJSON *candles, char* stp_name, int direction) {
     cJSON *stp = cJSON_CreateObject();
@@ -872,11 +860,19 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
         LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
-        char *setup_string = cJSON_Print(setups);
-        char sql_cmd[16384];
-        sprintf(sql_cmd, "insert into jl_setups values ('%s','%s','%s')", 
-                dt, stk, setup_string);
-        db_transaction(sql_cmd);
+        cJSON* setup;
+        cJSON_ArrayForEach(setup, setups) {
+            char *info_string = cJSON_Print(cJSON_GetObjectItem(setup, "info"));
+            char sql_cmd[2048];
+            sprintf(sql_cmd, "insert into jl_setups values ('%s','%s','%s',%d,"
+                    "'%s',%s,'%s')", dt, stk,
+                    cJSON_GetObjectItem(setup, "setup")->valuestring,
+                    cJSON_GetObjectItem(setup, "factor")->valueint,
+                    cJSON_GetObjectItem(setup, "direction")->valuestring,
+                    cJSON_GetObjectItem(setup, "triggered")->valuestring,
+                    info_string);
+            db_transaction(sql_cmd);
+        }
     }
  end:
     if (pivots_050 != NULL)
