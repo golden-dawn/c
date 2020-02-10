@@ -203,6 +203,7 @@ int main() {
         "factor INTEGER NOT NULL, "                      \
         "direction CHAR(1) NOT NULL, "                   \
         "triggered BOOLEAN NOT NULL, "                   \
+        "score INTEGER NOT NULL, "                       \
         "info JSONB NOT NULL, "                          \
         "PRIMARY KEY(dt, stk, setup, direction, factor))";
     create_table_if_missing(cnx, "jl_setups", create_jl_setups);
