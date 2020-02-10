@@ -32,6 +32,9 @@
 #define JL_200 "200"
 #define MIN_CHANNEL_LEN 25
 
+/** This defines a strong close, if (1+SC)*c>=SC*h+l, or (1+SC)*c<=h+SC*l*/
+#define SC 4
+
 #define CANDLESTICK_MARUBOZU_RATIO 80
 #define CANDLESTICK_LONG_DAY_AVG_RATIO 90
 #define CANDLESTICK_SHORT_DAY_AVG_RATIO 40
@@ -464,6 +467,10 @@ int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
     return intersect_price;
 }
 
+int ana_calculate_score(cJSON *setup) {
+    return 0;
+}
+
 /** Utility function to add a setup to an array for jl_setups table */
 void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
                        int dir, cJSON *info, bool triggered) {
@@ -477,6 +484,8 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
     cJSON_AddStringToObject(res, "direction", direction);
     cJSON_AddStringToObject(res, "triggered", triggered? "TRUE": "FALSE");
     cJSON_AddItemToObject(res, "info", info);
+    int score = ana_calculate_score(res);
+    cJSON_AddNumberToObject(res, "score", score);
     cJSON_AddItemToArray(setups, res);
 }
 
@@ -638,15 +647,50 @@ void ana_insert_setups_in_database(cJSON *setups, char *dt, char *stk) {
             char *info_string = (info != NULL)? cJSON_Print(info): "{}";
             char sql_cmd[2048];
             sprintf(sql_cmd, "insert into jl_setups values ('%s','%s','%s',%d,"
-                    "'%s',%s,'%s')", dt, stk,
+                    "'%s',%s,%d,'%s')", dt, stk,
                     cJSON_GetObjectItem(setup, "setup")->valuestring,
                     cJSON_GetObjectItem(setup, "factor")->valueint,
                     cJSON_GetObjectItem(setup, "direction")->valuestring,
                     cJSON_GetObjectItem(setup, "triggered")->valuestring,
+                    cJSON_GetObjectItem(setup, "score")->valueint,
                     info_string);
             db_transaction(sql_cmd);
         }
     }
+}
+
+void ana_daily_setups(jl_data_ptr jl) {
+    cJSON *setups = cJSON_CreateArray();
+    daily_record_ptr r[2];
+    jl_record_ptr jlr[2];
+    int ix_0 = jl->data->pos - 1;
+    for(int ix = 0; ix < 2; ix++) {
+        r[ix] = &(jl->data->data[ix_0 - ix]);
+        jlr[ix] = &(jl->recs[ix_0 - ix]);
+    }
+    char *stk = jl->data->stk, *dt = r[0]->date;
+    /* Find strong closes up or down; sr/vr capture range/volume significance */
+    int sc_dir = 0;
+    if ((SC + 1) * r[0]->close >= SC * r[0]->high + r[0]->low)
+        sc_dir = 1;
+    if ((SC + 1) * r[0]->close <= SC * r[0]->low + r[0]->high)
+        sc_dir = -1;
+    if (sc_dir != 0) {
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "vr", r[0]->volume / jlr[0]->volume);
+        cJSON_AddNumberToObject(info, "sr", ts_true_range(jl->data, ix_0) /
+                                jlr[0]->rg);
+        ana_add_to_setups(setups, jl, "SC", sc_dir, info, true);
+    }
+    /* Find gaps */
+/*     if ((r[0].open > r[1].high) || (dr[ix].open < dr[ix - 1].low)) {
+        strcpy(setup_name,  (dr[ix].volume > 1.1 * jl_recs->recs[ix].volume)? 
+               "GAP_HV": "GAP");
+        fprintf(fp, "%s\t%s\t%s\t%c\t1\n", dt, stk, setup_name, 
+                (dr[ix].open > dr[ix - 1].high)? UP: DOWN);
+    }
+ */
+    ana_insert_setups_in_database(setups, dt, stk);
 }
 
 /** Implement these candlestick patterns:
@@ -877,6 +921,7 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
     ana_check_for_breaks(setups, jl_150, pivots_150, num_150);
     ana_check_for_breaks(setups, jl_200, pivots_200, num_200);
     ana_candlesticks(jl_050);
+    ana_daily_setups(jl_050);
     ana_check_for_pullbacks(setups, jl_050, pivots_050, num_050);
     ana_check_for_pullbacks(setups, jl_100, pivots_100, num_100);
     ana_check_for_support_resistance(setups, jl_100, pivots_100, num_100);
