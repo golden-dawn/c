@@ -21,8 +21,8 @@ char* crt_timestamp() {
     seconds = spec.tv_sec;
     milliseconds = round(spec.tv_nsec / 1.0e6);
     if (milliseconds > 999) {
-	seconds++;
-	milliseconds = 0;
+        seconds++;
+        milliseconds = 0;
     }
     static char _retval[24];
     strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&seconds));
@@ -32,12 +32,12 @@ char* crt_timestamp() {
 
 /* Remove path from filename */
 #define __SHORT_FILE__ (strrchr(__FILE__, '/') ? \
-			strrchr(__FILE__, '/') + 1 : __FILE__)
+                        strrchr(__FILE__, '/') + 1 : __FILE__)
 
 /* Main log macro */
 #define __LOG__(format, loglevel, ...) \
-    fprintf(stderr, "%s %-5s [%s] [%s:%d] " format , crt_timestamp(),	\
-	   loglevel, __func__, __SHORT_FILE__, __LINE__, ## __VA_ARGS__)
+    fprintf(stderr, "%s %-5s [%s] [%s:%d] " format , crt_timestamp(),   \
+           loglevel, __func__, __SHORT_FILE__, __LINE__, ## __VA_ARGS__)
 
 /* Specific log macros with  */
 #define LOGDEBUG(format, ...) __LOG__(format, "DEBUG", ## __VA_ARGS__)
@@ -56,7 +56,7 @@ void do_exit(PGconn *conn) {
 
 void db_connect() {
     if(conn == NULL)
-	conn = PQconnectdb(getenv("POSTGRES_CNX"));
+        conn = PQconnectdb(getenv("POSTGRES_CNX"));
     if (PQstatus(conn) == CONNECTION_BAD) {
         LOGERROR("Connection to database failed: %s\n", PQerrorMessage(conn));
         do_exit(conn);
@@ -92,20 +92,20 @@ bool db_upload_file(char* table_name, char* file_name) {
     bool success = true;
     res = PQexec(conn, "BEGIN");
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("BEGIN failed: %s\n", PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("BEGIN failed: %s\n", PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     res = PQexec(conn, sql_cmd);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("%s failed: %s\n", sql_cmd, PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("%s failed: %s\n", sql_cmd, PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     res = PQexec(conn, "COMMIT");
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("COMMIT failed: %s\n", PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("COMMIT failed: %s\n", PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     return success;
@@ -117,20 +117,20 @@ bool db_transaction(char* sql_cmd) {
     bool success = true;
     res = PQexec(conn, "BEGIN");
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("BEGIN failed: %s\n", PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("BEGIN failed: %s\n", PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     res = PQexec(conn, sql_cmd);
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("%s failed: %s\n", sql_cmd, PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("%s failed: %s\n", sql_cmd, PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     res = PQexec(conn, "COMMIT");
     if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-	printf("COMMIT failed: %s\n", PQresStatus(PQresultStatus(res)));
-	success = false;
+        printf("COMMIT failed: %s\n", PQresStatus(PQresultStatus(res)));
+        success = false;
     }
     PQclear(res);
     return success;
@@ -266,11 +266,11 @@ int ht_get_hash(const char* s, const int num_buckets, const int attempt) {
     int hash_b = ht_hash(s, HT_PRIME_2, num_buckets);
 #ifdef DDEBUGG
     if (attempt <= 999) 
-	LOGINFO("hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
-		hash_a, hash_b, num_buckets, attempt);
+        LOGINFO("hash_a = %d, hash_b = %d, num_buckets = %d, attempt = %d\n",
+                hash_a, hash_b, num_buckets, attempt);
 #endif
     if (hash_b % num_buckets == 0)
-	hash_b = 1;
+        hash_b = 1;
     return (hash_a + attempt * hash_b) % num_buckets;
 }
 
@@ -282,7 +282,7 @@ void ht_insert(hashtable_ptr ht, ht_item_ptr item) {
     while (crt_item != NULL) {
         index = ht_get_hash(item->key, ht->size, i);
 #ifdef DDEBUGG
-	LOGDEBUG("i= %d, index = %d\n", i, index);
+        LOGDEBUG("i= %d, index = %d\n", i, index);
 #endif
         crt_item = ht->items[index];
         i++;
@@ -293,13 +293,13 @@ void ht_insert(hashtable_ptr ht, ht_item_ptr item) {
 
 ht_item_ptr ht_get(hashtable_ptr ht, const char* key) {
     if (ht == NULL)
-	return NULL;
+        return NULL;
     int index = ht_get_hash(key, ht->size, 0);
     ht_item_ptr item = ht->items[index];
     int i = 1;
     while (item != NULL) {
-	if (strcmp(item->key, key) == 0)
-	    return item;
+        if (strcmp(item->key, key) == 0)
+            return item;
         index = ht_get_hash(key, ht->size, i);
         item = ht->items[index];
         i++;
@@ -309,15 +309,15 @@ ht_item_ptr ht_get(hashtable_ptr ht, const char* key) {
 
 hashtable_ptr ht_new(ht_item_ptr list, int num_elts) {
     if (num_elts <= 0)
-	return NULL;
+        return NULL;
     hashtable_ptr ht = malloc(sizeof(hashtable));
     ht->count = 0;
     ht->list = list;
     ht->size = next_prime(2 * num_elts);
     ht->items = calloc((size_t)ht->size, sizeof(ht_item_ptr));
     if (list != NULL) {
-	for (int ix = 0; ix < num_elts; ++ix)
-	    ht_insert(ht, &list[ix]);
+        for (int ix = 0; ix < num_elts; ++ix)
+            ht_insert(ht, &list[ix]);
     }
     return ht;
 }
@@ -329,18 +329,18 @@ hashtable_ptr ht_divis(PGresult* res) {
 #endif
     ht_item_ptr list = NULL;
     if (num > 0) {
-	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
-	for(int ix = 0; ix < num; ix++) {
+        list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
+        for(int ix = 0; ix < num; ix++) {
 #ifdef DDEBUGG
-	    LOGDEBUG("ix = %d\n", ix);
+            LOGDEBUG("ix = %d\n", ix);
 #endif
-	    float ratio = atof(PQgetvalue(res, ix, 0));
-	    char* dt = PQgetvalue(res, ix, 1);
-	    ht_new_divi(list + ix, dt, ratio);
+            float ratio = atof(PQgetvalue(res, ix, 0));
+            char* dt = PQgetvalue(res, ix, 1);
+            ht_new_divi(list + ix, dt, ratio);
 #ifdef DDEBUGG
-	    LOGDEBUG("value = %12.6f\n", ratio);
+            LOGDEBUG("value = %12.6f\n", ratio);
 #endif
-	}
+        }
     }
     return ht_new(list, num);
 }
@@ -353,20 +353,20 @@ hashtable_ptr ht_calendar(PGresult* res) {
 #endif
     ht_item_ptr list = NULL;
     if (num > 0) {
-	list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
-	for(int ix = 0; ix < num; ix++) {
+        list = (ht_item_ptr) calloc((size_t)num, sizeof(ht_item));
+        for(int ix = 0; ix < num; ix++) {
 #ifdef DDEBUGG
-	    LOGDEBUG("ix = %d\n", ix);
+            LOGDEBUG("ix = %d\n", ix);
 #endif
-	    char* dt = PQgetvalue(res, ix, 0);
-	    int dt_info = atoi(PQgetvalue(res, ix, 1));
-	    ht_new_cal(list + ix, dt, dt_info);
+            char* dt = PQgetvalue(res, ix, 0);
+            int dt_info = atoi(PQgetvalue(res, ix, 1));
+            ht_new_cal(list + ix, dt, dt_info);
 #ifdef DDEBUGG
-	    LOGDEBUG("dt=%s, is_busday=%5s, num_day=%5d, num_busday=%5d\n",
-		     dt, (dt_info > 0)? "true": "false", 
-		     abs(dt_info) & 0xffff, (abs(dt_info) >> 16) & 0x7fff);
+            LOGDEBUG("dt=%s, is_busday=%5s, num_day=%5d, num_busday=%5d\n",
+                     dt, (dt_info > 0)? "true": "false", 
+                     abs(dt_info) & 0xffff, (abs(dt_info) >> 16) & 0x7fff);
 #endif
-	}
+        }
     }
     return ht_new(list, num);
 }
@@ -374,30 +374,30 @@ hashtable_ptr ht_calendar(PGresult* res) {
 
 int ht_seq_index(hashtable_ptr ht, char* date) {
     if (ht == NULL)
-	return -2;
+        return -2;
     if (strcmp(date, ht->list[0].key) < 0)
-	return -1;
+        return -1;
     if (strcmp(date, ht->list[ht->count - 1].key) > 0)
-	return ht->count - 1;
+        return ht->count - 1;
     int i = 0, j = ht->count - 1, mid = (i + j) / 2, cmp;
 #ifdef DDEBUGG
     LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
 #endif
     while(i <= j) {
-	cmp = strcmp(date, ht->list[mid].key);
+        cmp = strcmp(date, ht->list[mid].key);
 #ifdef DDEBUGG
-	LOGDEBUG("cmp = %d, date = %s, ht->list[mid].key = %s\n", 
-		 cmp, date, ht->list[mid].key);
+        LOGDEBUG("cmp = %d, date = %s, ht->list[mid].key = %s\n", 
+                 cmp, date, ht->list[mid].key);
 #endif
-	if(cmp > 0)
-	    i = mid + 1;
-	else if(cmp < 0)
-	    j = mid - 1;
-	else
-	    return mid;
-	mid = (i + j) / 2;
+        if(cmp > 0)
+            i = mid + 1;
+        else if(cmp < 0)
+            j = mid - 1;
+        else
+            return mid;
+        mid = (i + j) / 2;
 #ifdef DDEBUGG
-	LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
+        LOGDEBUG("i = %d, j = %d, mid = %d\n", i, j, mid);
 #endif
     }
     return mid;
@@ -407,33 +407,33 @@ int ht_seq_index(hashtable_ptr ht, char* date) {
 void ht_print(hashtable_ptr ht) {
     LOGINFO("Hashtable: \n");
     if(ht->size == 0)
-	return;
+        return;
     for(int ix = 0; ix < ht->count; ix++) {
-	ht_item_ptr crs = ht->list + ix;
-	if (crs->item_type == DIVI_HT)
-	    LOGINFO("  %s, %12.6f\n", crs->key, crs->val.ratio);
-	else
-	    LOGINFO("  %s, %5d %5d %d\n", crs->key, crs->val.cal->day_number, 
-		    crs->val.cal->busday_number, crs->val.cal->is_busday);
+        ht_item_ptr crs = ht->list + ix;
+        if (crs->item_type == DIVI_HT)
+            LOGINFO("  %s, %12.6f\n", crs->key, crs->val.ratio);
+        else
+            LOGINFO("  %s, %5d %5d %d\n", crs->key, crs->val.cal->day_number, 
+                    crs->val.cal->busday_number, crs->val.cal->is_busday);
     }
 }
 
 
 void ht_free(hashtable_ptr ht) {
     if (ht == NULL) 
-	return;
+        return;
     if (ht->list == NULL) {
-	for(int ix = 0; ix < ht->size; ix++) {
-	    if (ht->items[ix] != NULL)
-		free(ht->items[ix]);
-	}
+        for(int ix = 0; ix < ht->size; ix++) {
+            if (ht->items[ix] != NULL)
+                free(ht->items[ix]);
+        }
     } else {
-	for(int ix = 0; ix < ht->count; ix++) {
-	    ht_item_ptr crs = ht->list + ix;
-	    if (crs->item_type == CAL_HT)
-		free(crs->val.cal);
-	}
-	free(ht->list);
+        for(int ix = 0; ix < ht->count; ix++) {
+            ht_item_ptr crs = ht->list + ix;
+            if (crs->item_type == CAL_HT)
+                free(crs->val.cal);
+        }
+        free(ht->list);
     }
     free(ht->items);
     free(ht);
@@ -447,14 +447,14 @@ static hashtable_ptr cal = NULL;
 
 hashtable_ptr cal_get() {
     if (cal == NULL) {
-	char sql_cmd[80];
-	LOGINFO("getting calendar from database\n");
-	strcpy(sql_cmd, "select * from calendar");    
-	PGresult *sql_res = db_query(sql_cmd);
-	LOGINFO("got calendar fron database\n");
-	cal = ht_calendar(sql_res);
-	PQclear(sql_res);
-	LOGINFO("populated hashtable with calendar dates\n");
+        char sql_cmd[80];
+        LOGINFO("getting calendar from database\n");
+        strcpy(sql_cmd, "select * from calendar");    
+        PGresult *sql_res = db_query(sql_cmd);
+        LOGINFO("got calendar fron database\n");
+        cal = ht_calendar(sql_res);
+        PQclear(sql_res);
+        LOGINFO("populated hashtable with calendar dates\n");
     }
     return cal;
 }
@@ -465,11 +465,11 @@ int cal_num_busdays(char* start_date, char* end_date) {
     int num_days = d2->val.cal->busday_number - d1->val.cal->busday_number;
     int adj = 0;
     if (strcmp(start_date, end_date) <= 0) {
-	if (d1->val.cal->is_busday)
-	    adj = 1;
+        if (d1->val.cal->is_busday)
+            adj = 1;
     } else {
-	if (d2->val.cal->is_busday)
-	    adj = -1;
+        if (d2->val.cal->is_busday)
+            adj = -1;
     }
     return (num_days + adj);
 }
@@ -489,8 +489,8 @@ int cal_bix(char* date) {
 int cal_next_bday(int crt_ix, char** next_date) {
     int next_ix = crt_ix + 1;
     for (ht_item_ptr crs = cal_get()->list + next_ix; !crs->val.cal->is_busday;
-	 crs++)
-	next_ix++;
+         crs++)
+        next_ix++;
     *next_date = &(cal_get()->list[next_ix].key[0]);
     return next_ix;
 }
@@ -498,8 +498,8 @@ int cal_next_bday(int crt_ix, char** next_date) {
 int cal_prev_bday(int crt_ix, char** prev_date) {
     int prev_ix = crt_ix - 1;
     for (ht_item_ptr crs = cal_get()->list + prev_ix; !crs->val.cal->is_busday;
-	 crs--)
-	prev_ix--;
+         crs--)
+        prev_ix--;
     *prev_date = &(cal_get()->list[prev_ix].key[0]);
     return prev_ix;
 }
@@ -508,20 +508,20 @@ int cal_move_bdays(char* crt_date, int num_days, char** new_date) {
     int crt_ix = cal_ix(crt_date);
     int ix = 0;
     if (num_days == 0) {
-	if (cal_bix(crt_date) == -1)
-	    crt_ix = cal_prev_bday(crt_ix, new_date);
-	else
-	    *new_date = &(cal_get()->list[crt_ix].key[0]);
+        if (cal_bix(crt_date) == -1)
+            crt_ix = cal_prev_bday(crt_ix, new_date);
+        else
+            *new_date = &(cal_get()->list[crt_ix].key[0]);
     } else if (num_days > 0) {
-	while(ix < num_days) {
-	    crt_ix = cal_next_bday(crt_ix, new_date);
-	    ix++;
-	}
+        while(ix < num_days) {
+            crt_ix = cal_next_bday(crt_ix, new_date);
+            ix++;
+        }
     } else {
-	while(ix > num_days) {
-	    crt_ix = cal_prev_bday(crt_ix, new_date);
-	    ix--;
-	}
+        while(ix > num_days) {
+            crt_ix = cal_prev_bday(crt_ix, new_date);
+            ix--;
+        }
     }
     return crt_ix;
 }
@@ -529,7 +529,7 @@ int cal_move_bdays(char* crt_date, int num_days, char** new_date) {
 int cal_expiry(int ix, char** exp_date) {
     char *crt_date = &(cal_get()->list[ix].key[0]), tmp[16];
     int bix = cal_get()->list[ix].val.cal->is_busday? ix:
-	cal_next_bday(ix, &crt_date);
+        cal_next_bday(ix, &crt_date);
     strncpy(tmp, crt_date, 4);
     tmp[4] = '\0';
     int year = atoi(tmp);
@@ -545,24 +545,24 @@ int cal_expiry(int ix, char** exp_date) {
     int third_friday_ix = third_friday - 1 + start_of_month_ix;
     int exp_ix;
     if (third_friday < day) {
-	month++;
-	if (month > 12) {
-	    month = 1;
-	    year++;
-	}
-	sprintf(tmp, "%d-%02d-01", year, month);
-	start_of_month_ix = cal_ix(tmp);
-	start_of_month_day_of_week = start_of_month_ix % 7;
-	third_friday = 15 + ((11 - start_of_month_day_of_week) % 7);
-	third_friday_ix = third_friday - 1 + start_of_month_ix;
+        month++;
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
+        sprintf(tmp, "%d-%02d-01", year, month);
+        start_of_month_ix = cal_ix(tmp);
+        start_of_month_day_of_week = start_of_month_ix % 7;
+        third_friday = 15 + ((11 - start_of_month_day_of_week) % 7);
+        third_friday_ix = third_friday - 1 + start_of_month_ix;
     }
     if (third_friday_ix <= 10974) {
-	exp_ix = third_friday_ix + 1;
-	*exp_date = &(cal_get()->list[exp_ix].key[0]);
+        exp_ix = third_friday_ix + 1;
+        *exp_date = &(cal_get()->list[exp_ix].key[0]);
     } else {
-	*exp_date = &(cal_get()->list[third_friday_ix].key[0]);
-	exp_ix = (cal_get()->list[third_friday_ix].val.cal->is_busday)?
-	    third_friday_ix: cal_prev_bday(third_friday_ix, exp_date);
+        *exp_date = &(cal_get()->list[third_friday_ix].key[0]);
+        exp_ix = (cal_get()->list[third_friday_ix].val.cal->is_busday)?
+            third_friday_ix: cal_prev_bday(third_friday_ix, exp_date);
     }
     return exp_ix;
 }
@@ -582,9 +582,9 @@ int cal_prev_expiry(int ix, char** prev_exp_date) {
 int cal_exp_bday(int exp_ix, char** exp_bdate) {
     int res = exp_ix;
     if(!cal_get()->list[exp_ix].val.cal->is_busday)
-	res = cal_prev_bday(exp_ix, exp_bdate);
+        res = cal_prev_bday(exp_ix, exp_bdate);
     else
-	*exp_bdate = &(cal_get()->list[exp_ix].key[0]);
+        *exp_bdate = &(cal_get()->list[exp_ix].key[0]);
     return res;
 }
 
@@ -600,11 +600,11 @@ char* cal_current_busdate(int hr) {
     strftime(crt_date, 12, "%Y-%m-%d", ts);
     int ix = cal_ix(crt_date);
     if (hours < hr)
-	ix--;
+        ix--;
     if(!cal_get()->list[ix].val.cal->is_busday)
-	cal_prev_bday(ix, &res);
+        cal_prev_bday(ix, &res);
     else
-	res = &(cal_get()->list[ix].key[0]);
+        res = &(cal_get()->list[ix].key[0]);
     return res;
 }
 
