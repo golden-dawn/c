@@ -669,7 +669,7 @@ void ana_daily_setups(jl_data_ptr jl) {
         jlr[ix] = &(jl->recs[ix_0 - ix]);
     }
     char *stk = jl->data->stk, *dt = r[0]->date;
-    /* Find strong closes up or down; sr/vr capture range/volume significance */
+    /* Find strong closes up or down; rr/vr capture range/volume significance */
     int sc_dir = 0;
     if ((SC + 1) * r[0]->close >= SC * r[0]->high + r[0]->low)
         sc_dir = 1;
@@ -677,10 +677,12 @@ void ana_daily_setups(jl_data_ptr jl) {
         sc_dir = -1;
     if (sc_dir != 0) {
         cJSON *info = cJSON_CreateObject();
-        cJSON_AddNumberToObject(info, "vr", r[0]->volume / jlr[0]->volume);
-        cJSON_AddNumberToObject(info, "sr", ts_true_range(jl->data, ix_0) /
+        cJSON_AddNumberToObject(info, "vr",
+                                100 * r[0]->volume / jlr[0]->volume);
+        cJSON_AddNumberToObject(info, "rr",
+                                100 * ts_true_range(jl->data, ix_0) /
                                 jlr[0]->rg);
-        ana_add_to_setups(setups, jl, "SC", sc_dir, info, true);
+        ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
     /* Find gaps */
 /*     if ((r[0].open > r[1].high) || (dr[ix].open < dr[ix - 1].low)) {
