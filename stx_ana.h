@@ -685,13 +685,23 @@ void ana_daily_setups(jl_data_ptr jl) {
         ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
     /* Find gaps */
-/*     if ((r[0].open > r[1].high) || (dr[ix].open < dr[ix - 1].low)) {
-        strcpy(setup_name,  (dr[ix].volume > 1.1 * jl_recs->recs[ix].volume)? 
-               "GAP_HV": "GAP");
-        fprintf(fp, "%s\t%s\t%s\t%c\t1\n", dt, stk, setup_name, 
-                (dr[ix].open > dr[ix - 1].high)? UP: DOWN);
+    int gap_dir = 0;
+    if (r[0]->open > r[1]->high)
+        gap_dir = 1;
+    if (r[0]->open < r[1]->low)
+        gap_dir = -1;
+    if (gap_dir != 0) {
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "vr",
+                                100 * r[0]->volume / jlr[0]->volume);
+        cJSON_AddNumberToObject(info, "gap_gain",
+                                100 * (r[0]->close - r[0]->open) /
+                                jlr[0]->rg);
+        cJSON_AddNumberToObject(info, "gap_gain_1",
+                                100 * (r[0]->close - r[1]->close) /
+                                jlr[0]->rg);
+        ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
     }
- */
     ana_insert_setups_in_database(setups, dt, stk);
 }
 
