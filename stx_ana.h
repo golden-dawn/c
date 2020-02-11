@@ -526,7 +526,7 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_up);
         cJSON_AddNumberToObject(info, "len", upper_channel_len);
-        cJSON_AddNumberToObject(info, "vr", (float)r->volume /
+        cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
                                 jl->recs[jl->pos - 2].volume);
         ana_add_to_setups(setups, jl, "JL_B", 1, info, true);
     }
@@ -535,7 +535,7 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
         cJSON* info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_down);
         cJSON_AddNumberToObject(info, "len", lower_channel_len);
-        cJSON_AddNumberToObject(info, "vr", (float)r->volume /
+        cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
                                 jl->recs[jl->pos - 2].volume);
         ana_add_to_setups(setups, jl, "JL_B", -1, info, true);
     }
@@ -603,7 +603,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,            
                 int dir = jl_up(jlr->state)? -1: 1;
                 cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(info, "vr",
-                                        (float) r->volume / jlr->volume);
+                                        100 * r->volume / jlr->volume);
                 ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
@@ -615,7 +615,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,            
                 int dir = jl_up(jlr->state2)? -1: 1;
                 cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(info, "vr",
-                                        (float) r->volume / jlr->volume);
+                                        100 * r->volume / jlr->volume);
                 ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
