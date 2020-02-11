@@ -678,10 +678,10 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (sc_dir != 0) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
-                                100 * r[0]->volume / jlr[0]->volume);
+                                100 * r[0]->volume / jlr[1]->volume);
         cJSON_AddNumberToObject(info, "rr",
                                 100 * ts_true_range(jl->data, ix_0) /
-                                jlr[0]->rg);
+                                jlr[1]->rg);
         ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
     /* Find gaps */
@@ -693,14 +693,35 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (gap_dir != 0) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
-                                100 * r[0]->volume / jlr[0]->volume);
+                                100 * r[0]->volume / jlr[1]->volume);
         cJSON_AddNumberToObject(info, "gap_gain",
                                 100 * (r[0]->close - r[0]->open) /
-                                jlr[0]->rg);
+                                jlr[1]->rg);
         cJSON_AddNumberToObject(info, "gap_gain_1",
                                 100 * (r[0]->close - r[1]->close) /
-                                jlr[0]->rg);
+                                jlr[1]->rg);
         ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
+    }
+    /* Find reversal days */
+    int rd_dir = 0, min_oc = MIN(r[0]->open, r[1]->close);
+    int max_oc = MAX(r[0]->open, r[1]->close);
+    if ((r[0]->low < r[1]->low) && (r[0]->low < min_oc - jlr[1]->rg) &&
+        (r[0]->close > r[0]->open) && (sc_dir == 1))
+        rd_dir = 1;
+    if ((r[0]->high > r[1]->high) && (r[0]->high > max_oc + jlr[1]->rg) &&
+        (r[0]->close < r[0]->open) && (sc_dir == -1))
+        rd_dir = -1;
+    if (rd_dir != 0) {
+        cJSON *info = cJSON_CreateObject();
+        cJSON_AddNumberToObject(info, "vr",
+                                100 * r[0]->volume / jlr[1]->volume);
+        int rd_drawdown = (rd_dir == 1)? (min_oc - r[0]->low):
+            (r[0]->high - max_oc);
+        cJSON_AddNumberToObject(info, "rd_drawdown",
+                                100 * rd_drawdown / jlr[1]->rg);
+        cJSON_AddNumberToObject(info, "rd_gain",
+                                100 * (r[0]->close - r[0]->open) / jlr[1]->rg);
+        ana_add_to_setups(setups, NULL, "RDay", rd_dir, info, true);
     }
     ana_insert_setups_in_database(setups, dt, stk);
 }
@@ -753,6 +774,8 @@ void ana_candlesticks(jl_data_ptr jl) {
             engulfing[ix] = 0;
     }
     /** Calculate piercing pattern */
+    if (!strcmp(r[0]->date, "1999-12-09"))
+        fprintf(stderr, "Here r[0]->date = %s\n", r[0]->date);
     if ((body[0] * body[1] < 0) &&
         (100 * abs(body[1]) > jl->recs[ix_0 - 2].rg *
          CANDLESTICK_LONG_DAY_AVG_RATIO) &&
