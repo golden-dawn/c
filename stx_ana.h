@@ -467,8 +467,27 @@ int ana_interpolate(jl_data_ptr jl, jl_pivot_ptr p1, jl_pivot_ptr p2) {
     return intersect_price;
 }
 
+int ana_clip(int value, int lb, int ub) {
+    int res = value;
+    if (res < lb)
+        res = lb;
+    if (res > ub)
+        res = ub;
+    return res;
+}
+
 int ana_calculate_score(cJSON *setup) {
-    return 0;
+    char* setup_name = cJSON_GetObjectItem(setup, "setup")->valuestring;
+    char* dir_str = cJSON_GetObjectItem(setup, "direction")->valuestring;
+    cJSON* info = cJSON_GetObjectItem(setup, "info");
+    int dir = (*dir_str == 'U')? 1: -1;
+    int score = 0;
+    if (!strcmp(setup_name, "SC")) {
+        int vr = ana_clip(cJSON_GetObjectItem(info, "vr")->valueint, 50, 250);
+        int rr = ana_clip(cJSON_GetObjectItem(info, "rr")->valueint, 50, 250);
+        score = (vr - 50 + rr - 50) * dir;
+    }
+    return score;
 }
 
 /** Utility function to add a setup to an array for jl_setups table */
