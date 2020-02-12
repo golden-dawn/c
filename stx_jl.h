@@ -200,6 +200,8 @@ int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
 jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
     int n = num_pivots;
     jl_pivot_ptr crs = jl->pivots;
+    if (crs != NULL)
+        n--;
     while((n > 0) && (crs!= NULL) && (crs->next != NULL)) {
         crs = crs->next;
         n--;
@@ -207,7 +209,6 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
     *piv_num = (num_pivots - n + 1);
     jl_pivot_ptr res = (jl_pivot_ptr) calloc(*piv_num, sizeof(jl_pivot));
     jl_pivot_ptr res_crs = res;
-    crs = crs->prev;
     for(int ix = 0; ix < *piv_num - 1; ix++) {
         memcpy(res_crs, crs, sizeof(jl_pivot));
         res_crs++;
