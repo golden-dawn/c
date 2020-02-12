@@ -171,8 +171,16 @@ bool jl_up(int state) {
     return (state == UPTREND || state == RALLY);
 }
 
+bool jl_up_all(int state) {
+    return (state == UPTREND || state == RALLY) || (state == S_RALLY);
+}
+
 bool jl_down(int state) {
     return (state == DOWNTREND || state == REACTION);
+}
+
+bool jl_down_all(int state) {
+    return (state == DOWNTREND || state == REACTION) || (state == S_REACTION);
 }
 
 int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
