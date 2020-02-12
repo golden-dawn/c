@@ -495,7 +495,7 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
  */
 
 void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
-                          int num) {
+                          int num, int ls_050) {
     int i = jl->data->pos - 1;
     daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
     int len_1 = cal_num_busdays(pivots[num - 4].date, r->date);
@@ -521,7 +521,7 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
        day, or yesterday's close */
     int ub = (r->high > r_1->close)? r->high: r_1->close;
     int lb = (r->low < r_1->close)? r->low: r_1->close;
-    if ((upper_channel_len >= MIN_CHANNEL_LEN) &&
+    if (jl_up_all(ls_050) && (upper_channel_len >= MIN_CHANNEL_LEN) &&
         (px_up > lb) && (px_up < ub)) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_up);
@@ -530,7 +530,7 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
                                 jl->recs[jl->pos - 2].volume);
         ana_add_to_setups(setups, jl, "JL_B", 1, info, true);
     }
-    if ((lower_channel_len >= MIN_CHANNEL_LEN) &&
+    if (jl_down_all(ls_050) && (lower_channel_len >= MIN_CHANNEL_LEN) &&
         (px_down > lb) && (px_down < ub)) {
         cJSON* info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_down);
@@ -951,10 +951,11 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
         pivots_050 = NULL;
         pivots_050 = jl_get_pivots(jl_050, 4, &num_050);
     }
-    ana_check_for_breaks(setups, jl_050, pivots_050, num_050);
-    ana_check_for_breaks(setups, jl_100, pivots_100, num_100);
-    ana_check_for_breaks(setups, jl_150, pivots_150, num_150);
-    ana_check_for_breaks(setups, jl_200, pivots_200, num_200);
+    int ls_050 = jl_050->last->state;
+    ana_check_for_breaks(setups, jl_050, pivots_050, num_050, ls_050);
+    ana_check_for_breaks(setups, jl_100, pivots_100, num_100, ls_050);
+    ana_check_for_breaks(setups, jl_150, pivots_150, num_150, ls_050);
+    ana_check_for_breaks(setups, jl_200, pivots_200, num_200, ls_050);
     ana_candlesticks(jl_050);
     ana_daily_setups(jl_050);
     ana_check_for_pullbacks(setups, jl_050, pivots_050, num_050);
