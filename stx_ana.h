@@ -476,6 +476,33 @@ int ana_clip(int value, int lb, int ub) {
     return res;
 }
 
+int ana_daily_score(char* stk, char* start_date, char* end_date) {
+    int score = 0;
+    char sql_cmd[256];
+    sprintf(sql_cmd, "SELECT * FROM jl_setups WHERE stk='%s' AND dt BETWEEN"
+            " '%s' and '%s' ORDER BY dt", stk, start_date, end_date);
+    PGresult* res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    if (rows == 0)
+        return score;
+    char *crs_date = start_date;
+    for (int ix = 0; ix < rows; ix++) {
+        char setup_dt[16];
+        strcpy(setup_dt, PQgetvalue(res, ix, 0));
+        while(strcmp(crs_date, setup_dt) < 0) {
+            cal_next_bday(cal_ix(crs_date), &crs_date);
+            score = score * 7 / 8;
+        }
+        score += atoi(PQgetvalue(res, ix, 6));
+    }
+    while(strcmp(crs_date, end_date) < 0) {
+        cal_next_bday(cal_ix(crs_date), &crs_date);
+        score = score * 7 / 8;
+    }
+    PQclear(res);
+    return score;
+}
+
 int ana_calculate_score(cJSON *setup) {
     char* setup_name = cJSON_GetObjectItem(setup, "setup")->valuestring;
     char* dir_str = cJSON_GetObjectItem(setup, "direction")->valuestring;
