@@ -737,15 +737,18 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (r[0]->open < r[1]->low)
         gap_dir = -1;
     if (gap_dir != 0) {
+        int drawdown = 100;
+        if (gap_dir == 1)
+            drawdown *= (r[0]->close - r[0]->high);
+        else
+            drawdown *= (r[0]->low - r[0]->close);
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
                                 100 * r[0]->volume / jlr[1]->volume);
-        cJSON_AddNumberToObject(info, "gap_gain",
+        cJSON_AddNumberToObject(info, "eod_gain",
                                 100 * (r[0]->close - r[0]->open) /
                                 jlr[1]->rg);
-        cJSON_AddNumberToObject(info, "gap_gain_1",
-                                100 * (r[0]->close - r[1]->close) /
-                                jlr[1]->rg);
+        cJSON_AddNumberToObject(info, "drawdown", drawdown / jlr[1]->rg);
         ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
     }
     /* Find reversal days */
