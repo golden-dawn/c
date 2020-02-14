@@ -513,6 +513,12 @@ int ana_calculate_score(cJSON *setup) {
         int vr = ana_clip(cJSON_GetObjectItem(info, "vr")->valueint, 50, 250);
         int rr = ana_clip(cJSON_GetObjectItem(info, "rr")->valueint, 50, 250);
         score = (vr - 50 + rr - 50) * dir;
+    } else if (!strcmp(setup_name, "Gap")) { 
+        /** TODO: add more params to distinguish between breakaway and exhaustion gaps */
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int eod_gain = cJSON_GetObjectItem(info, "eod_gain")->valueint;
+        int drawdown = cJSON_GetObjectItem(info, "drawdown")->valueint;
+        score = vr * (eod_gain + drawdown) / 150;
     }
     return score;
 }
@@ -737,18 +743,18 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (r[0]->open < r[1]->low)
         gap_dir = -1;
     if (gap_dir != 0) {
-        int drawdown = 100;
+        int drawdown = 0;
         if (gap_dir == 1)
-            drawdown *= (r[0]->close - r[0]->high);
+            drawdown = (r[0]->close - r[0]->high);
         else
-            drawdown *= (r[0]->low - r[0]->close);
+            drawdown = (r[0]->close - r[0]->low);
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
                                 100 * r[0]->volume / jlr[1]->volume);
         cJSON_AddNumberToObject(info, "eod_gain",
-                                100 * (r[0]->close - r[0]->open) /
+                                100 * (r[0]->close - r[1]->close) /
                                 jlr[1]->rg);
-        cJSON_AddNumberToObject(info, "drawdown", drawdown / jlr[1]->rg);
+        cJSON_AddNumberToObject(info, "drawdown", 100 * drawdown / jlr[1]->rg);
         ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
     }
     /* Find reversal days */
