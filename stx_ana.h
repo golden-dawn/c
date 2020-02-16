@@ -600,6 +600,30 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
     }
 }
 
+void ana_add_jl_pullback_setup(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
+                               jl_piv_ptr pivs_150, jl_piv_ptr pivs_200) {
+    int num = pivs->num, num_150 = pivs_150->num, num_200 = pivs_200->num;
+    jl_pivot_ptr pivots = pivs->pivots, pivots_150 = pivs_150->pivots;
+    jl_pivot_ptr pivots_200 = pivs_200->pivots;
+    jl_pivot_ptr lns_150 = &(pivots_150[num_150 - 1]);
+    jl_pivot_ptr lns_200 = &(pivots_200[num_200 - 1]);
+    bool lt_200 = jl_same_pivot(lns_200, &(pivots[num - 4]));
+    int lt_factor = lt_200? 200: 150;
+    int lt_vd = lt_200? (lns_200->obv - pivots_200[num_200 - 3].obv):
+        (lns_150->obv - pivots_150[num_150 - 3].obv);
+    cJSON *info = cJSON_CreateObject();
+    cJSON_AddNumberToObject(info, "vd",
+                            pivots[num - 2].obv - pivots[num - 4].obv);
+    cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
+    cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
+    cJSON_AddNumberToObject(info, "lf", lt_factor);
+    cJSON_AddNumberToObject(info, "ls",
+                            (lt_200? lns_200->state: lns_150->state));
+    cJSON_AddNumberToObject(info, "lls", lns_200->state);
+    cJSON_AddNumberToObject(info, "lvd", lt_vd);
+    ana_add_to_setups(setups, jl, "JL_P", 1, info, true);
+}
+
 /** Check whether a given day creates a new pivot point, and determine
  * if that pivot point represents a change in trend.
  */
@@ -623,17 +647,10 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
     if (jl_up(last_ns) &&
         ((pivots[num - 2].state == REACTION) &&
          (pivots[num - 4].state == DOWNTREND) &&
-        //  (jl_same_pivot(lns_150, &(pivots[num - 4])) ||
-        //   jl_same_pivot(lns_200, &(pivots[num - 4]))) &&
+        (jl_same_pivot(lns_150, &(pivots[num - 4])) ||
+         jl_same_pivot(lns_200, &(pivots[num - 4]))) &&
          (pivots[num - 2].obv < pivots[num - 4].obv + 5))) {
-        cJSON *info = cJSON_CreateObject();
-        cJSON_AddNumberToObject(info, "vd",
-                                pivots[num - 2].obv - pivots[num - 4].obv);
-        cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
-        cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
-        // cJSON_AddNumberToObject(info, "s_150", state_150);
-        // cJSON_AddNumberToObject(info, "s_200", state_200);
-        ana_add_to_setups(setups, jl, "JL_P", 1, info, true);
+        ana_add_jl_pullback_setup(setups, jl, pivs, pivs_150, pivs_200);
     }
     if (jl_down(last_ns) &&
         (((pivots[num - 2].state == RALLY) &&
