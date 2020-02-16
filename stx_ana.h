@@ -552,9 +552,10 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
  * channel break detection.
  */
 
-void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
-                          int num, int ls_050) {
-    int i = jl->data->pos - 1;
+void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
+                          int ls_050) {
+    int i = jl->data->pos - 1, num = pivs->num;
+    jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
     int len_1 = cal_num_busdays(pivots[num - 4].date, r->date);
     int len_2 = cal_num_busdays(pivots[num - 5].date, r->date);
@@ -602,9 +603,10 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
 /** Check whether a given day creates a new pivot point, and determine
  * if that pivot point represents a change in trend.
  */
-void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
-                             int num) {
-    int i = jl->data->pos - 1;
+void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
+                             jl_piv_ptr pivs_150, jl_piv_ptr pivs_200) {
+    int i = jl->data->pos - 1, num = pivs->num;
+    jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
     /** Return if the current record is not a primary record */
@@ -616,18 +618,21 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
     if ((jl_up(last_ns) && jl_up(prev_ns)) ||
         (jl_down(last_ns) && jl_down(prev_ns)))
         return;
-
+    jl_pivot_ptr lns_150 = &(pivs_150->pivots[pivs_150->num - 1]);
+    jl_pivot_ptr lns_200 = &(pivs_200->pivots[pivs_200->num - 1]);
     if (jl_up(last_ns) &&
-        (((pivots[num - 2].state == REACTION) &&
+        ((pivots[num - 2].state == REACTION) &&
          (pivots[num - 4].state == DOWNTREND) &&
-         (pivots[num - 2].obv < pivots[num - 4].obv + 5)) ||
-         ((pivots[num - 2].state == DOWNTREND) &&
-         (pivots[num - 2].obv < pivots[num - 4].obv - 5)))) {
+        //  (jl_same_pivot(lns_150, &(pivots[num - 4])) ||
+        //   jl_same_pivot(lns_200, &(pivots[num - 4]))) &&
+         (pivots[num - 2].obv < pivots[num - 4].obv + 5))) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vd",
                                 pivots[num - 2].obv - pivots[num - 4].obv);
         cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
         cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
+        // cJSON_AddNumberToObject(info, "s_150", state_150);
+        // cJSON_AddNumberToObject(info, "s_200", state_200);
         ana_add_to_setups(setups, jl, "JL_P", 1, info, true);
     }
     if (jl_down(last_ns) &&
@@ -643,6 +648,20 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
         cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
         ana_add_to_setups(setups, jl, "JL_P", -1, info, true);
     }
+//     if ((jl_up(lns_150->state) || jl_up(lns_200->state) &&
+//         (((pivots[num - 2].state == REACTION) &&
+//           (pivots[num - 2].obv < pivots[num - 4].obv + 5)) ||
+//          ((pivots[num - 2].state == DOWNTREND) &&
+//           (pivots[num - 2].obv < pivots[num - 4].obv - 5)))) {
+//         cJSON *info = cJSON_CreateObject();
+//         cJSON_AddNumberToObject(info, "vd",
+//                                 pivots[num - 2].obv - pivots[num - 4].obv);
+//         cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
+//         cJSON_AddNumberToObject(info, "s2", pivots[num - 4].state);
+//         cJSON_AddNumberToObject(info, "s_150", state_150);
+//         cJSON_AddNumberToObject(info, "s_200", state_200);
+//         ana_add_to_setups(setups, jl, "JL_P", 1, info, true);
+//    }
 }
 
 /** Check whether the action on a given day stops at a
@@ -651,8 +670,9 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
  * piercing or not
  */ 
 void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
-                                      jl_pivot_ptr pivots, int num_pivots) {
-    int i = jl->data->pos - 1;
+                                      jl_piv_ptr pivs) {
+    int i = jl->data->pos - 1, num_pivots = pivs->num;
+    jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]);
     if (jl_primary(jlr->state)) {
@@ -988,41 +1008,42 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
         6. Look for breakouts and/or intersecting channels for ...
     */
     cJSON *setups = cJSON_CreateArray();
-    int num_050, num_100, num_150, num_200;
-    jl_pivot_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
+    jl_piv_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
         pivots_200 = NULL;
-    pivots_150 = jl_get_pivots(jl_150, 4, &num_150);
-    pivots_200 = jl_get_pivots(jl_200, 4, &num_200);
-    if ((num_150 < 5) || (num_200 < 5)) {
-        LOGERROR("Got %d %s pivots, needed 5\n", num_150, JL_150);
-        LOGERROR("Got %d %s pivots, needed 5\n", num_200, JL_200);
+    pivots_150 = jl_get_pivots(jl_150, 4);
+    pivots_200 = jl_get_pivots(jl_200, 4);
+    if ((pivots_150->num < 5) || (pivots_200->num < 5)) {
+        LOGERROR("Got %d %s pivots, needed 5\n", pivots_150->num, JL_150);
+        LOGERROR("Got %d %s pivots, needed 5\n", pivots_200->num, JL_200);
         goto end;
     }
-    char *lrdt_150 = pivots_150[num_150 - 3].date,
-        *lrdt_200 = pivots_200[num_200 - 3].date;
+    char *lrdt_150 = pivots_150->pivots[pivots_150->num - 3].date,
+        *lrdt_200 = pivots_200->pivots[pivots_200->num - 3].date;
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
-    pivots_100 = jl_get_pivots_date(jl_100, lrdt, &num_100);
-    if (num_100 < 5) {
+    pivots_100 = jl_get_pivots_date(jl_100, lrdt);
+    if (pivots_100->num < 5) {
+        free(pivots_100->pivots);
         free(pivots_100);
         pivots_100 = NULL;
-        pivots_100 = jl_get_pivots(jl_100, 4, &num_100);
+        pivots_100 = jl_get_pivots(jl_100, 4);
     }
-    pivots_050 = jl_get_pivots_date(jl_050, lrdt, &num_050);
-    if (num_050 < 5) {
+    pivots_050 = jl_get_pivots_date(jl_050, lrdt);
+    if (pivots_050->num < 5) {
+        free(pivots_050->pivots);
         free(pivots_050);
         pivots_050 = NULL;
-        pivots_050 = jl_get_pivots(jl_050, 4, &num_050);
+        pivots_050 = jl_get_pivots(jl_050, 4);
     }
     int ls_050 = jl_050->last->state;
-    ana_check_for_breaks(setups, jl_050, pivots_050, num_050, ls_050);
-    ana_check_for_breaks(setups, jl_100, pivots_100, num_100, ls_050);
-    ana_check_for_breaks(setups, jl_150, pivots_150, num_150, ls_050);
-    ana_check_for_breaks(setups, jl_200, pivots_200, num_200, ls_050);
+    ana_check_for_breaks(setups, jl_050, pivots_050, ls_050);
+    ana_check_for_breaks(setups, jl_100, pivots_100, ls_050);
+    ana_check_for_breaks(setups, jl_150, pivots_150, ls_050);
+    ana_check_for_breaks(setups, jl_200, pivots_200, ls_050);
     ana_candlesticks(jl_050);
     ana_daily_setups(jl_050);
-    ana_check_for_pullbacks(setups, jl_050, pivots_050, num_050);
-    ana_check_for_pullbacks(setups, jl_100, pivots_100, num_100);
-    ana_check_for_support_resistance(setups, jl_100, pivots_100, num_100);
+    ana_check_for_pullbacks(setups, jl_050, pivots_050, pivots_150, pivots_200);
+    ana_check_for_pullbacks(setups, jl_100, pivots_100, pivots_150, pivots_200);
+    ana_check_for_support_resistance(setups, jl_100, pivots_100);
     /* ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050); */
     ana_insert_setups_in_database(setups, dt, stk);
  end:
