@@ -64,6 +64,11 @@ typedef struct jl_pivot_t {
     struct jl_pivot_t* prev;
 } jl_pivot, *jl_pivot_ptr;
 
+typedef struct jl_piv_t {
+    jl_pivot_ptr pivots;
+    int num;
+} jl_piv, *jl_piv_ptr;
+
 typedef struct jl_data_t {
     jl_record_ptr recs;
     int size;
@@ -205,7 +210,7 @@ int jl_calc_obv(jl_data_ptr jl, char* start_date, int start_state, int end) {
     return obv / 10;
 }
 
-jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
+jl_piv_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots) {
     int n = num_pivots;
     jl_pivot_ptr crs = jl->pivots;
     if (crs != NULL)
@@ -214,10 +219,11 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
         crs = crs->next;
         n--;
     }
-    *piv_num = (num_pivots - n + 1);
-    jl_pivot_ptr res = (jl_pivot_ptr) calloc(*piv_num, sizeof(jl_pivot));
+    jl_piv_ptr pivs = (jl_piv_ptr) calloc(1, sizeof(jl_piv));
+    pivs->num = num_pivots - n + 1;
+    jl_pivot_ptr res = (jl_pivot_ptr) calloc(pivs->num, sizeof(jl_pivot));
     jl_pivot_ptr res_crs = res;
-    for(int ix = 0; ix < *piv_num - 1; ix++) {
+    for(int ix = 0; ix < pivs->num - 1; ix++) {
         memcpy(res_crs, crs, sizeof(jl_pivot));
         res_crs++;
         crs = crs->prev;
@@ -231,11 +237,12 @@ jl_pivot_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots, int* piv_num) {
         jlr_lns->price;
     res_crs->rg = jlr_lns->rg;
     res_crs->obv = jl->last->lns_obv;
-    return res;
+    pivs->pivots = res;
+    return pivs;
 }
 
 
-jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
+jl_piv_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt) {
     int n = 0;
     jl_pivot_ptr crs = jl->pivots;
     while((strcmp(dt, crs->date) <= 0) && (crs!= NULL) &&
@@ -243,7 +250,8 @@ jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
         crs = crs->next;
         n++;
     }
-    *piv_num = n + 1;
+    jl_piv_ptr pivs = (jl_piv_ptr) calloc(1, sizeof(jl_piv));
+    pivs->num = n + 1;
     jl_pivot_ptr res = (jl_pivot_ptr) calloc(n + 1, sizeof(jl_pivot));
     jl_pivot_ptr res_crs = res;
     crs = crs->prev;
@@ -261,7 +269,8 @@ jl_pivot_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt, int* piv_num) {
         jlr_lns->price;
     res_crs->rg = jlr_lns->rg;
     res_crs->obv = jl->last->lns_obv;
-    return res;
+    pivs->pivots = res;
+    return pivs;
 }
 
 int jl_prev_ns(jl_data_ptr jl) {
@@ -274,36 +283,41 @@ int jl_prev_ns(jl_data_ptr jl) {
 }
 
 cJSON* jl_pivots_json(jl_data_ptr jl, int num_pivots) {
-    int num_pivs;
-    jl_pivot_ptr pivots = jl_get_pivots(jl, num_pivots, &num_pivs);
+    jl_piv_ptr jl_pivs = jl_get_pivots(jl, num_pivots);
     cJSON *json_jl = cJSON_CreateObject();
     if (cJSON_AddNumberToObject(json_jl, "f", jl->factor) == NULL)
         goto end;
     cJSON *pivs = NULL;
     if ((pivs = cJSON_AddArrayToObject(json_jl, "pivs")) == NULL)
         goto end;
-    for(int ix = 0; ix < num_pivs; ix++) {
+    for(int ix = 0; ix < jl_pivs->num; ix++) {
         cJSON * pivot = cJSON_CreateObject();
-        if (cJSON_AddStringToObject(pivot, "d", pivots[ix].date) == NULL)
+        if (cJSON_AddStringToObject(pivot, "d", jl_pivs->pivots[ix].date)
+            == NULL)
             goto end;
-        if (cJSON_AddNumberToObject(pivot, "x", pivots[ix].price) == NULL)
+        if (cJSON_AddNumberToObject(pivot, "x", jl_pivs->pivots[ix].price)
+            == NULL)
             goto end;
-        if (cJSON_AddNumberToObject(pivot, "s", pivots[ix].state) == NULL)
+        if (cJSON_AddNumberToObject(pivot, "s", jl_pivs->pivots[ix].state)
+            == NULL)
             goto end;
-        if (cJSON_AddNumberToObject(pivot, "r", pivots[ix].rg) == NULL)
+        if (cJSON_AddNumberToObject(pivot, "r", jl_pivs->pivots[ix].rg) == NULL)
             goto end;
-        if (cJSON_AddNumberToObject(pivot, "v", pivots[ix].obv) == NULL)
+        if (cJSON_AddNumberToObject(pivot, "v", jl_pivs->pivots[ix].obv)
+            == NULL)
             goto end;
-        if (cJSON_AddBoolToObject(pivot, "p", (ix != (num_pivs - 1))) == NULL)
+        if (cJSON_AddBoolToObject(pivot, "p", (ix != (jl_pivs->num - 1)))
+            == NULL)
             goto end;
-        if (ix == (num_pivs - 1)) {
+        if (ix == (jl_pivs->num - 1)) {
             if (cJSON_AddNumberToObject(pivot, "s_1", jl_prev_ns(jl)) == NULL)
                 goto end;
         }
         cJSON_AddItemToArray(pivs, pivot);
     }
  end:
-    free(pivots);
+    free(jl_pivs->pivots);
+    free(jl_pivs);
     return json_jl;
 }
 
