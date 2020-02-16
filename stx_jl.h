@@ -846,4 +846,12 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
                          jlr->pivot2, jlr->rg, jlr->piv_obv2);
     }
 }
+
+/** Return true if the pivots p1 and p2 have the same date and the same price.
+ * This is used to identify that a pivot on a faster time scale is the same as a
+ * pivot or last non-secondary record on a slower time scale.
+*/
+bool jl_same_pivot(jl_pivot_ptr p1, jl_pivot_ptr p2) {
+    return (!strcmp(p1->date, p2->date) && (p1->price == p2->price));
+}
 #endif
