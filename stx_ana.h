@@ -519,6 +519,12 @@ int ana_calculate_score(cJSON *setup) {
         int eod_gain = cJSON_GetObjectItem(info, "eod_gain")->valueint;
         int drawdown = cJSON_GetObjectItem(info, "drawdown")->valueint;
         score = vr * (eod_gain + drawdown) / 150;
+    } else if (!strcmp(setup_name, "RDay")) {
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int rd_gain = cJSON_GetObjectItem(info, "rd_gain")->valueint;
+        int rd_drawdown = cJSON_GetObjectItem(info, "rd_drawdown")->valueint;
+        int rdr = ana_clip(abs(rd_gain) + abs(rd_drawdown), 0, 300);
+        score = dir * vr * rdr / 150;
     }
     return score;
 }
@@ -644,7 +650,8 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_pivot_ptr pivots,
  * resistance/support (on high volume), and whether it recovers after
  * piercing or not
  */ 
-void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,                                                  jl_pivot_ptr pivots, int num_pivots) {
+void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
+                                      jl_pivot_ptr pivots, int num_pivots) {
     int i = jl->data->pos - 1;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]);
