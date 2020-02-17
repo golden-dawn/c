@@ -525,6 +525,22 @@ int ana_calculate_score(cJSON *setup) {
         int rd_drawdown = cJSON_GetObjectItem(info, "rd_drawdown")->valueint;
         int rdr = ana_clip(abs(rd_gain) + abs(rd_drawdown), 0, 300);
         score = dir * vr * rdr / 150;
+    } else if (!strcmp(setup_name, "JL_P")) {
+        int ls = cJSON_GetObjectItem(info, "ls")->valueint;
+        int lvd = cJSON_GetObjectItem(info, "lvd")->valueint;
+        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
+        score = 10 * obv / 2;
+        if (((dir == 1) && (ls == UPTREND)) ||
+            ((dir == -1) && (ls == DOWNTREND)))
+                score += (dir * 50);
+        else if ((ls == RALLY) || (ls == REACTION))
+                score += (dir * 25);
+        if (lvd * dir > 0)
+            score -= (5 * lvd);
+        else
+            score -= (2 * lvd);
+        if (dir * score < 0)
+            score = 0;
     }
     return score;
 }
