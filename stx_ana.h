@@ -616,6 +616,7 @@ void ana_add_jl_pullback_setup(cJSON *setups, jl_data_ptr jl, int direction,
     int lt_vd = lt_200? (lns_200->obv - pivots_200[num_200 - 3].obv):
         (lns_150->obv - pivots_150[num_150 - 3].obv);
     cJSON *info = cJSON_CreateObject();
+    cJSON_AddNumberToObject(info, "obv", pivots[num - 4].obv);
     cJSON_AddNumberToObject(info, "vd",
                             pivots[num - 2].obv - pivots[num - 4].obv);
     cJSON_AddNumberToObject(info, "s1", pivots[num - 2].state);
