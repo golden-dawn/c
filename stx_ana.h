@@ -609,6 +609,9 @@ void ana_add_jl_pullback_setup(cJSON *setups, jl_data_ptr jl, int direction,
     jl_pivot_ptr lns_150 = &(pivots_150[num_150 - 1]);
     jl_pivot_ptr lns_200 = &(pivots_200[num_200 - 1]);
     bool lt_200 = jl_same_pivot(lns_200, &(pivots[num - piv_ix]));
+    if (piv_ix == 3)
+        lt_200 = lt_200 &&
+            (lns_200->state == ((direction > 0)? UPTREND: DOWNTREND));
     int lt_factor = lt_200? 200: 150;
     int lt_vd = lt_200? (lns_200->obv - pivots_200[num_200 - 3].obv):
         (lns_150->obv - pivots_150[num_150 - 3].obv);
