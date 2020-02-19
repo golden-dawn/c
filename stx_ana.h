@@ -541,6 +541,9 @@ int ana_calculate_score(cJSON *setup) {
             score -= (2 * lvd);
         if (dir * score < 0)
             score = 0;
+    } else if (!strcmp(setup_name, "JL_B")) {
+        /** Look at the previous state (before the break). That should be a major influence on the score */
+
     }
     return score;
 }
@@ -550,6 +553,18 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
                        int dir, cJSON *info, bool triggered) {
     if (setups == NULL)
         setups = cJSON_CreateArray();
+    /** Check if the last setup in the array is JL_P or JL_B.  Remove it,
+     * because it is a lower strength setup for a smaller factor */
+    if (!strcmp(setup_name, "JL_B") || !strcmp(setup_name, "JL_P")) {
+        int num_setups = cJSON_GetArraySize(setups);
+        if (num_setups > 0) {
+            cJSON *last_setup = cJSON_GetArrayItem(setups, num_setups - 1);
+            char *last_setup_name =
+                cJSON_GetObjectItem(last_setup, "setup")->valuestring;
+            if (!strcmp(setup_name, last_setup_name))
+                cJSON_DeleteItemFromArray(setups, num_setups - 1);
+        }
+    }
     char *direction = (dir > 0)? "U": "D";
     int factor = (jl == NULL)? 0: (int) (100 * jl->factor);
     cJSON *res = cJSON_CreateObject();
@@ -594,6 +609,9 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         return;
     /* find the extremes for today's price either the high/low for the
        day, or yesterday's close */
+
+    /* TODO: only add JL_B setup if the current record is a primary record for the factor and in the direction of the trend (e.g. RALLY or UPTREND for an up direction setup) */
+
     int ub = (r->high > r_1->close)? r->high: r_1->close;
     int lb = (r->low < r_1->close)? r->low: r_1->close;
     if (jl_up_all(ls_050) && (upper_channel_len >= MIN_CHANNEL_LEN) &&
