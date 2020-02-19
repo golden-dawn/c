@@ -609,13 +609,12 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         return;
     /* find the extremes for today's price either the high/low for the
        day, or yesterday's close */
-
-    /* TODO: only add JL_B setup if the current record is a primary record for the factor and in the direction of the trend (e.g. RALLY or UPTREND for an up direction setup) */
-
     int ub = (r->high > r_1->close)? r->high: r_1->close;
     int lb = (r->low < r_1->close)? r->low: r_1->close;
+    /* only add JL_B setup if the current record is a primary record for the factor and in the direction of the trend (e.g. RALLY or UPTREND for an up direction setup) */
     if (jl_up_all(ls_050) && (upper_channel_len >= MIN_CHANNEL_LEN) &&
-        (px_up > lb) && (px_up < ub)) {
+        (px_up > lb) && (px_up < ub) && (jl->recs[i].lns == i) &&
+        jl_up(jl->last->prim_state)) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_up);
         cJSON_AddNumberToObject(info, "len", upper_channel_len);
@@ -624,7 +623,8 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         ana_add_to_setups(setups, jl, "JL_B", 1, info, true);
     }
     if (jl_down_all(ls_050) && (lower_channel_len >= MIN_CHANNEL_LEN) &&
-        (px_down > lb) && (px_down < ub)) {
+        (px_down > lb) && (px_down < ub) && (jl->recs[i].lns == i) &&
+        jl_down(jl->last->prim_state)) {
         cJSON* info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_down);
         cJSON_AddNumberToObject(info, "len", lower_channel_len);
