@@ -529,7 +529,7 @@ int ana_calculate_score(cJSON *setup) {
         int ls = cJSON_GetObjectItem(info, "ls")->valueint;
         int lvd = cJSON_GetObjectItem(info, "lvd")->valueint;
         int obv = cJSON_GetObjectItem(info, "obv")->valueint;
-        score = 10 * obv / 2;
+        score = 5 * obv;
         if (((dir == 1) && (ls == UPTREND)) ||
             ((dir == -1) && (ls == DOWNTREND)))
                 score += (dir * 50);
@@ -542,8 +542,29 @@ int ana_calculate_score(cJSON *setup) {
         if (dir * score < 0)
             score = 0;
     } else if (!strcmp(setup_name, "JL_B")) {
-        /** Look at the previous state (before the break). That should be a major influence on the score */
-
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int len = cJSON_GetObjectItem(info, "len")->valueint;
+        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
+        int last_ns = cJSON_GetObjectItem(info, "last_ns")->valueint;
+        int prev_ns = cJSON_GetObjectItem(info, "prev_ns")->valueint;
+        score = 5 * obv;
+        score = score * vr / 150;
+        score = score * ana_clip(len, 50, 250) / 50;
+        if (dir == 1) {
+            if (last_ns == UPTREND) {
+                if (prev_ns == UPTREND)
+                    score = score / 2;
+                else if (prev_ns == RALLY)
+                    score = score * 2;
+            }
+        } else { /** dir == -1 */
+            if (last_ns == DOWNTREND) {
+                if (prev_ns == DOWNTREND)
+                    score = score / 2;
+                else if (prev_ns == REACTION)
+                    score = score * 2;
+            }
+        }
     }
     return score;
 }
