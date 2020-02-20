@@ -620,6 +620,9 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         cJSON_AddNumberToObject(info, "len", upper_channel_len);
         cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
                                 jl->recs[jl->pos - 2].volume);
+        cJSON_AddNumberToObject(info, "last_ns", jl->last->prim_state);
+        cJSON_AddNumberToObject(info, "prev_ns", jl_prev_ns(jl));
+        cJSON_AddNumberToObject(info, "obv", pivots[num - 2].obv);
         ana_add_to_setups(setups, jl, "JL_B", 1, info, true);
     }
     if (jl_down_all(ls_050) && (lower_channel_len >= MIN_CHANNEL_LEN) &&
@@ -630,6 +633,9 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         cJSON_AddNumberToObject(info, "len", lower_channel_len);
         cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
                                 jl->recs[jl->pos - 2].volume);
+        cJSON_AddNumberToObject(info, "last_ns", jl->last->prim_state);
+        cJSON_AddNumberToObject(info, "prev_ns", jl_prev_ns(jl));
+        cJSON_AddNumberToObject(info, "obv", pivots[num - 2].obv);
         ana_add_to_setups(setups, jl, "JL_B", -1, info, true);
     }
 }
