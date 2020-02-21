@@ -219,6 +219,14 @@ int main() {
         "jl_setups(setup)";
     create_index_if_missing(cnx, "jl_setups", "jl_setups_setup_idx",
                             create_jl_setups_setup_idx);
+
+    char* create_setup_scores = "CREATE TABLE setup_scores( "   \
+        "dt DATE NOT NULL, "                                    \
+        "stk VARCHAR(16) NOT NULL, "                            \
+        "setup VARCHAR(16) NOT NULL, "                          \
+        "score INTEGER NOT NULL, "                              \
+        "PRIMARY KEY(dt, stk, setup))";
+    create_table_if_missing(cnx, "setup_scores", create_setup_scores);
     PQfinish(cnx);
     return 0;
 }
