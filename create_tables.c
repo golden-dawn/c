@@ -220,6 +220,11 @@ int main() {
     create_index_if_missing(cnx, "jl_setups", "jl_setups_setup_idx",
                             create_jl_setups_setup_idx);
 
+    /** This table stores the (cumulative) setup score, calculated daily.
+     * For some setups (SC, Gap) this is a cumulative score, where a setup
+     * score decreases by 7/8 each day.  For other (trigger) setups, the score
+     * is only valid for the day where the setup occurs.
+     */
     char* create_setup_scores = "CREATE TABLE setup_scores( "   \
         "dt DATE NOT NULL, "                                    \
         "stk VARCHAR(16) NOT NULL, "                            \
@@ -227,6 +232,17 @@ int main() {
         "score INTEGER NOT NULL, "                              \
         "PRIMARY KEY(dt, stk, setup))";
     create_table_if_missing(cnx, "setup_scores", create_setup_scores);
+
+    /** This table stores, for each <stock, setup> tuple, the last date when
+     * 'setup' and its daily score were calculated for 'stock'.
+    */
+    char* create_setup_dates = "CREATE TABLE setup_dates( " \
+        "stk VARCHAR(16) NOT NULL, "                        \
+        "setup VARCHAR(16) NOT NULL, "                      \
+        "dt DATE NOT NULL, "                                \
+        "PRIMARY KEY(stk, setup))";
+    create_table_if_missing(cnx, "setup_dates", create_setup_dates);
+
     PQfinish(cnx);
     return 0;
 }
