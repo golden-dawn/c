@@ -238,9 +238,8 @@ int main() {
     */
     char* create_setup_dates = "CREATE TABLE setup_dates( " \
         "stk VARCHAR(16) NOT NULL, "                        \
-        "setup VARCHAR(16) NOT NULL, "                      \
         "dt DATE NOT NULL, "                                \
-        "PRIMARY KEY(stk, setup))";
+        "PRIMARY KEY(stk))";
     create_table_if_missing(cnx, "setup_dates", create_setup_dates);
 
     PQfinish(cnx);
