@@ -1287,23 +1287,53 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cJSON_Delete(leaders);
 }
 
-void stk_analysis(char* stk, char* start_date, char* end_date, bool clear_db) {
-    /** calculate setups for a single stock (stk) during the time
-     *interval [start_date, end_date]
+void stk_analysis(char* stk, char* ana_date, bool clear_db) {
+    /** calculate setups for a single stock (stk) up to ana_date. If ana_date
+     * is NULL, setups (and their scores) will be calculated up to the current
+     * business date. If clear_db is set to true, this funtion will clear all
+     * the setup info in the DB, and will recalculate the setups for that stock.
      */
     char sql_cmd[256];
     if (clear_db) {
-        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE stk='%s' AND dt "\
-                "BETWEEN '%s' AND '%s'", stk, start_date, end_date);
+        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE stk='%s'", stk);
         db_transaction(sql_cmd);
-        sprintf(sql_cmd, "DELETE FROM setups WHERE stk='%s' AND dt "\
-                "BETWEEN '%s' AND '%s'", stk, start_date, end_date);
+        sprintf(sql_cmd, "DELETE FROM setup_scores WHERE stk='%s'", stk);
+        db_transaction(sql_cmd);
+        sprintf(sql_cmd, "DELETE FROM setup_dates WHERE stk='%s'", stk);
         db_transaction(sql_cmd);
     }
-    char *crs_date = start_date;
-    while(strcmp(crs_date, end_date) < 0) {
-        ana_jl_setups(stk, crs_date, true);
-        cal_next_bday(cal_ix(crs_date), &crs_date);
+    if (ana_date == NULL)
+        ana_date = cal_current_busdate(20);
+    char *setup_date = NULL;
+    sprintf(sql_cmd, "SELECT dt FROM setup_dates WHERE stk='%s'", stk);
+    PGresult* res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    if (rows == 0) {
+        /** Could not find a previous analysis date in the DB, will start
+         * from the first date from which EOD is available for the stock
+         */
+        PQclear(res);
+        sprintf(sql_cmd, "SELECT min(dt) FROM eods WHERE stk='%s'", stk);
+        res = db_query(sql_cmd);
+        rows = PQntuples(res);
+        if (rows == 0) {
+            PQclear(res);
+            LOGERROR("Could not find EOD data for stock %s, exit\n", stk);
+            return;
+        }
+        setup_date = PQgetvalue(res, 0, 0);
+        cal_move_bdays(setup_date, 45, &setup_date);
+    } else {
+        /** Found last setup analysis date in DB. Start analysis from the next
+         * business day.
+        */
+        setup_date = PQgetvalue(res, 0, 0);
+        cal_next_bday(cal_ix(setup_date), &setup_date);
+    }
+    PQclear(res);
+    while(strcmp(setup_date, ana_date) <= 0) {
+        ana_jl_setups(stk, setup_date, true);
+        cal_next_bday(cal_ix(setup_date), &setup_date);
     }
 }
 
