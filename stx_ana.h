@@ -301,7 +301,6 @@ int ana_expiry_analysis(char* dt, bool realtime_analysis) {
     return 0;
 }
 
-
 cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
                        int max_num_ldrs) {
     cJSON *leader_list = cJSON_CreateArray();
@@ -1111,22 +1110,15 @@ void ana_candlesticks(jl_data_ptr jl) {
     ana_insert_setups_in_database(setups, dt, stk);
 }
 
-void ana_jl_setups(char* stk, char* dt, bool eod) {
+int ana_jl_setups(char* stk, char* dt, bool eod) {
+    int res = 0;
     jl_data_ptr jl_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
     jl_data_ptr jl_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
     jl_data_ptr jl_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
     jl_data_ptr jl_200 = ana_get_jl(stk, dt, JL_200, JLF_200);
     if ((jl_050 == NULL) || (jl_100 == NULL) || (jl_150 == NULL) ||
         (jl_200 == NULL))
-        return;
-    /** TODO:
-        1. Get 4 pivots for JL_150 and JL_200
-        2. Find least recent date lrdt for last pivot for JL_150 and JL_200
-        3. Find all the JL_050 and JL_100 pivots up to lrdt
-        4. Look for 1-2-3 setups for JL_100, JL_150 and JL_200
-        5. Look for SR for JL_050, jl_100
-        6. Look for breakouts and/or intersecting channels for ...
-    */
+        return -1;
     cJSON *setups = cJSON_CreateArray();
     jl_piv_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
         pivots_200 = NULL;
@@ -1176,6 +1168,7 @@ void ana_jl_setups(char* stk, char* dt, bool eod) {
     if (pivots_200 != NULL)
         free(pivots_200);
     cJSON_Delete(setups);
+    return 0;
 }
 
 void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
@@ -1331,10 +1324,25 @@ void stk_analysis(char* stk, char* ana_date, bool clear_db) {
         cal_next_bday(cal_ix(setup_date), &setup_date);
     }
     PQclear(res);
-    while(strcmp(setup_date, ana_date) <= 0) {
-        ana_jl_setups(stk, setup_date, true);
-        cal_next_bday(cal_ix(setup_date), &setup_date);
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "SELECT MAX(dt) FROM eods WHERE stk='%s'", stk);
+    res = db_query(sql_cmd);
+    char *end_date = PQgetvalue(res, 0, 0);
+    cal_move_bdays(end_date, 0, &end_date);
+    PQclear(res);
+    if (strcmp(end_date, ana_date) < 0)
+        ana_date = end_date;
+    int ana_res = 0;
+    while((ana_res == 0) && (strcmp(setup_date, ana_date) <= 0)) {
+        ana_res = ana_jl_setups(stk, setup_date, true);
+        if (ana_res == 0)
+            cal_next_bday(cal_ix(setup_date), &setup_date);
     }
+    cal_prev_bday(cal_ix(setup_date), &setup_date);
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s')", stk,
+            setup_date);
+    db_transaction(sql_cmd);
 }
 
 #endif
