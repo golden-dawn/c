@@ -475,6 +475,51 @@ int ana_clip(int value, int lb, int ub) {
     return res;
 }
 
+void ana_update_score(char *stk, char *setup_date) {
+    char sql_cmd[256];
+    sprintf(sql_cmd, "SELECT * FROM jl_setups where stk='%s' and dt='%s'",
+            stk, setup_date);
+    PGresult *res = db_query(sql_cmd);
+    int trigger_score = 0, trend_score = 0;
+    int rows = PQntuples(res);
+    for(int ix = 0; ix < rows; ++ix) {
+        char *setup_name = PQgetvalue(res, ix, 2);
+        int setup_score = atoi(PQgetvalue(res, ix, 6));
+        if (!strcmp(setup_name, "JL_B") || !strcmp(setup_name, "JL_P") ||
+            !strcmp(setup_name, "EngHarami") || !strcmp(setup_name, "Star") ||
+            !strcmp(setup_name, "Piercing") || !strcmp(setup_name, "Kicking"))
+            trigger_score += setup_score;
+        if (strcmp(setup_name, "JL_B") && strcmp(setup_name, "JL_P"))
+            trend_score += setup_score;
+    }
+    PQclear(res);
+    char *prev_date;
+    cal_prev_bday(cal_ix(setup_date), &prev_date);
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk='%s' AND "
+            "dt BETWEEN '%s' AND '%s'", stk, prev_date, setup_date);
+    rows = PQntuples(res);
+    if (rows == 1) {
+        char *score_date = PQgetvalue(res, 0, 0);
+        if (!strcmp(score_date, setup_date)) {
+            LOGWARN("Scores already calculated for %s on %s\n", stk, setup_date);
+            goto end;
+        } else
+            trend_score += 7 * atoi(PQgetvalue(res, 0, 3)) / 8;
+    } else if (rows == 2) {
+        LOGWARN("Scores already calculated for %s on %s\n", stk, setup_date);
+        goto end;
+    } else if (rows == 0)
+        LOGINFO("Starting setup score calculation for %s on %s\n",
+                stk, setup_date);
+    memset(sql_cmd, 0, 256 * sizeof(char));
+    sprintf(sql_cmd, "INSERT INTO setup_scores VALUES ('%s', '%s', %d, %d)",
+            setup_date, stk, trigger_score, trend_score);
+    db_transaction(sql_cmd);
+end:
+    PQclear(res);
+}
+
 int ana_daily_score(char* stk, char* start_date, char* end_date) {
     int score = 0;
     char sql_cmd[256];
