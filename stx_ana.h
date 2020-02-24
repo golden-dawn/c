@@ -1213,6 +1213,7 @@ int ana_jl_setups(char* stk, char* dt, bool eod) {
     if (pivots_200 != NULL)
         free(pivots_200);
     cJSON_Delete(setups);
+    ana_update_score(stk, dt);
     return 0;
 }
 
