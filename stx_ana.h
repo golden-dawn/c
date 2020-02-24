@@ -498,6 +498,7 @@ void ana_update_score(char *stk, char *setup_date) {
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk='%s' AND "
             "dt BETWEEN '%s' AND '%s'", stk, prev_date, setup_date);
+    res = db_query(sql_cmd);
     rows = PQntuples(res);
     if (rows == 1) {
         char *score_date = PQgetvalue(res, 0, 0);
@@ -517,7 +518,8 @@ void ana_update_score(char *stk, char *setup_date) {
             setup_date, stk, trigger_score, trend_score);
     db_transaction(sql_cmd);
 end:
-    PQclear(res);
+    if (rows > 0)
+        PQclear(res);
 }
 
 int ana_daily_score(char* stk, char* start_date, char* end_date) {
