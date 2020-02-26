@@ -611,7 +611,16 @@ int ana_calculate_score(cJSON *setup) {
                     score = score * 2;
             }
         }
-    }
+    } else if (!strcmp(setup_name, "Piercing") ||
+               !strcmp(setup_name, "Kicking") ||
+               !strcmp(setup_name, "EngHarami"))
+        score = dir * 100;
+    else if (!strcmp(setup_name, "Star"))
+        score = dir * 150;
+    else if (!strcmp(setup_name, "Engulfing"))
+        score = dir * 50;
+    else if (!strcmp(setup_name, "3out"))
+        score = dir * 50;
     return score;
 }
 
