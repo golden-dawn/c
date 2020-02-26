@@ -786,9 +786,11 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
      * up pivot coincides with the last long-term primary record.
      */
     if ((((lns_200->state == UPTREND) &&
-          jl_same_pivot(&(pivots[num - 3]), lns_200)) ||
+          (jl_same_pivot(&(pivots[num - 3]), lns_200) ||
+          jl_same_pivot(&(pivots[num - 1]), lns_200))) ||
           ((lns_150->state == UPTREND) &&
-          jl_same_pivot(&(pivots[num - 3]), lns_150))) &&
+          (jl_same_pivot(&(pivots[num - 3]), lns_150) ||
+          jl_same_pivot(&(pivots[num - 1]), lns_150)))) &&
         (pivots[num - 2].state == REACTION) &&
         (pivots[num - 2].obv < pivots[num - 4].obv + 5))
         ana_add_jl_pullback_setup(setups, jl, 1, 3, false, pivs, pivs_150,
@@ -798,9 +800,11 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
      * pivot coincides with the last long-term primary record.
      */
     if ((((lns_200->state == DOWNTREND) &&
-          jl_same_pivot(&(pivots[num - 3]), lns_200)) ||
+          (jl_same_pivot(&(pivots[num - 3]), lns_200) ||
+          jl_same_pivot(&(pivots[num - 1]), lns_200))) ||
           ((lns_150->state == DOWNTREND) &&
-          jl_same_pivot(&(pivots[num - 3]), lns_150))) &&
+          (jl_same_pivot(&(pivots[num - 3]), lns_150) ||
+          jl_same_pivot(&(pivots[num - 1]), lns_150)))) &&
         (pivots[num - 2].state == RALLY) &&
         (pivots[num - 2].obv > pivots[num - 4].obv - 5))
         ana_add_jl_pullback_setup(setups, jl, -1, 3, false, pivs, pivs_150,
