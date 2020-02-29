@@ -504,6 +504,26 @@ int cal_prev_bday(int crt_ix, char** prev_date) {
     return prev_ix;
 }
 
+/** Return the calendar pointer to 'dt', if 'dt' is a business day. If 'dt' is
+ * a holiday, return the next business day if 'next_bday' is true, or the
+ * previous business day, if 'next_bday' is false
+ */
+char* cal_move_to_bday(char* dt, bool next_bday) {
+    int ix = cal_ix(dt), bix = cal_bix(dt);
+    char *res = &(cal_get()->list[ix].key[0]);
+    if (bix == -1) {
+        if (next_bday)
+            cal_next_bday(ix, &res);
+        else
+            cal_prev_bday(ix, &res);
+    }
+    return res;
+}
+
+/** Move 'num_days' business days away from the input date 'crt_date'
+ * If 'num_days' is 0, return a pointer to the current date, if it is a
+ * business day. Otherwise, return the previous business day.
+*/
 int cal_move_bdays(char* crt_date, int num_days, char** new_date) {
     int crt_ix = cal_ix(crt_date);
     int ix = 0;
