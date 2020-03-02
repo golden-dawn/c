@@ -1406,4 +1406,9 @@ void stk_analysis(char* stk, char* ana_date, bool clear_db) {
     db_transaction(sql_cmd);
 }
 
+void ana_stx_analysis(char *crs_date, cJSON *stx, bool download_spots,
+                      bool download_options) {
+
+}
+
 #endif
