@@ -1341,7 +1341,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cJSON_Delete(leaders);
 }
 
-void stk_analysis(char* stk, char* ana_date, bool clear_db) {
+void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
     /** calculate setups for a single stock (stk) up to ana_date. If ana_date
      * is NULL, setups (and their scores) will be calculated up to the current
      * business date. If clear_db is set to true, this funtion will clear all
@@ -1422,7 +1422,7 @@ void ana_stx_analysis(char *crs_date, cJSON *stx, bool download_spots,
         get_quotes(leaders, crs_date, exp_date, exp_date2, download_options);
     cJSON_ArrayForEach(ldr, leaders) {
         if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            stk_analysis(ldr->valuestring, crs_date, true);
+            ana_scored_setups(ldr->valuestring, crs_date, false);
         num++;
         if (num % 100 == 0)
             LOGINFO("%s: analyzed %4d / %4d leaders\n", crs_date, num, total);
