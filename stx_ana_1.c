@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
             if (!strcmp(crt_busdate, exp_date))
                 ana_expiry_analysis(crt_busdate, download_options);
         }
-        ana_stx_analysis(crt_busdate, stx, download_spots, download_options);
+        ana_stx_analysis(crt_busdate, stx, download_spots, download_options, eod);
         curl_global_cleanup();
         if (stx != NULL)
             cJSON_Delete(stx);
@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
     }
     download_options = false;
     download_spots = false;
+    eod = true;
     char *crs_date = start_date, *exp_date = "2002-02-16", *exp_bdate;
     if (strcmp(crs_date, "2002-02-15") < 0)
         crs_date = cal_move_to_bday("2002-02-15", false);
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
             exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
             ana_expiry_analysis(crs_date, false);
         }
-        ana_stx_analysis(crs_date, stx, download_spots, download_options);
+        ana_stx_analysis(crs_date, stx, download_spots, download_options, eod);
         ix = cal_next_bday(ix, &crs_date);
     }
     if (stx != NULL)
