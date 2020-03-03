@@ -1012,7 +1012,11 @@ void ana_candlesticks(jl_data_ptr jl) {
     int three = 0, three_in = 0, three_out = 0, kicking = 0, eng_harami = 0;
     /** Calculate marubozu and harami patterns for the last 6 (5) days */
     for(int ix = 0; ix < 6; ix++) {
-        int ratio = 100 * body[ix] / (r[ix]->high - r[ix]->low);
+        /** Handle the case when open == high == low == close */
+        int h_l = r[ix]->high - r[ix]->low;
+        if (h_l == 0)
+            h_l = 1;
+        int ratio = 100 * body[ix] / h_l;
         marubozu[ix] = (abs(ratio) < CANDLESTICK_MARUBOZU_RATIO)? 0: ratio;
         if (ix >= 5)
             continue;
