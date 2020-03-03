@@ -1407,8 +1407,29 @@ void stk_analysis(char* stk, char* ana_date, bool clear_db) {
 }
 
 void ana_stx_analysis(char *crs_date, cJSON *stx, bool download_spots,
-                      bool download_options) {
-
+                      bool download_options, bool eod) {
+    char *exp_date, *exp_date2;
+    int exp_ix = cal_expiry(cal_ix(crs_date) + (eod? 1: 0), &exp_date);
+    cal_expiry(exp_ix + 1, &exp_date2);
+    cJSON *ldr = NULL, *leaders = stx;
+    if (leaders == NULL)
+        leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
+    char sql_cmd[256];
+    sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", crs_date);
+    db_transaction(sql_cmd);
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    if (download_spots)
+        get_quotes(leaders, crs_date, exp_date, exp_date2, download_options);
+    cJSON_ArrayForEach(ldr, leaders) {
+        if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+            stk_analysis(ldr->valuestring, crs_date, true);
+        num++;
+        if (num % 100 == 0)
+            LOGINFO("%s: analyzed %4d / %4d leaders\n", crs_date, num, total);
+    }
+    LOGINFO("%s: analyzed %4d / %4d leaders\n", crs_date, num, total);
+    if (stx == NULL)
+       cJSON_Delete(leaders);
 }
 
 #endif
