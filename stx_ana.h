@@ -1224,7 +1224,7 @@ int ana_jl_setups(char* stk, char* dt, bool eod) {
     ana_daily_setups(jl_050);
     ana_check_for_pullbacks(setups, jl_050, pivots_050, pivots_150, pivots_200);
     ana_check_for_pullbacks(setups, jl_100, pivots_100, pivots_150, pivots_200);
-    ana_check_for_support_resistance(setups, jl_100, pivots_100);
+    /* ana_check_for_support_resistance(setups, jl_100, pivots_100); */
     /* ana_check_for_support_resistance(setups, jl_050, pivots_050, num_050); */
     ana_insert_setups_in_database(setups, dt, stk);
  end:
