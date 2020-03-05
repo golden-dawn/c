@@ -662,6 +662,8 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
 void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
                           int ls_050) {
     int i = jl->data->pos - 1, num = pivs->num;
+    if (num < 5)
+        return;
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]), r_1 = &(jl->data->data[i - 1]);
     int len_1 = cal_num_busdays(pivots[num - 4].date, r->date);
