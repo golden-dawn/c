@@ -1194,8 +1194,8 @@ int ana_jl_setups(char* stk, char* dt, bool eod) {
     pivots_150 = jl_get_pivots(jl_150, 4);
     pivots_200 = jl_get_pivots(jl_200, 4);
     if ((pivots_150->num < 5) || (pivots_200->num < 5)) {
-        LOGERROR("Got %d %s pivots, needed 5\n", pivots_150->num, JL_150);
-        LOGERROR("Got %d %s pivots, needed 5\n", pivots_200->num, JL_200);
+        /* LOGERROR("Got %d %s pivots, needed 5\n", pivots_150->num, JL_150); */
+        /* LOGERROR("Got %d %s pivots, needed 5\n", pivots_200->num, JL_200); */
         goto end;
     }
     char *lrdt_150 = pivots_150->pivots[pivots_150->num - 3].date,
