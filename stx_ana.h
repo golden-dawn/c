@@ -1044,8 +1044,6 @@ void ana_candlesticks(jl_data_ptr jl) {
             engulfing[ix] = 0;
     }
     /** Calculate piercing pattern */
-    if (!strcmp(r[0]->date, "1999-12-09"))
-        fprintf(stderr, "Here r[0]->date = %s\n", r[0]->date);
     if ((body[0] * body[1] < 0) &&
         (100 * abs(body[1]) > jl->recs[ix_0 - 2].rg *
          CANDLESTICK_LONG_DAY_AVG_RATIO) &&
