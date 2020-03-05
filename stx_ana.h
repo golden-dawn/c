@@ -687,15 +687,18 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
        day, or yesterday's close */
     int ub = (r->high > r_1->close)? r->high: r_1->close;
     int lb = (r->low < r_1->close)? r->low: r_1->close;
-    /* only add JL_B setup if the current record is a primary record for the factor and in the direction of the trend (e.g. RALLY or UPTREND for an up direction setup) */
+    int v_pos_2 = (jl->recs[jl->pos - 2].volume == 0)? 1:
+        jl->recs[jl->pos - 2].volume;
+    /** only add JL_B setup if the current record is a primary record for the
+     * factor and in the direction of the trend (e.g. RALLY or UPTREND for an
+     * up direction setup) */
     if (jl_up_all(ls_050) && (upper_channel_len >= MIN_CHANNEL_LEN) &&
         (px_up > lb) && (px_up < ub) && (jl->recs[i].lns == i) &&
         jl_up(jl->last->prim_state)) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_up);
         cJSON_AddNumberToObject(info, "len", upper_channel_len);
-        cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
-                                jl->recs[jl->pos - 2].volume);
+        cJSON_AddNumberToObject(info, "vr", 100 * r->volume / v_pos_2);
         cJSON_AddNumberToObject(info, "last_ns", jl->last->prim_state);
         cJSON_AddNumberToObject(info, "prev_ns", jl_prev_ns(jl));
         cJSON_AddNumberToObject(info, "obv", pivots[num - 2].obv);
@@ -707,8 +710,7 @@ void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         cJSON* info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "ipx", px_down);
         cJSON_AddNumberToObject(info, "len", lower_channel_len);
-        cJSON_AddNumberToObject(info, "vr", 100 * r->volume /
-                                jl->recs[jl->pos - 2].volume);
+        cJSON_AddNumberToObject(info, "vr", 100 * r->volume / v_pos_2);
         cJSON_AddNumberToObject(info, "last_ns", jl->last->prim_state);
         cJSON_AddNumberToObject(info, "prev_ns", jl_prev_ns(jl));
         cJSON_AddNumberToObject(info, "obv", pivots[num - 2].obv);
@@ -854,6 +856,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]);
+    int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
     if (jl_primary(jlr->state)) {
         for(int ix = 0; ix < num_pivots - 1; ix++) {
             if (abs(jlr->price - pivots[ix].price) < jlr->rg / 5) {
@@ -861,7 +864,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
                 int dir = jl_up(jlr->state)? -1: 1;
                 cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(info, "vr",
-                                        100 * r->volume / jlr->volume);
+                                        100 * r->volume / jlr_volume);
                 ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
@@ -873,7 +876,7 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
                 int dir = jl_up(jlr->state2)? -1: 1;
                 cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
                 cJSON_AddNumberToObject(info, "vr",
-                                        100 * r->volume / jlr->volume);
+                                        100 * r->volume / jlr_volume);
                 ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
             }
         }
@@ -898,7 +901,7 @@ void ana_insert_candle_setup(char* stk, char* dt, char* stp_name, int dir) {
 void ana_insert_setups_in_database(cJSON *setups, char *dt, char *stk) {
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
-        LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
+        /* LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt); */
         cJSON* setup;
         cJSON_ArrayForEach(setup, setups) {
             cJSON *info = cJSON_GetObjectItem(setup, "info");
@@ -926,6 +929,8 @@ void ana_daily_setups(jl_data_ptr jl) {
         r[ix] = &(jl->data->data[ix_0 - ix]);
         jlr[ix] = &(jl->recs[ix_0 - ix]);
     }
+    int jlr_1_volume = (jlr[1]->volume == 0)? 1: jlr[1]->volume;
+    int jlr_1_rg = (jlr[1]->rg == 0)? 1: jlr[1]->rg;
     char *stk = jl->data->stk, *dt = r[0]->date;
     /* Find strong closes up or down; rr/vr capture range/volume significance */
     int sc_dir = 0;
@@ -936,10 +941,10 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (sc_dir != 0) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
-                                100 * r[0]->volume / jlr[1]->volume);
+                                100 * r[0]->volume / jlr_1_volume);
         cJSON_AddNumberToObject(info, "rr",
                                 100 * ts_true_range(jl->data, ix_0) /
-                                jlr[1]->rg);
+                                jlr_1_rg);
         ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
     /* Find gaps */
@@ -956,11 +961,11 @@ void ana_daily_setups(jl_data_ptr jl) {
             drawdown = (r[0]->close - r[0]->low);
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
-                                100 * r[0]->volume / jlr[1]->volume);
+                                100 * r[0]->volume / jlr_1_volume);
         cJSON_AddNumberToObject(info, "eod_gain",
                                 100 * (r[0]->close - r[1]->close) /
-                                jlr[1]->rg);
-        cJSON_AddNumberToObject(info, "drawdown", 100 * drawdown / jlr[1]->rg);
+                                jlr_1_rg);
+        cJSON_AddNumberToObject(info, "drawdown", 100 * drawdown / jlr_1_rg);
         ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
     }
     /* Find reversal days */
@@ -975,13 +980,13 @@ void ana_daily_setups(jl_data_ptr jl) {
     if (rd_dir != 0) {
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
-                                100 * r[0]->volume / jlr[1]->volume);
+                                100 * r[0]->volume / jlr_1_volume);
         int rd_drawdown = (rd_dir == 1)? (min_oc - r[0]->low):
             (r[0]->high - max_oc);
         cJSON_AddNumberToObject(info, "rd_drawdown",
-                                100 * rd_drawdown / jlr[1]->rg);
+                                100 * rd_drawdown / jlr_1_rg);
         cJSON_AddNumberToObject(info, "rd_gain",
-                                100 * (r[0]->close - r[0]->open) / jlr[1]->rg);
+                                100 * (r[0]->close - r[0]->open) / jlr_1_rg);
         ana_add_to_setups(setups, NULL, "RDay", rd_dir, info, true);
     }
     ana_insert_setups_in_database(setups, dt, stk);
