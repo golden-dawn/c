@@ -1410,8 +1410,9 @@ void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
     }
     cal_prev_bday(cal_ix(setup_date), &setup_date);
     memset(sql_cmd, 0, 256 * sizeof(char));
-    sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s')", stk,
-            setup_date);
+    sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s') ON "
+            "CONFLICT (setup_dates_pkey) DO UPDATE SET dt='%s'", stk,
+            setup_date, setup_date);
     db_transaction(sql_cmd);
 }
 
@@ -1424,8 +1425,10 @@ void ana_stx_analysis(char *crs_date, cJSON *stx, bool download_spots,
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
     char sql_cmd[256];
-    sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", crs_date);
-    db_transaction(sql_cmd);
+    if (download_spots || download_options) {
+        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", crs_date);
+        db_transaction(sql_cmd);
+    }
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_spots)
         get_quotes(leaders, crs_date, exp_date, exp_date2, download_options);
