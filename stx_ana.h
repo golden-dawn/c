@@ -1073,12 +1073,14 @@ void ana_candlesticks(jl_data_ptr jl) {
          CANDLESTICK_LONG_DAY_AVG_RATIO) && (body[0] * body[2] < 0) &&
         (100 * abs(body[1]) < jl->recs[ix_0 - 2].rg *
          CANDLESTICK_SHORT_DAY_AVG_RATIO)) {
-        if ((body[2] < 0) && (MAX(r[1]->open, r[1]->close) < r[2]->close) &&
-            (MAX(r[1]->open, r[1]->close) < r[0]->open) &&
+        int max_r1oc = MAX(r[1]->open, r[1]->close);
+        int min_r1oc = MIN(r[1]->open, r[1]->close);
+        if ((body[2] < 0) && (max_r1oc < r[2]->close) &&
+            (max_r1oc < r[0]->open) &&
             (2 * r[0]->close > r[2]->open + r[2]->close))
             star = 1;
-        if ((body[2] > 0) && (MIN(r[1]->open, r[1]->close) > r[2]->close) &&
-            (MIN(r[1]->open, r[1]->close) > r[0]->open) &&
+        if ((body[2] > 0) && (min_r1oc > r[2]->close) &&
+            (min_r1oc > r[0]->open) &&
             (2 * r[0]->close < r[2]->open + r[2]->close))
             star = -1;
     }
@@ -1404,15 +1406,16 @@ void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
         ana_date = end_date;
     int ana_res = 0;
     while((ana_res == 0) && (strcmp(setup_date, ana_date) <= 0)) {
+        // if (!strcmp(stk, "XOM") && !strcmp(setup_date, "2002-02-06"))
+        //     printf("Break\n");
         ana_res = ana_jl_setups(stk, setup_date, true);
         if (ana_res == 0)
             cal_next_bday(cal_ix(setup_date), &setup_date);
     }
     cal_prev_bday(cal_ix(setup_date), &setup_date);
     memset(sql_cmd, 0, 256 * sizeof(char));
-    sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s') ON "
-            "CONFLICT (setup_dates_pkey) DO UPDATE SET dt='%s'", stk,
-            setup_date, setup_date);
+    sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s') ON CONFLICT"
+            " (stk) DO UPDATE SET dt='%s'", stk, setup_date, setup_date);
     db_transaction(sql_cmd);
 }
 
