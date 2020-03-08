@@ -1181,7 +1181,7 @@ void ana_candlesticks(jl_data_ptr jl) {
     ana_insert_setups_in_database(setups, dt, stk);
 }
 
-int ana_jl_setups(char* stk, char* dt, bool eod) {
+int ana_jl_setups(char* stk, char* dt) {
     int res = 0;
     jl_data_ptr jl_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
     jl_data_ptr jl_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
@@ -1314,10 +1314,8 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     if (eod == true)
         cal_next_bday(cal_ix(dt), &next_dt);
     cJSON_ArrayForEach(ldr, leaders) {
-        if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
+        if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
             ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
-/*          ana_jl_setups(ldr->valuestring, dt, eod); */
-        }
         num++;
         if (num % 100 == 0)
             LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
@@ -1352,23 +1350,13 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cJSON_Delete(leaders);
 }
 
-void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
+void ana_scored_setups(char* stk, char* ana_date) {
     /** calculate setups for a single stock (stk) up to ana_date. If ana_date
      * is NULL, setups (and their scores) will be calculated up to the current
      * business date. If clear_db is set to true, this funtion will clear all
      * the setup info in the DB, and will recalculate the setups for that stock.
      */
     char sql_cmd[256];
-    if (clear_db) {
-        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE stk='%s'", stk);
-        db_transaction(sql_cmd);
-        sprintf(sql_cmd, "DELETE FROM setup_scores WHERE stk='%s'", stk);
-        db_transaction(sql_cmd);
-        sprintf(sql_cmd, "DELETE FROM setup_dates WHERE stk='%s'", stk);
-        db_transaction(sql_cmd);
-    }
-    if (ana_date == NULL)
-        ana_date = cal_current_busdate(20);
     char *setup_date = NULL;
     sprintf(sql_cmd, "SELECT dt FROM setup_dates WHERE stk='%s'", stk);
     PGresult* res = db_query(sql_cmd);
@@ -1396,19 +1384,11 @@ void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
         cal_next_bday(cal_ix(setup_date), &setup_date);
     }
     PQclear(res);
-    memset(sql_cmd, 0, 256 * sizeof(char));
-    sprintf(sql_cmd, "SELECT MAX(dt) FROM eods WHERE stk='%s'", stk);
-    res = db_query(sql_cmd);
-    char *end_date = PQgetvalue(res, 0, 0);
-    cal_move_bdays(end_date, 0, &end_date);
-    PQclear(res);
-    if (strcmp(end_date, ana_date) < 0)
-        ana_date = end_date;
     int ana_res = 0;
     while((ana_res == 0) && (strcmp(setup_date, ana_date) <= 0)) {
         // if (!strcmp(stk, "XOM") && !strcmp(setup_date, "2002-02-06"))
         //     printf("Break\n");
-        ana_res = ana_jl_setups(stk, setup_date, true);
+        ana_res = ana_jl_setups(stk, setup_date);
         if (ana_res == 0)
             cal_next_bday(cal_ix(setup_date), &setup_date);
     }
@@ -1419,30 +1399,30 @@ void ana_scored_setups(char* stk, char* ana_date, bool clear_db) {
     db_transaction(sql_cmd);
 }
 
-void ana_stx_analysis(char *crs_date, cJSON *stx, bool download_spots,
+void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                       bool download_options, bool eod) {
     char *exp_date, *exp_date2;
-    int exp_ix = cal_expiry(cal_ix(crs_date) + (eod? 1: 0), &exp_date);
+    int exp_ix = cal_expiry(cal_ix(ana_date) + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
     cJSON *ldr = NULL, *leaders = stx;
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
     char sql_cmd[256];
     if (download_spots || download_options) {
-        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", crs_date);
+        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
     }
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_spots)
-        get_quotes(leaders, crs_date, exp_date, exp_date2, download_options);
+        get_quotes(leaders, ana_date, exp_date, exp_date2, download_options);
     cJSON_ArrayForEach(ldr, leaders) {
         if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            ana_scored_setups(ldr->valuestring, crs_date, false);
+            ana_scored_setups(ldr->valuestring, ana_date);
         num++;
         if (num % 100 == 0)
-            LOGINFO("%s: analyzed %4d / %4d leaders\n", crs_date, num, total);
+            LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
     }
-    LOGINFO("%s: analyzed %4d / %4d leaders\n", crs_date, num, total);
+    LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
     if (stx == NULL)
        cJSON_Delete(leaders);
 }
