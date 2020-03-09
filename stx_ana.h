@@ -941,12 +941,16 @@ void ana_daily_setups(jl_data_ptr jl) {
     if ((SC + 1) * r[0]->close <= SC * r[0]->low + r[0]->high)
         sc_dir = -1;
     if (sc_dir != 0) {
+        int rr = 100 * ts_true_range(jl->data, ix_0) / jlr_1_rg;
+        if (((sc_dir == -1) &&
+             (r[0]->close > ts_weighted_price(jl->data, ix_0 - 1))) ||
+            ((sc_dir == 1) &&
+             (r[0]->close < ts_weighted_price(jl->data, ix_0 - 1))))
+            rr = 0;
         cJSON *info = cJSON_CreateObject();
         cJSON_AddNumberToObject(info, "vr",
                                 100 * r[0]->volume / jlr_1_volume);
-        cJSON_AddNumberToObject(info, "rr",
-                                100 * ts_true_range(jl->data, ix_0) /
-                                jlr_1_rg);
+        cJSON_AddNumberToObject(info, "rr", rr);
         ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
     /* Find gaps */
