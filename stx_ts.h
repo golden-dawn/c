@@ -24,6 +24,11 @@ int ts_true_range(stx_data_ptr data, int ix) {
     return res;
 }
 
+int ts_weighted_price(stx_data_ptr data, int ix) {
+    return (data->data[ix].high + data->data[ix].low + data->data[ix].close)
+        / 3;
+}
+
 hashtable_ptr ts_load_splits(char* stk) {
     char sql_cmd[80];
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
