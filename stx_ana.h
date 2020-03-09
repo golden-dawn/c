@@ -1380,6 +1380,10 @@ void ana_scored_setups(char* stk, char* ana_date) {
         }
         setup_date = PQgetvalue(res, 0, 0);
         cal_move_bdays(setup_date, 45, &setup_date);
+        char *setup_date_1 = NULL;
+        cal_move_bdays(ana_date, -252, &setup_date_1);
+        if (strcmp(setup_date, setup_date_1) < 0)
+            setup_date = setup_date_1;
     } else {
         /** Found last setup analysis date in DB. Start analysis from the next
          * business day.
