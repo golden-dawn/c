@@ -55,28 +55,34 @@ hashtable_ptr trd_jl(const char* factor) {
     return jl_factor_ht;
 }
 
-
-int init_trade(trade_ptr trd) {
-    ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), trd->stk);
+jl_data_ptr trd_get_jl(char *stk, char *dt) {
+    ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), stk);
     jl_data_ptr jl = NULL;
     if (ht_jl == NULL) {
-        stx_data_ptr data = ts_load_stk(trd->stk);
+        stx_data_ptr data = ts_load_stk(stk);
         if (data == NULL) {
-            LOGERROR("Could not load data for %s, skipping...\n", trd->stk);
-            return 0;
+            LOGERROR("Could not load data for %s, skipping...\n", stk);
+            return NULL;
         }
-        jl = jl_jl(data, trd->in_dt, JL_FACTOR);
-        ht_jl = ht_new_data(trd->stk, (void*)jl);
+        jl = jl_jl(data, dt, JL_FACTOR);
+        ht_jl = ht_new_data(stk, (void*)jl);
         ht_insert(trd_jl(JL_200), ht_jl);
     } else {
         jl = (jl_data_ptr) ht_jl->val.data;
-        if (strcmp(jl->data->data[jl->pos].date, trd->in_dt) > 0) {
-            LOGERROR("%s: skipping %s, as its current date is %s\n", 
-                     trd->in_dt, trd->stk, jl->data->data[jl->pos].date);
-            return 0;
+        if (strcmp(jl->data->data[jl->pos].date, dt) > 0) {
+            LOGINFO("%s: skipping %s, as its current date is %s\n",
+                    dt, stk, jl->data->data[jl->pos].date);
+            return NULL;
         }
-        jl_advance(jl, trd->in_dt);
+        jl_advance(jl, dt);
     }
+    return jl;
+}
+
+int init_trade(trade_ptr trd) {
+    jl_data_ptr jl = trd_get_jl(trd->stk, trd->in_dt);
+    if (jl == NULL)
+        return 0;
     char *exp_date, *dt_n;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
     strcpy(trd->exp_dt, exp_date);
@@ -368,6 +374,7 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
             exp_date, max_spread, trd_date, min_score, 3 * daily_num);
     PGresult *res = db_query(sql_cmd);
     int num_setups = 0, rows = PQntuples(res);
+    trade trd;
     for (int ix = 0; ix < rows; ix++) {
         if (num_setups >= daily_num)
             break;
@@ -381,8 +388,17 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
                     "in different directions\n", trd_date, stk_name);
             continue;
         }
-
-
+        jl_data_ptr jl = trd_get_jl(stk_name, trd_date);
+        if (jl == NULL)
+            continue;
+        memset(&trd, 0, sizeof(trade));
+        strcpy(trd.in_dt, trd_date);
+        strcpy(trd.stk, stk_name);
+        strcpy(trd.setup, "scored");
+        trd.cp = (trigger_score > 0)? 'c': 'p';
+        trd.triggered = 't';
+        // if (process_trade(&trd) != 0)
+        //     record_trade(fp, &trd, crt_bd);
     }
     PQclear(res);
     return 0;
