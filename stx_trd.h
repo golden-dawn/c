@@ -55,6 +55,7 @@ hashtable_ptr trd_jl(const char* factor) {
     return jl_factor_ht;
 }
 
+
 jl_data_ptr trd_get_jl(char *stk, char *dt) {
     ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), stk);
     jl_data_ptr jl = NULL;
@@ -78,6 +79,55 @@ jl_data_ptr trd_get_jl(char *stk, char *dt) {
     }
     return jl;
 }
+
+
+int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
+    char sql_cmd[256];
+    sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
+            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->stk,
+            trd->in_dt, trd->exp_dt, trd->cp);
+    PGresult *opt_res = db_query(sql_cmd);
+    int rows = PQntuples(opt_res);
+    trd->in_spot = jl->data->data[jl->pos].close;
+    int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000, ask_1;
+    for(int ix = 0; ix < rows; ix++) {
+        strike = atoi(PQgetvalue(opt_res, ix, 0));
+        ask = atoi(PQgetvalue(opt_res, ix, 2));
+        dist = abs(strike - trd->in_spot);
+        if (dist > dist_1) {
+            trd->strike = strike_1;
+            trd->in_ask = ask_1;
+            break;
+        }
+        if (ix == rows - 1) {
+            trd->strike = strike;
+            trd->in_ask = ask;
+        }
+        strike_1 = strike;
+        dist_1 = dist;
+        ask_1 = ask;
+    }
+    PQclear(opt_res);
+    if (strike == -1) {
+        LOGERROR("%s: no options data for %s, skipping...\n",
+                 trd->in_dt, trd->stk);
+        return 0;
+    }
+    if (abs(trd->strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
+        LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
+                 "skipping ...\n", trd->in_dt, trd->strike, trd->in_spot,
+                 trd->stk, jl->recs[jl->pos - 1].rg);
+        return 0;
+    }
+    trd->in_range = jl->recs[jl->pos - 1].rg;
+    if (trd->in_ask == 0) {
+        LOGERROR("%s: %s %s %c %d, ask price = 0, skipping ...\n", trd->in_dt,
+            trd->stk, trd->exp_dt, trd->cp, trd->strike);
+        return 0;
+    }
+    return 1;
+}
+
 
 int init_trade(trade_ptr trd) {
     jl_data_ptr jl = trd_get_jl(trd->stk, trd->in_dt);
@@ -129,48 +179,8 @@ int init_trade(trade_ptr trd) {
                     trd->stk);
         }
     }
-    sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
-            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->stk,
-            trd->in_dt, trd->exp_dt, trd->cp);
-    PGresult *opt_res = db_query(sql_cmd);
-    rows = PQntuples(opt_res);
-    trd->in_spot = jl->data->data[jl->pos].close;
-    int dist, dist_1 = 1000000, strike = -1, strike_1, ask = 1000000, ask_1;
-    for(int ix = 0; ix < rows; ix++) {
-        strike = atoi(PQgetvalue(opt_res, ix, 0));
-        ask = atoi(PQgetvalue(opt_res, ix, 2));
-        dist = abs(strike - trd->in_spot);
-        if (dist > dist_1) {
-            trd->strike = strike_1;
-            trd->in_ask = ask_1;
-            break;
-        }
-        if (ix == rows - 1) {
-            trd->strike = strike;
-            trd->in_ask = ask;
-        }
-        strike_1 = strike;
-        dist_1 = dist;
-        ask_1 = ask;
-    }
-    PQclear(opt_res);
-    if (strike == -1) {
-        LOGERROR("%s: no options data for %s, skipping...\n", 
-                 trd->in_dt, trd->stk);
+    if (trd_get_option(trd, jl) == 0)
         return 0;
-    }
-    if (abs(trd->strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
-        LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
-                 "skipping ...\n", trd->in_dt, trd->strike, trd->in_spot, 
-                 trd->stk, jl->recs[jl->pos - 1].rg);
-        return 0;
-    }
-    trd->in_range = jl->recs[jl->pos - 1].rg;
-    if (trd->in_ask == 0) {
-        LOGERROR("%s: %s %s %c %d, ask price = 0, skipping ...\n", trd->in_dt, 
-            trd->stk, trd->exp_dt, trd->cp, trd->strike);
-        return 0;
-    }
     trd->num_contracts = TRD_CAPITAL / trd->in_ask;
     int sign = (trd->cp == 'c')? 1: -1;
     trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
@@ -357,6 +367,26 @@ cJSON* trd_get_stock_list(char *stocks) {
     return stx;
 }
 
+int process_scored_trade(trade_ptr trd, jl_data_ptr jl) {
+    char *exp_date;
+    cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
+    strcpy(trd->exp_dt, exp_date);
+    if (trd_get_option(trd, jl) == 0)
+        return 0;
+    trd->num_contracts = TRD_CAPITAL / trd->in_ask;
+    int sign = (trd->cp == 'c')? 1: -1;
+    trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
+    LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt,
+            trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+    return sign;
+
+    int res = init_trade(trd);
+    if (res == 0)
+        return 0;
+    return manage_trade(trd);
+
+}
+
 int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
                      int max_spread, int min_score, cJSON *stx) {
     if (stx != NULL) {
@@ -397,8 +427,10 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
         strcpy(trd.setup, "scored");
         trd.cp = (trigger_score > 0)? 'c': 'p';
         trd.triggered = 't';
-        // if (process_trade(&trd) != 0)
-        //     record_trade(fp, &trd, crt_bd);
+        if (process_scored_trade(&trd, jl) != 0) {
+            record_trade(fp, &trd, tag);
+            ++num_setups;
+        }
     }
     PQclear(res);
     return 0;
