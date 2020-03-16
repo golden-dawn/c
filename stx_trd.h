@@ -243,8 +243,8 @@ void record_trade(FILE *fp, trade_ptr trd, char* crt_busdate) {
 }
 
 
-void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
-               bool triggered) {
+void trd_trade(char *tag, char *start_date, char *end_date, char *stx,
+               char *setups, bool triggered) {
     /**
      v * 1. Tokenize stx, setups
      v * 2. Build query that retrieves all setups
@@ -327,3 +327,92 @@ void trd_trade(char *start_date, char *end_date, char *stx, char *setups,
     fclose(fp);
     db_upload_file("trades", filename);
 }
+
+cJSON* trd_get_stock_list(char *stocks) {
+    cJSON *stx = NULL;
+    if (stocks != NULL) {
+        stx = cJSON_CreateArray();
+        if (stx == NULL) {
+            LOGERROR("Failed to create stx cJSON Array.\n");
+            exit(-1);
+        }
+        cJSON *stk_name = NULL;
+        char* token = strtok(stocks, ",");
+        while (token) {
+            stk_name = cJSON_CreateString(token);
+            if (stk_name == NULL) {
+                LOGERROR("Failed to create cJSON string for %s\n", token);
+                continue;
+            }
+            cJSON_AddItemToArray(stx, stk_name);
+            token = strtok(NULL, ",");
+        }
+    }
+    return stx;
+}
+
+int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
+                     int max_spread, int min_score, cJSON *stx) {
+    if (stx != NULL) {
+        /** TODO: eventually provide custom stock list functionality */
+        LOGERROR("Custom list of stocks not supported for now\n");
+        return -1;
+    }
+    char *exp_date = NULL;
+    cal_expiry(cal_ix(trd_date), &exp_date);
+    char sql_cmd[512];
+    sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk in (SELECT stk "
+            "FROM leaders where expiry='%s' AND opt_spread<=%d) AND dt='%s' "
+            "AND trigger_score != 0 AND ABS(trigger_score+trend_score)>=%d "
+            "ORDER BY ABS(trigger_score+trend_score) DESC LIMIT %d", 
+            exp_date, max_spread, trd_date, min_score, 3 * daily_num);
+    PGresult *res = db_query(sql_cmd);
+    int num_setups = 0, rows = PQntuples(res);
+    for (int ix = 0; ix < rows; ix++) {
+        if (num_setups >= daily_num)
+            break;
+        char *stk_name = PQgetvalue(res, ix, 2);
+        int trigger_score = atoi(PQgetvalue(res, ix, 3));
+        int trend_score = atoi(PQgetvalue(res, ix, 4));
+        LOGINFO("%s: %12s %6d %6d\n", trd_date, stk_name, trigger_score,
+                trend_score);
+        if (trigger_score * trend_score < 0) {
+            LOGINFO("%s: skipping %s, because trigger and trend scores point "
+                    "in different directions\n", trd_date, stk_name);
+            continue;
+        }
+
+
+    }
+    PQclear(res);
+    return 0;
+}
+
+void trd_trade_scored(char *tag, char *start_date, char *end_date,
+                      int daily_num, int max_spread, int min_score,
+                      char *stocks) {
+    cJSON* stx = trd_get_stock_list(stocks);
+    char sql_cmd[1024], *trd_fname = "/tmp/trades.csv";
+    sprintf(sql_cmd, "DELETE FROM trades WHERE tag='%s' AND in_dt BETWEEN "
+            "'%s' AND '%s'", tag, start_date, end_date);
+    db_transaction(sql_cmd);
+    char *s_date = cal_move_to_bday(start_date, true);
+    char *e_date = cal_move_to_bday(end_date, false);
+    int trd_res = 0;
+    FILE *trd_fp = fopen(trd_fname, "w");
+    if (trd_fp == NULL) {
+        LOGERROR("Failed to open %s file\n", trd_fname);
+        exit(-1);
+    }
+    while((trd_res == 0) && (strcmp(s_date, e_date) <= 0)) {
+        trd_res = trd_scored_daily(trd_fp, tag, s_date, daily_num, max_spread,
+                                   min_score, stx);
+        if (trd_res == 0)
+            cal_next_bday(cal_ix(s_date), &s_date);
+    }
+    fclose(trd_fp);
+    db_upload_file("trades", trd_fname);
+    if (stx != NULL)
+        cJSON_Delete(stx);
+}
+
