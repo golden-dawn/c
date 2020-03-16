@@ -175,7 +175,7 @@ int main() {
     create_table_if_missing(cnx, "analyses", create_analyses);
 
     char* create_trades = "CREATE TABLE trades("         \
-        "dt DATE NOT NULL,"                              \
+        "tag VARCHAR(32) NOT NULL,"                              \
         "in_dt DATE NOT NULL,"                           \
         "out_dt DATE NOT NULL,"                          \
         "stk VARCHAR(16) NOT NULL,"                      \
@@ -193,7 +193,7 @@ int main() {
         "out_spot INTEGER NOT NULL,"                     \
         "spot_pnl INTEGER NOT NULL,"                     \
         "num_contracts INTEGER NOT NULL,"                \
-        "PRIMARY KEY(dt, in_dt, out_dt, stk, setup, cp, exp_dt, strike))";
+        "PRIMARY KEY(tag, in_dt, out_dt, stk, setup, cp, exp_dt, strike))";
     create_table_if_missing(cnx, "trades", create_trades);
 
     char* create_jl_setups = "CREATE TABLE jl_setups( "  \
