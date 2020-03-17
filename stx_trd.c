@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
     if (!strcmp(setups, "scored"))
         trd_trade_scored(tag, start_date, end_date, daily_num, opt_spread,
                          min_score, trd_capital, stx);
-    trd_trade(tag, start_date, end_date, stx, setups, trd_capital,
-              triggered);
+    else
+        trd_trade(tag, start_date, end_date, stx, setups, trd_capital,
+                  triggered);
 }
