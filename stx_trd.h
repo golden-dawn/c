@@ -6,7 +6,6 @@
 #include "stx_jl.h"
 #include "stx_ts.h"
 
-#define TRD_CAPITAL 500
 #define JL_200 "200"
 #define JL_FACTOR 2.00
 
@@ -129,6 +128,16 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
 }
 
 
+int trd_size_position(trade_ptr trd, int trd_capital) {
+    trd->num_contracts = trd_capital / trd->in_ask;
+    int sign = (trd->cp == 'c')? 1: -1;
+    trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
+    LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt,
+            trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+    return sign;
+}
+
+
 int init_trade(trade_ptr trd, int trd_capital) {
     jl_data_ptr jl = trd_get_jl(trd->stk, trd->in_dt);
     if (jl == NULL)
@@ -181,11 +190,7 @@ int init_trade(trade_ptr trd, int trd_capital) {
     }
     if (trd_get_option(trd, jl) == 0)
         return 0;
-    trd->num_contracts = trd_capital / trd->in_ask;
-    int sign = (trd->cp == 'c')? 1: -1;
-    trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
-    LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt, 
-            trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+    int sign = trd_size_position(trd, trd_capital);
     return sign;
 }
 
@@ -367,6 +372,7 @@ cJSON* trd_get_stock_list(char *stocks) {
     return stx;
 }
 
+
 int process_scored_trade(trade_ptr trd, jl_data_ptr jl, int trd_capital) {
     char *exp_date;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
@@ -376,11 +382,7 @@ int process_scored_trade(trade_ptr trd, jl_data_ptr jl, int trd_capital) {
     /** TODO: 1. replace TRD_CAPITAL with a configurable parameter */
     /** TODO: 2. encapsulate trd_size_position() function */
     /** TODO: 3. review manage_trade() function  */
-    trd->num_contracts = trd_capital / trd->in_ask;
-    int sign = (trd->cp == 'c')? 1: -1;
-    trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
-    LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt,
-            trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
+    int sign = trd_size_position(trd, trd_capital);
     return sign;
 
     int res = init_trade(trd, trd_capital);
