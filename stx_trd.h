@@ -129,7 +129,7 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
 }
 
 
-int init_trade(trade_ptr trd) {
+int init_trade(trade_ptr trd, int trd_capital) {
     jl_data_ptr jl = trd_get_jl(trd->stk, trd->in_dt);
     if (jl == NULL)
         return 0;
@@ -181,7 +181,7 @@ int init_trade(trade_ptr trd) {
     }
     if (trd_get_option(trd, jl) == 0)
         return 0;
-    trd->num_contracts = TRD_CAPITAL / trd->in_ask;
+    trd->num_contracts = trd_capital / trd->in_ask;
     int sign = (trd->cp == 'c')? 1: -1;
     trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
     LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt, 
@@ -241,8 +241,8 @@ int manage_trade(trade_ptr trd) {
 }
 
 
-int process_trade(trade_ptr trd) {
-    int res = init_trade(trd);
+int process_trade(trade_ptr trd, int trd_capital) {
+    int res = init_trade(trd, trd_capital);
     if (res == 0) 
         return 0;
     return manage_trade(trd);
@@ -260,7 +260,7 @@ void record_trade(FILE *fp, trade_ptr trd, char* crt_busdate) {
 
 
 void trd_trade(char *tag, char *start_date, char *end_date, char *stx,
-               char *setups, bool triggered) {
+               char *setups, int trd_capital, bool triggered) {
     /**
      v * 1. Tokenize stx, setups
      v * 2. Build query that retrieves all setups
@@ -335,7 +335,7 @@ void trd_trade(char *tag, char *start_date, char *end_date, char *stx,
             trd.cp = 'c';
         if (ix % 100 == 0)
             LOGINFO("Analyzed %5d/%5d setups\n", ix, rows);
-        if (process_trade(&trd) != 0) 
+        if (process_trade(&trd, trd_capital) != 0)
             record_trade(fp, &trd, crt_bd);
     }
     LOGINFO("Analyzed %5d/%5d setups\n", rows, rows);
@@ -367,20 +367,23 @@ cJSON* trd_get_stock_list(char *stocks) {
     return stx;
 }
 
-int process_scored_trade(trade_ptr trd, jl_data_ptr jl) {
+int process_scored_trade(trade_ptr trd, jl_data_ptr jl, int trd_capital) {
     char *exp_date;
     cal_expiry_next(cal_ix(trd->in_dt), &exp_date);
     strcpy(trd->exp_dt, exp_date);
     if (trd_get_option(trd, jl) == 0)
         return 0;
-    trd->num_contracts = TRD_CAPITAL / trd->in_ask;
+    /** TODO: 1. replace TRD_CAPITAL with a configurable parameter */
+    /** TODO: 2. encapsulate trd_size_position() function */
+    /** TODO: 3. review manage_trade() function  */
+    trd->num_contracts = trd_capital / trd->in_ask;
     int sign = (trd->cp == 'c')? 1: -1;
     trd->moneyness = sign * (trd->in_spot - trd->strike) / trd->in_range;
     LOGINFO("%s: open trade: %d contracts %s %s %c %d\n", trd->in_dt,
             trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
     return sign;
 
-    int res = init_trade(trd);
+    int res = init_trade(trd, trd_capital);
     if (res == 0)
         return 0;
     return manage_trade(trd);
@@ -388,7 +391,8 @@ int process_scored_trade(trade_ptr trd, jl_data_ptr jl) {
 }
 
 int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
-                     int max_spread, int min_score, cJSON *stx) {
+                     int max_spread, int min_score, int trd_capital,
+                     cJSON *stx) {
     if (stx != NULL) {
         /** TODO: eventually provide custom stock list functionality */
         LOGERROR("Custom list of stocks not supported for now\n");
@@ -427,7 +431,7 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
         strcpy(trd.setup, "scored");
         trd.cp = (trigger_score > 0)? 'c': 'p';
         trd.triggered = 't';
-        if (process_scored_trade(&trd, jl) != 0) {
+        if (process_scored_trade(&trd, jl, trd_capital) != 0) {
             record_trade(fp, &trd, tag);
             ++num_setups;
         }
@@ -438,7 +442,7 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
 
 void trd_trade_scored(char *tag, char *start_date, char *end_date,
                       int daily_num, int max_spread, int min_score,
-                      char *stocks) {
+                      int trd_capital, char *stocks) {
     cJSON* stx = trd_get_stock_list(stocks);
     char sql_cmd[1024], *trd_fname = "/tmp/trades.csv";
     sprintf(sql_cmd, "DELETE FROM trades WHERE tag='%s' AND in_dt BETWEEN "
@@ -454,7 +458,7 @@ void trd_trade_scored(char *tag, char *start_date, char *end_date,
     }
     while((trd_res == 0) && (strcmp(s_date, e_date) <= 0)) {
         trd_res = trd_scored_daily(trd_fp, tag, s_date, daily_num, max_spread,
-                                   min_score, stx);
+                                   min_score, trd_capital, stx);
         if (trd_res == 0)
             cal_next_bday(cal_ix(s_date), &s_date);
     }
@@ -463,4 +467,3 @@ void trd_trade_scored(char *tag, char *start_date, char *end_date,
     if (stx != NULL)
         cJSON_Delete(stx);
 }
-
