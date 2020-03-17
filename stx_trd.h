@@ -234,13 +234,11 @@ int manage_trade(trade_ptr trd) {
         trd->out_bid = atoi(PQgetvalue(opt_res, 0, 0));
         trd->opt_pnl = trd->num_contracts * (trd->out_bid - trd->in_ask);
         trd->opt_pct_pnl = 100 * trd->out_bid / trd->in_ask - 100;
-        LOGINFO("");
         LOGINFO("%s: closed trade: %d contracts %s %s %c %d\n", trd->out_dt, 
             trd->num_contracts, trd->stk, trd->exp_dt, trd->cp, trd->strike);
         LOGINFO("   in_ask=%d, out_bid=%d, opt_pnl=%d, opt_pct_pnl=%d\n",
                 trd->in_ask, trd->out_bid, trd->opt_pnl, trd->opt_pct_pnl);
     }
-
     PQclear(opt_res);
     return res;
 }
@@ -379,15 +377,7 @@ int process_scored_trade(trade_ptr trd, jl_data_ptr jl, int trd_capital) {
     strcpy(trd->exp_dt, exp_date);
     if (trd_get_option(trd, jl) == 0)
         return 0;
-    /** TODO: 1. replace TRD_CAPITAL with a configurable parameter */
-    /** TODO: 2. encapsulate trd_size_position() function */
-    /** TODO: 3. review manage_trade() function  */
-    int sign = trd_size_position(trd, trd_capital);
-    return sign;
-
-    int res = init_trade(trd, trd_capital);
-    if (res == 0)
-        return 0;
+    trd_size_position(trd, trd_capital);
     return manage_trade(trd);
 
 }
@@ -414,9 +404,9 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
     for (int ix = 0; ix < rows; ix++) {
         if (num_setups >= daily_num)
             break;
-        char *stk_name = PQgetvalue(res, ix, 2);
-        int trigger_score = atoi(PQgetvalue(res, ix, 3));
-        int trend_score = atoi(PQgetvalue(res, ix, 4));
+        char *stk_name = PQgetvalue(res, ix, 1);
+        int trigger_score = atoi(PQgetvalue(res, ix, 2));
+        int trend_score = atoi(PQgetvalue(res, ix, 3));
         LOGINFO("%s: %12s %6d %6d\n", trd_date, stk_name, trigger_score,
                 trend_score);
         if (trigger_score * trend_score < 0) {
