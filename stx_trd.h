@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <libpq-fe.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@
 typedef struct trade_t {
     char cp;
     char stk[16];
+    char und[16];
     char in_dt[16];
     char out_dt[16];
     char exp_dt[16];
@@ -83,7 +85,7 @@ jl_data_ptr trd_get_jl(char *stk, char *dt) {
 int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
     char sql_cmd[256];
     sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
-            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->stk,
+            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->und,
             trd->in_dt, trd->exp_dt, trd->cp);
     PGresult *opt_res = db_query(sql_cmd);
     int rows = PQntuples(opt_res);
@@ -108,8 +110,8 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
     }
     PQclear(opt_res);
     if (strike == -1) {
-        LOGERROR("%s: no options data for %s, skipping...\n",
-                 trd->in_dt, trd->stk);
+        LOGERROR("%s: no options data for %s (%s), skipping...\n",
+                 trd->in_dt, trd->und, trd->stk);
         return 0;
     }
     if (abs(trd->strike - trd->in_spot) > 2 * jl->recs[jl->pos - 1].rg) {
@@ -222,13 +224,13 @@ int manage_trade(trade_ptr trd) {
         / 2;
     char sql_cmd[128];
     sprintf(sql_cmd, "SELECT bid FROM options WHERE und='%s' AND expiry='%s' "
-            "AND dt='%s' AND cp='%c' AND strike=%d", trd->stk, trd->exp_dt, 
+            "AND dt='%s' AND cp='%c' AND strike=%d", trd->und, trd->exp_dt, 
             trd->out_dt, trd->cp, trd->strike);
     PGresult *opt_res = db_query(sql_cmd);
     int rows = PQntuples(opt_res);
     if (rows == 0) {
-        LOGERROR("%s: no out options data found for %s, skipping ...\n",
-                 trd->out_dt, trd->stk);
+        LOGERROR("%s: no out options data found for %s (%s), skipping ...\n",
+                 trd->out_dt, trd->und, trd->stk);
         res = 0;
     } else {
         trd->out_bid = atoi(PQgetvalue(opt_res, 0, 0));
@@ -329,6 +331,10 @@ void trd_trade(char *tag, char *start_date, char *end_date, char *stx,
         memset(&trd, 0, sizeof(trade));
         strcpy(trd.in_dt, PQgetvalue(setup_recs, ix, 0));
         strcpy(trd.stk, PQgetvalue(setup_recs, ix, 1));
+        strcpy(trd.und, trd.stk);
+        char *und = strchr(trd.und, '.');
+        if ((und != NULL) && (strlen(und) == 7) && isdigit(und[1]))
+            *und = '\0';
         strcpy(trd.setup, PQgetvalue(setup_recs, ix, 2));
         trd.cp = *(PQgetvalue(setup_recs, ix, 3));
         trd.triggered = *((char *)PQgetvalue(setup_recs, ix, 4));
@@ -420,6 +426,10 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
         memset(&trd, 0, sizeof(trade));
         strcpy(trd.in_dt, trd_date);
         strcpy(trd.stk, stk_name);
+        strcpy(trd.und, trd.stk);
+        char *und = strchr(trd.und, '.');
+        if ((und != NULL) && (strlen(und) == 7) && isdigit(und[1]))
+            *und = '\0';
         strcpy(trd.setup, "scored");
         trd.cp = (trigger_score > 0)? 'c': 'p';
         trd.triggered = 't';
