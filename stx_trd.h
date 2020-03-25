@@ -58,6 +58,8 @@ hashtable_ptr trd_jl(const char* factor) {
 
 
 jl_data_ptr trd_get_jl(char *stk, char *dt) {
+    char *jl_dt = NULL;
+    cal_prev_bday(cal_ix(dt), &jl_dt);
     ht_item_ptr ht_jl = ht_get(trd_jl(JL_200), stk);
     jl_data_ptr jl = NULL;
     if (ht_jl == NULL) {
@@ -66,7 +68,7 @@ jl_data_ptr trd_get_jl(char *stk, char *dt) {
             LOGERROR("Could not load data for %s, skipping...\n", stk);
             return NULL;
         }
-        jl = jl_jl(data, dt, JL_FACTOR);
+        jl = jl_jl(data, jl_dt, JL_FACTOR);
         ht_jl = ht_new_data(stk, (void*)jl);
         ht_insert(trd_jl(JL_200), ht_jl);
     } else {
@@ -76,7 +78,7 @@ jl_data_ptr trd_get_jl(char *stk, char *dt) {
                     dt, stk, jl->data->data[jl->pos].date);
             return NULL;
         }
-        jl_advance(jl, dt);
+        jl_advance(jl, jl_dt);
     }
     return jl;
 }
