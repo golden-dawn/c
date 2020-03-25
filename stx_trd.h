@@ -442,6 +442,28 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
     return 0;
 }
 
+void trade_one_stock(char* stk_name, char* trd_date, int trd_capital) {
+    trade trd;
+    jl_data_ptr jl = trd_get_jl(stk_name, trd_date);
+    if (jl == NULL) {
+        LOGERROR("Could not load JL for stock %s on date %s\n", stk_name,
+                 trd_date);
+        return;
+    }
+    memset(&trd, 0, sizeof(trade));
+    strcpy(trd.in_dt, trd_date);
+    strcpy(trd.stk, stk_name);
+    strcpy(trd.und, trd.stk);
+    char *und = strchr(trd.und, '.');
+    if ((und != NULL) && (strlen(und) == 7) && isdigit(und[1]))
+        *und = '\0';
+    strcpy(trd.setup, "scored");
+    trd.cp = (trd_capital > 0)? 'c': 'p';
+    trd.triggered = 't';
+    if (process_scored_trade(&trd, jl, abs(trd_capital)) != 0)
+        record_trade(stderr, &trd, "");
+}
+
 void trd_trade_scored(char *tag, char *start_date, char *end_date,
                       int daily_num, int max_spread, int min_score,
                       int trd_capital, char *stocks) {
