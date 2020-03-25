@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     char *stx = NULL, *setups = "scored", *start_date = "2002-02-15";
     char *end_date = (char *) calloc((size_t)16, sizeof(char)), sql_cmd[128];
     bool triggered = false;
-    char *tag = "JL";
+    char *tag = "JL", *one_stock = NULL;
     int daily_num = 2, opt_spread = 12, min_score = 0, trd_capital = 500;
     
     strcpy(sql_cmd, "select max(dt) from eods");
@@ -72,6 +72,9 @@ int main(int argc, char** argv) {
         } else if (!strcmp(argv[ix], "--trd-capital") && (ix++ < argc - 1)) {
              trd_capital = atoi(argv[ix]);
              LOGINFO("trd_capital = %d\n", trd_capital);
+        } else if (!strcmp(argv[ix], "--one-stock") && (ix++ < argc - 1)) {
+             one_stock = argv[ix];
+             LOGINFO("one_stock = %s\n", one_stock);
         }
     }
     LOGINFO("tag = %s\n", tag);
@@ -79,6 +82,10 @@ int main(int argc, char** argv) {
     LOGINFO("end_date = %s\n", end_date);
     LOGINFO("stx = %s\n", stx);
     LOGINFO("setups = %s\n", setups);
+    if (one_stock != NULL) {
+        trade_one_stock(one_stock, start_date, trd_capital);
+        return 0;
+    }
     if (!strcmp(setups, "scored"))
         trd_trade_scored(tag, start_date, end_date, daily_num, opt_spread,
                          min_score, trd_capital, stx);
