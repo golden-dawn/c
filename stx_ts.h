@@ -8,6 +8,8 @@
 #include <time.h>
 #include "stx_core.h"
 
+#define SC 4
+
 /** BEGIN: macros */
 #define module( x) (( x>  0)? x: -x)
 #define sign( x) (( x> 0)? 1: -1)
@@ -22,6 +24,15 @@ int ts_true_range(stx_data_ptr data, int ix) {
     if(res < data->data[ix - 1].close - data->data[ix].low)
 	res = data->data[ix - 1].close - data->data[ix].low;
     return res;
+}
+
+int ts_strong_close(stx_data_ptr data, int ix) {
+    int sc_dir = 0;
+    if ((SC + 1) * data[ix].close >= SC * data[ix].high + data[ix].low)
+        sc_dir = 1;
+    if ((SC + 1) * data[ix].close <= data[ix].high + SC * data[ix].low)
+        sc_dir = -1;
+    return sc_dir;
 }
 
 int ts_weighted_price(stx_data_ptr data, int ix) {
