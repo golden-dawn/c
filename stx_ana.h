@@ -32,9 +32,6 @@
 #define JL_200 "200"
 #define MIN_CHANNEL_LEN 25
 
-/** This defines a strong close, if (1+SC)*c>=SC*h+l, or (1+SC)*c<=h+SC*l*/
-#define SC 4
-
 #define CANDLESTICK_MARUBOZU_RATIO 80
 #define CANDLESTICK_LONG_DAY_AVG_RATIO 90
 #define CANDLESTICK_SHORT_DAY_AVG_RATIO 40
@@ -935,11 +932,7 @@ void ana_daily_setups(jl_data_ptr jl) {
     int jlr_1_rg = (jlr[1]->rg == 0)? 1: jlr[1]->rg;
     char *stk = jl->data->stk, *dt = r[0]->date;
     /* Find strong closes up or down; rr/vr capture range/volume significance */
-    int sc_dir = 0;
-    if ((SC + 1) * r[0]->close >= SC * r[0]->high + r[0]->low)
-        sc_dir = 1;
-    if ((SC + 1) * r[0]->close <= SC * r[0]->low + r[0]->high)
-        sc_dir = -1;
+    int sc_dir = ts_strong_close(r[0]);
     if (sc_dir != 0) {
         int rr = 100 * ts_true_range(jl->data, ix_0) / jlr_1_rg;
         if (((sc_dir == -1) &&
