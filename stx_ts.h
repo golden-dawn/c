@@ -8,6 +8,7 @@
 #include <time.h>
 #include "stx_core.h"
 
+/** This defines a strong close, if (1+SC)*c>=SC*h+l, or (1+SC)*c<=h+SC*l*/
 #define SC 4
 
 /** BEGIN: macros */
@@ -26,11 +27,11 @@ int ts_true_range(stx_data_ptr data, int ix) {
     return res;
 }
 
-int ts_strong_close(stx_data_ptr data, int ix) {
+int ts_strong_close(daily_record_ptr dr) {
     int sc_dir = 0;
-    if ((SC + 1) * data[ix].close >= SC * data[ix].high + data[ix].low)
+    if ((SC + 1) * dr->close >= SC * dr->high + dr->low)
         sc_dir = 1;
-    if ((SC + 1) * data[ix].close <= data[ix].high + SC * data[ix].low)
+    if ((SC + 1) * dr->close <= dr->high + SC * dr->low)
         sc_dir = -1;
     return sc_dir;
 }
