@@ -235,7 +235,9 @@ int manage_trade(trade_ptr trd) {
             if ((sr->volume > jl->recs[jl->pos - 1].volume) &&  
                 ((sign == 1 && sr->close < sr_1->close) ||
                  (sign == -1 && sr->close > sr_1->close)))
-                exit_trade = true; 
+                exit_trade = true;
+            if (sign * trd_counter_trend(jl) < 0)
+                exit_trade = true;
         }
     }
     strcpy(trd->out_dt, jl->data->data[jl->pos].date);
