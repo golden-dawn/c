@@ -84,6 +84,24 @@ jl_data_ptr trd_get_jl(char *stk, char *dt) {
 }
 
 
+int trd_counter_trend(jl_data_ptr jl) {
+    daily_record_ptr dr = &(jl->data->data[jl->pos]);
+    daily_record_ptr dr_1 = &(jl->data->data[jl->pos - 1]);
+    int sc_dir = ts_strong_close(dr);
+    if (sc_dir == 0)
+        return 0;
+    if ((dr->volume > jl->recs[jl->pos].volume) ||
+        (dr->volume > dr_1->volume))
+        return sc_dir;
+    if (dr_1->volume > jl->recs[jl->pos].volume) {
+        if (((sc_dir == 1) && (dr->close > dr_1->high)) ||
+            ((sc_dir == -1) && (dr->close < dr_1->low)))
+            return sc_dir;
+    }
+    return 0;
+}
+
+
 int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
     char sql_cmd[256];
     sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
@@ -424,6 +442,9 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
         }
         jl_data_ptr jl = trd_get_jl(stk_name, trd_date);
         if (jl == NULL)
+            continue;
+        int daily_trend = trd_counter_trend(jl);
+        if (daily_trend * trigger_score < 0)
             continue;
         memset(&trd, 0, sizeof(trade));
         strcpy(trd.in_dt, trd_date);
