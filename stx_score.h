@@ -1377,21 +1377,14 @@ void score_setups(char *ana_date, cJSON *stx, char *tag_name) {
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
     char sql_cmd[256];
-    if (download_spots || download_options) {
-        sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
-        db_transaction(sql_cmd);
-    }
-    int num = 0, total = cJSON_GetArraySize(leaders);
-    if (download_spots)
-        get_quotes(leaders, ana_date, exp_date, exp_date2, download_options);
     cJSON_ArrayForEach(ldr, leaders) {
         if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            ana_scored_setups(ldr->valuestring, ana_date);
+            ana_scored_setups(ldr->valuestring, ana_date, tag_name);
         num++;
         if (num % 100 == 0)
-            LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
+            LOGINFO("%s: scored %4d / %4d leaders\n", ana_date, num, total);
     }
-    LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
+    LOGINFO("%s: scored %4d / %4d leaders\n", ana_date, num, total);
     if (stx == NULL)
        cJSON_Delete(leaders);
 }
