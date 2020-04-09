@@ -9,6 +9,74 @@
 
 
 int main(int argc, char** argv) {
+
+    char *tag_name = "S0", *start_date = NULL, *end_date = NULL;
+    cJSON *stx = NULL;
+    for (int ix = 1; ix < argc; ix++) {
+        if (!strcmp(argv[ix], "--tag") && (ix++ < argc - 1))
+            tag_name = argv[ix];
+        else if (!strcmp(argv[ix], "--start-date") && (ix++ < argc - 1))
+            start_date = cal_move_to_bday(argv[ix], true);
+        else if (!strcmp(argv[ix], "--end-date") && (ix++ < argc - 1))
+            end_date = cal_move_to_bday(argv[ix], false);
+        else if (!strcmp(argv[ix], "--stx") && (ix++ < argc - 1)) {
+            stx = cJSON_CreateArray();
+            if (stx == NULL) {
+                LOGERROR("Failed to create stx cJSON Array.\n");
+                exit(-1);
+            }
+            cJSON *stk_name = NULL;
+            char* token = strtok(argv[ix], ",");
+            while (token) {
+                stk_name = cJSON_CreateString(token);
+                if (stk_name == NULL) {
+                    LOGERROR("Failed to create cJSON string for %s\n", token);
+                    continue;
+                }
+                cJSON_AddItemToArray(stx, stk_name);
+                token = strtok(NULL, ",");
+            }
+        }
+    }
+
+    char sql_cmd[2048], *stk = NULL, *s_date = NULL, *e_date = NULL;
+    if (start_date == NULL && end_date == NULL && stx == NULL)
+        sprintf(sql_cmd, "SELECT stk, min(dt), max(dt) FROM setup_scores "
+                "GROUP BY stk");
+    else {
+        sprintf(sql_cmd, "SELECT stk, min(dt), max(dt) FROM setup_scores WHERE "
+                "GROUP BY stk");
+
+    }
+    PGresult* res = db_query(sql_cmd);
+    int rows = PQntuples(res);
+    LOGINFO("Found %d scored leaders\n", rows);
+    for(int ix = 0; ix < rows; ix++) {
+        stk = PQgetvalue(res, ix, 0);
+        s_date = PQgetvalue(res, ix, 1);
+        e_date = PQgetvalue(res, ix, 2);
+        score_leader_setups(stk, s_date, e_date, tag_name);
+        if (ix > 0 && ix % 100 == 0)
+            LOGINFO("Analyzed %5d/%5d leaders\n", ix, rows);
+    }
+    LOGINFO("Analyzed %5d/%5d leaders\n", rows, rows);
+    PQclear(res);
+}
+
+        cal_move_bdays(setup_date, 45, &setup_date);
+        char *setup_date_1 = NULL;
+        cal_move_bdays(ana_date, -252, &setup_date_1);
+        if (strcmp(setup_date, setup_date_1) < 0)
+            setup_date = setup_date_1;
+    } else {
+        /** Found last setup analysis date in DB. Start analysis from the next
+         * business day.
+        */
+        setup_date = PQgetvalue(res, 0, 0);
+        cal_next_bday(cal_ix(setup_date), &setup_date);
+    }
+ 
+    
     char *tag_name = "S0", *start_date = cal_current_busdate(5),
         *end_date = cal_current_busdate(5);
     cJSON *stx = NULL;
