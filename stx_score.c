@@ -10,8 +10,9 @@
 
 int main(int argc, char** argv) {
 
-    char *tag_name = "S0", *start_date = NULL, *end_date = NULL;
+    char *tag_name = "S0", *start_date = "2002-02-01", *end_date = NULL;
     cJSON *stx = NULL;
+    end_date = cal_current_busdate(5);
     for (int ix = 1; ix < argc; ix++) {
         if (!strcmp(argv[ix], "--tag") && (ix++ < argc - 1))
             tag_name = argv[ix];
@@ -39,15 +40,19 @@ int main(int argc, char** argv) {
         }
     }
 
-    char sql_cmd[2048], *stk = NULL, *s_date = NULL, *e_date = NULL;
-    if (start_date == NULL && end_date == NULL && stx == NULL)
-        sprintf(sql_cmd, "SELECT stk, min(dt), max(dt) FROM setup_scores "
-                "GROUP BY stk");
-    else {
-        sprintf(sql_cmd, "SELECT stk, min(dt), max(dt) FROM setup_scores WHERE "
-                "GROUP BY stk");
-
+    char sql_cmd[2048], tf[128], *stk = NULL, *s_date = NULL, *e_date = NULL;
+    sprintf(sql_cmd, "SELECT stk, min(dt), max(dt) FROM setup_scores WHERE "
+            "dt BETWEEN '%s' AND '%s'", start_date, end_date);
+    if (stx != NULL) {
+        sprintf(sql_cmd, "%s AND stk IN (", sql_cmd);
+        cJSON *stock = NULL;
+        cJSON_ArrayForEach(stock, stx) {
+        if (cJSON_IsString(stock) && (stock->valuestring != NULL))
+            sprintf(sql_cmd, "%s'%s',", sql_cmd, stock->valuestring);
+        sql_cmd[strlen(sql_cmd) - 1] = ')';
     }
+    sprintf(sql_cmd, "%s GROUP BY stk", sql_cmd);
+
     PGresult* res = db_query(sql_cmd);
     int rows = PQntuples(res);
     LOGINFO("Found %d scored leaders\n", rows);
