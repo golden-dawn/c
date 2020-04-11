@@ -1316,7 +1316,7 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
     cJSON_Delete(leaders);
 }
 
-void ana_scored_setups(char* stk, char* ana_date) {
+void score_leader_setups(char* stk, char* ana_date, char *tag_name) {
     /** calculate setups for a single stock (stk) up to ana_date. If ana_date
      * is NULL, setups (and their scores) will be calculated up to the current
      * business date. If clear_db is set to true, this funtion will clear all
@@ -1324,7 +1324,8 @@ void ana_scored_setups(char* stk, char* ana_date) {
      */
     char sql_cmd[256];
     char *setup_date = NULL;
-    sprintf(sql_cmd, "SELECT dt FROM setup_dates WHERE stk='%s'", stk);
+    sprintf(sql_cmd, "SELECT max(dt) FROM score_setups WHERE stk='%s' AND "
+            "tag='%s'", stk, tag_name);
     PGresult* res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows == 0) {
@@ -1369,7 +1370,40 @@ void ana_scored_setups(char* stk, char* ana_date) {
     db_transaction(sql_cmd);
 }
 
-void score_setups(char *ana_date, cJSON *stx, char *tag_name) {
+void score_setups(char *stk, char *s_date, char *e_date, char *tag_name) {
+
+    char *start_date = NULL, sql_cmd[256];
+    cal_move_bdays(s_date, -10, &start_date);
+    sprintf(sql_cmd, "SELECT * FROM jl_setups WHERE stk='%s' AND dt BETWEEN "
+            "'%s' AND '%s' ORDER BY dt", stk, start_date, e_date);
+    PGresult res = db_query(sql_cmd);
+
+        cal_move_bdays(setup_date, 45, &setup_date);
+        char *setup_date_1 = NULL;
+        cal_move_bdays(ana_date, -252, &setup_date_1);
+        if (strcmp(setup_date, setup_date_1) < 0)
+            setup_date = setup_date_1;
+    } else {
+        /** Found last setup analysis date in DB. Start analysis from the next
+         * business day.
+        */
+        setup_date = PQgetvalue(res, 0, 0);
+        cal_next_bday(cal_ix(setup_date), &setup_date);
+    }
+ 
+    
+    int ix = cal_ix(start_date), start_ix = cal_ix(s_date), end_ix = cal_ix(e_date);
+    while(ix <= end_ix) {
+        if (!strcmp(crs_date, exp_bdate)) {
+            exp_ix = cal_expiry(ix + 1, &exp_date);
+            exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
+            ana_expiry_analysis(crs_date, false);
+        }
+        score_setups(crs_date, stx, tag_name);
+        ix = cal_next_bday(ix, &crs_date);
+    }
+
+
     char *exp_date, *exp_date2;
     int exp_ix = cal_expiry(cal_ix(ana_date) + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
@@ -1379,7 +1413,7 @@ void score_setups(char *ana_date, cJSON *stx, char *tag_name) {
     char sql_cmd[256];
     cJSON_ArrayForEach(ldr, leaders) {
         if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            ana_scored_setups(ldr->valuestring, ana_date, tag_name);
+            score_leader_setups(ldr->valuestring, ana_date, tag_name);
         num++;
         if (num % 100 == 0)
             LOGINFO("%s: scored %4d / %4d leaders\n", ana_date, num, total);
