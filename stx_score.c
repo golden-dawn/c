@@ -55,7 +55,8 @@ int main(int argc, char** argv) {
 
     PGresult* res = db_query(sql_cmd);
     int rows = PQntuples(res);
-    LOGINFO("Found %d scored leaders\n", rows);
+    LOGINFO("Scoring setups with tag %s from %s to %s for %d stocks\n",
+            tag_name, start_date, end_date, rows);
     for(int ix = 0; ix < rows; ix++) {
         stk = PQgetvalue(res, ix, 0);
         s_date = PQgetvalue(res, ix, 1);
@@ -66,69 +67,6 @@ int main(int argc, char** argv) {
     }
     LOGINFO("Analyzed %5d/%5d leaders\n", rows, rows);
     PQclear(res);
-}
-
-        cal_move_bdays(setup_date, 45, &setup_date);
-        char *setup_date_1 = NULL;
-        cal_move_bdays(ana_date, -252, &setup_date_1);
-        if (strcmp(setup_date, setup_date_1) < 0)
-            setup_date = setup_date_1;
-    } else {
-        /** Found last setup analysis date in DB. Start analysis from the next
-         * business day.
-        */
-        setup_date = PQgetvalue(res, 0, 0);
-        cal_next_bday(cal_ix(setup_date), &setup_date);
-    }
- 
-    
-    char *tag_name = "S0", *start_date = cal_current_busdate(5),
-        *end_date = cal_current_busdate(5);
-    cJSON *stx = NULL;
-    for (int ix = 1; ix < argc; ix++) {
-        if (!strcmp(argv[ix], "--tag") && (ix++ < argc - 1))
-            tag_name = argv[ix];
-        else if (!strcmp(argv[ix], "--start-date") && (ix++ < argc - 1))
-            start_date = cal_move_to_bday(argv[ix], true);
-        else if (!strcmp(argv[ix], "--end-date") && (ix++ < argc - 1))
-            end_date = cal_move_to_bday(argv[ix], false);
-        else if (!strcmp(argv[ix], "--stx") && (ix++ < argc - 1)) {
-            stx = cJSON_CreateArray();
-            if (stx == NULL) {
-                LOGERROR("Failed to create stx cJSON Array.\n");
-                exit(-1);
-            }
-            cJSON *stk_name = NULL;
-            char* token = strtok(argv[ix], ",");
-            while (token) {
-                stk_name = cJSON_CreateString(token);
-                if (stk_name == NULL) {
-                    LOGERROR("Failed to create cJSON string for %s\n", token);
-                    continue;
-                }
-                cJSON_AddItemToArray(stx, stk_name);
-                token = strtok(NULL, ",");
-            }
-        }
-    }
-    LOGINFO("Scoring setups with tag %s from %s to %s\n", tag_name, start_date,
-            end_date);
-    if (stx == NULL)
-        LOGINFO(" for all leaders\n");
-    else
-        LOGINFO(" for %d stocks\n", cJSON_GetArraySize(stx));
-    int ix = cal_ix(crs_date), end_ix = cal_ix(end_date);
-    int exp_ix = cal_expiry(ix, &exp_date);
-    int exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
-    while(ix <= end_ix) {
-        if (!strcmp(crs_date, exp_bdate)) {
-            exp_ix = cal_expiry(ix + 1, &exp_date);
-            exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
-            ana_expiry_analysis(crs_date, false);
-        }
-        score_setups(crs_date, stx, tag_name);
-        ix = cal_next_bday(ix, &crs_date);
-    }
     if (stx != NULL)
         cJSON_Delete(stx);
     LOGINFO("All Done!!!\n");
