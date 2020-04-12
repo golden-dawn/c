@@ -1370,46 +1370,64 @@ void score_leader_setups(char* stk, char* ana_date, char *tag_name) {
     db_transaction(sql_cmd);
 }
 
-int score_calc_setup_score(char *setup_name, int factor, int direction,
-                           char *setup_str, char *tag_name) {
-    if (!strcmp(setup_name, "SC")) {
-        int vr = ana_clip(cJSON_GetObjectItem(info, "vr")->valueint, 50, 250);
-        int rr = ana_clip(cJSON_GetObjectItem(info, "rr")->valueint, 50, 250);
-        score = (vr - 50 + rr - 50) * dir;
-    } else if (!strcmp(setup_name, "Gap")) { 
-        /** TODO: add more params to distinguish between breakaway and exhaustion gaps */
-        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
-        int eod_gain = cJSON_GetObjectItem(info, "eod_gain")->valueint;
-        int drawdown = cJSON_GetObjectItem(info, "drawdown")->valueint;
-        score = vr * (eod_gain + drawdown) / 150;
-    } else if (!strcmp(setup_name, "RDay")) {
-        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
-        int rd_gain = cJSON_GetObjectItem(info, "rd_gain")->valueint;
-        int rd_drawdown = cJSON_GetObjectItem(info, "rd_drawdown")->valueint;
-        int rdr = ana_clip(abs(rd_gain) + abs(rd_drawdown), 0, 300);
-        score = dir * vr * rdr / 150;
-    } else if (!strcmp(setup_name, "JL_P")) {
-        int ls = cJSON_GetObjectItem(info, "ls")->valueint;
-        int lvd = cJSON_GetObjectItem(info, "lvd")->valueint;
-        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
-        score = 5 * obv;
-        if (((dir == 1) && (ls == UPTREND)) ||
-            ((dir == -1) && (ls == DOWNTREND)))
-                score += (dir * 50);
-        else if ((ls == RALLY) || (ls == REACTION))
-                score += (dir * 25);
-        if (lvd * dir > 0)
-            score -= (5 * lvd);
-        else
-            score -= (2 * lvd);
-        if (dir * score < 0)
-            score = 0;
-    } else if (!strcmp(setup_name, "JL_B")) {
-        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
-        int len = cJSON_GetObjectItem(info, "len")->valueint;
-        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
-        int last_ns = cJSON_GetObjectItem(info, "last_ns")->valueint;
-        int prev_ns = cJSON_GetObjectItem(info, "prev_ns")->valueint;
+int score_clip(int value, int lb, int ub) {
+    int res = value;
+    if (res < lb)
+        res = lb;
+    if (res > ub)
+        res = ub;
+    return res;
+}
+
+int score_sc_setup(cJSON *setup_json, int dir, char *tag_name) {
+    int vr = score_clip(cJSON_GetObjectItem(setup_json, "vr")->valueint, 50, 250);
+    int rr = score_clip(cJSON_GetObjectItem(setup_json, "rr")->valueint, 50, 250);
+    return (vr - 50 + rr - 50) * dir;
+}
+
+int score_gap_setup(cJSON *setup_json, int dir, char *tag_name) {
+    int vr = cJSON_GetObjectItem(setup_json, "vr")->valueint;
+    int eod_gain = cJSON_GetObjectItem(setup_json, "eod_gain")->valueint;
+    int drawdown = cJSON_GetObjectItem(setup_json, "drawdown")->valueint;
+    return vr * (eod_gain + drawdown) / 150;
+}
+
+int score_rday_setup(cJSON *setup_json, int dir, char *tag_name) {
+    int vr = cJSON_GetObjectItem(setup_json, "vr")->valueint;
+    int rd_gain = cJSON_GetObjectItem(setup_json, "rd_gain")->valueint;
+    int rd_drawdown = cJSON_GetObjectItem(setup_json, "rd_drawdown")->valueint;
+    int rdr = ana_clip(abs(rd_gain) + abs(rd_drawdown), 0, 300);
+    return dir * vr * rdr / 150;
+}
+
+int score_jlpullback_setup(cJSON *setup_json, int dir, char *tag_name) {
+    int ls = cJSON_GetObjectItem(setup_json, "ls")->valueint;
+    int lvd = cJSON_GetObjectItem(setup_json, "lvd")->valueint;
+    int obv = cJSON_GetObjectItem(setup_json, "obv")->valueint;
+    int score = 5 * obv;
+    if (((dir == 1) && (ls == UPTREND)) ||
+        ((dir == -1) && (ls == DOWNTREND)))
+        score += (dir * 50);
+    else if ((ls == RALLY) || (ls == REACTION))
+        score += (dir * 25);
+    if (lvd * dir > 0)
+        score -= (5 * lvd);
+    else
+        score -= (2 * lvd);
+    if (dir * score < 0)
+        score = 0;
+    return score;
+}
+
+int score_jlbreakout_setup(cJSON *setup_json, int dir, char *tag_name) {
+    int vr = cJSON_GetObjectItem(setup_json, "vr")->valueint;
+    int len = cJSON_GetObjectItem(setup_json, "len")->valueint;
+    int obv = cJSON_GetObjectItem(setup_json, "obv")->valueint;
+    int last_ns = cJSON_GetObjectItem(setup_json, "last_ns")->valueint;
+    int prev_ns = cJSON_GetObjectItem(setup_json, "prev_ns")->valueint;
+    int score = 0;
+    if (!strcmp(tag_name, "ALL") || !strcmp(tag_name, "JLB") ||
+        !strcmp(tag_name, "BKO")) {
         score = 5 * obv;
         score = score * vr / 150;
         score = score * ana_clip(len, 50, 250) / 50;
@@ -1428,25 +1446,64 @@ int score_calc_setup_score(char *setup_name, int factor, int direction,
                     score = score * 2;
             }
         }
-    } else if (!strcmp(setup_name, "Piercing") ||
-               !strcmp(setup_name, "Kicking") ||
-               !strcmp(setup_name, "EngHarami"))
-        score = dir * 100;
-    else if (!strcmp(setup_name, "Star"))
-        score = dir * 150;
-    else if (!strcmp(setup_name, "Engulfing"))
-        score = dir * 50;
-    else if (!strcmp(setup_name, "3out"))
-        score = dir * 50;
+    }
     return score;
+}
 
+int score_piercing_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 100;
+}
 
+int score_kicking_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 100;
+}
 
-        cJSON *setup_json = cJSON_Parse(setup_str);
-        cJSON *vr = cJSON_GetObjectItemCaseSensitive(setup_json, "vr");
-        LOGINFO("%s, %d\n", setup_name, vr->valueint);
-    end:
-        cJSON_Delete(setup_json);
+int score_engharami_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 100;
+}
+
+int score_star_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 150;
+}
+
+int score_engulfing_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 50;
+}
+
+int score_3out_setup(cJSON *setup_json, int dir, char *tag_name) {
+    return dir * 50;
+}
+
+int score_calc_setup_score(char *setup_name, int factor, int direction,
+                           char *setup_str, char *tag_name) {
+    cJSON *setup_json = cJSON_Parse(setup_str);
+    int score = 0;
+    if (!strcmp(setup_name, "SC"))
+        score = score_sc_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "Gap"))
+        /** TODO: add more params to distinguish between breakaway and exhaustion gaps */
+        score = score_gap_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "RDay"))
+        score = score_rday_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "JL_P"))
+        score = score_jlpullback_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "JL_B"))
+        score = score_jlbreakout_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "Piercing")
+        score = score_piercing_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "Kicking")
+        score = score_kicking_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "EngHarami")
+        score = score_engharami_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "Star"))
+        score = score_star_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "Engulfing"))
+        score = score_engulfing_setup(setup_json, direction, tag_name);
+    else if (!strcmp(setup_name, "3out"))
+        score = score_3out_setup(setup_json, direction, tag_name);
+end:
+    cJSON_Delete(setup_json);
+    return score;
 }
 
 void score_setups(char *stk, char *s_date, char *e_date, char *tag_name) {
