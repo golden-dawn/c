@@ -1370,6 +1370,85 @@ void score_leader_setups(char* stk, char* ana_date, char *tag_name) {
     db_transaction(sql_cmd);
 }
 
+int score_calc_setup_score(char *setup_name, int factor, int direction,
+                           char *setup_str, char *tag_name) {
+    if (!strcmp(setup_name, "SC")) {
+        int vr = ana_clip(cJSON_GetObjectItem(info, "vr")->valueint, 50, 250);
+        int rr = ana_clip(cJSON_GetObjectItem(info, "rr")->valueint, 50, 250);
+        score = (vr - 50 + rr - 50) * dir;
+    } else if (!strcmp(setup_name, "Gap")) { 
+        /** TODO: add more params to distinguish between breakaway and exhaustion gaps */
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int eod_gain = cJSON_GetObjectItem(info, "eod_gain")->valueint;
+        int drawdown = cJSON_GetObjectItem(info, "drawdown")->valueint;
+        score = vr * (eod_gain + drawdown) / 150;
+    } else if (!strcmp(setup_name, "RDay")) {
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int rd_gain = cJSON_GetObjectItem(info, "rd_gain")->valueint;
+        int rd_drawdown = cJSON_GetObjectItem(info, "rd_drawdown")->valueint;
+        int rdr = ana_clip(abs(rd_gain) + abs(rd_drawdown), 0, 300);
+        score = dir * vr * rdr / 150;
+    } else if (!strcmp(setup_name, "JL_P")) {
+        int ls = cJSON_GetObjectItem(info, "ls")->valueint;
+        int lvd = cJSON_GetObjectItem(info, "lvd")->valueint;
+        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
+        score = 5 * obv;
+        if (((dir == 1) && (ls == UPTREND)) ||
+            ((dir == -1) && (ls == DOWNTREND)))
+                score += (dir * 50);
+        else if ((ls == RALLY) || (ls == REACTION))
+                score += (dir * 25);
+        if (lvd * dir > 0)
+            score -= (5 * lvd);
+        else
+            score -= (2 * lvd);
+        if (dir * score < 0)
+            score = 0;
+    } else if (!strcmp(setup_name, "JL_B")) {
+        int vr = cJSON_GetObjectItem(info, "vr")->valueint;
+        int len = cJSON_GetObjectItem(info, "len")->valueint;
+        int obv = cJSON_GetObjectItem(info, "obv")->valueint;
+        int last_ns = cJSON_GetObjectItem(info, "last_ns")->valueint;
+        int prev_ns = cJSON_GetObjectItem(info, "prev_ns")->valueint;
+        score = 5 * obv;
+        score = score * vr / 150;
+        score = score * ana_clip(len, 50, 250) / 50;
+        if (dir == 1) {
+            if (last_ns == UPTREND) {
+                if (prev_ns == UPTREND)
+                    score = score / 2;
+                else if (prev_ns == RALLY)
+                    score = score * 2;
+            }
+        } else { /** dir == -1 */
+            if (last_ns == DOWNTREND) {
+                if (prev_ns == DOWNTREND)
+                    score = score / 2;
+                else if (prev_ns == REACTION)
+                    score = score * 2;
+            }
+        }
+    } else if (!strcmp(setup_name, "Piercing") ||
+               !strcmp(setup_name, "Kicking") ||
+               !strcmp(setup_name, "EngHarami"))
+        score = dir * 100;
+    else if (!strcmp(setup_name, "Star"))
+        score = dir * 150;
+    else if (!strcmp(setup_name, "Engulfing"))
+        score = dir * 50;
+    else if (!strcmp(setup_name, "3out"))
+        score = dir * 50;
+    return score;
+
+
+
+        cJSON *setup_json = cJSON_Parse(setup_str);
+        cJSON *vr = cJSON_GetObjectItemCaseSensitive(setup_json, "vr");
+        LOGINFO("%s, %d\n", setup_name, vr->valueint);
+    end:
+        cJSON_Delete(setup_json);
+}
+
 void score_setups(char *stk, char *s_date, char *e_date, char *tag_name) {
 
     char *start_date = NULL, sql_cmd[256];
@@ -1377,6 +1456,15 @@ void score_setups(char *stk, char *s_date, char *e_date, char *tag_name) {
     sprintf(sql_cmd, "SELECT * FROM jl_setups WHERE stk='%s' AND dt BETWEEN "
             "'%s' AND '%s' ORDER BY dt", stk, start_date, e_date);
     PGresult res = db_query(sql_cmd);
+    int num_stps = PQntuples(res);
+    for(int ix = 0; ix < num_stps; ix++) {
+        char *setup_name = PQgetvalue(res, ix, 2);
+        int factor = atoi(PQgetvalue(res, ix, 3));
+        int dir = (*PQgetvalue(res, ix, 4) == 'U')? 1: -1;
+        char *setup_str = PQgetvalue(res, ix, 7);
+        int setup_score = score_calc_setup_score(setup_name, factor, dir,
+                                                 setup_str, tag_name);
+    }   
 
         cal_move_bdays(setup_date, 45, &setup_date);
         char *setup_date_1 = NULL;
