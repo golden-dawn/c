@@ -90,10 +90,10 @@ int trd_counter_trend(jl_data_ptr jl) {
     int sc_dir = ts_strong_close(dr);
     if (sc_dir == 0)
         return 0;
-    if ((dr->volume > jl->recs[jl->pos].volume) ||
+    if ((dr->volume > jl->recs[jl->pos - 1].volume) ||
         (dr->volume > dr_1->volume))
         return sc_dir;
-    if (dr_1->volume > jl->recs[jl->pos].volume) {
+    if (dr_1->volume > jl->recs[jl->pos - 2].volume) {
         if (((sc_dir == 1) && (dr->close > dr_1->high)) ||
             ((sc_dir == -1) && (dr->close < dr_1->low)))
             return sc_dir;
@@ -237,6 +237,8 @@ int manage_trade(trade_ptr trd) {
                  (sign == -1 && sr->close > sr_1->close)))
                 exit_trade = true;
             if (sign * trd_counter_trend(jl) < 0)
+                exit_trade = true;
+            if (sign * (trd->in_spot - sr->close) > jl->recs[jl->pos - 1].rg)
                 exit_trade = true;
         }
     }
@@ -421,11 +423,22 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
     char *exp_date = NULL;
     cal_expiry(cal_ix(trd_date), &exp_date);
     char sql_cmd[512];
-    sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk in (SELECT stk "
-            "FROM leaders where expiry='%s' AND opt_spread<=%d) AND dt='%s' "
-            "AND trigger_score != 0 AND ABS(trigger_score+trend_score)>=%d "
-            "ORDER BY ABS(trigger_score+trend_score) DESC LIMIT %d", 
-            exp_date, max_spread, trd_date, min_score, 3 * daily_num);
+    // sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk in (SELECT stk "
+    //         "FROM leaders where expiry='%s' AND opt_spread<=%d) AND dt='%s' "
+    //         "AND trigger_score != 0 AND ABS(trigger_score+trend_score)>=%d "
+    //         "ORDER BY ABS(trigger_score+trend_score) DESC LIMIT %d", 
+    //         exp_date, max_spread, trd_date, min_score, 3 * daily_num);
+    // sprintf(sql_cmd, "SELECT * FROM setup_scores WHERE stk in (SELECT stk "
+    //         "FROM leaders where expiry='%s' AND opt_spread<=%d) AND dt='%s' "
+    //         "AND trigger_score != 0 AND ABS(trend_score)>=%d "
+    //         "ORDER BY ABS(trend_score) DESC LIMIT %d", 
+    //         exp_date, max_spread, trd_date, min_score, 3 * daily_num);
+    sprintf(sql_cmd, "select * from setup_scores where dt='%s' and stk in "
+            "(select stk from jl_setups where dt='%s' and setup='JL_P') and "
+            "stk in (select stk from leaders where expiry='%s' and "
+            "opt_spread < %d) order by abs(trigger_score + trend_score) desc "
+            "limit %d",
+            trd_date, trd_date, exp_date, max_spread, 3 * daily_num);
     PGresult *res = db_query(sql_cmd);
     int num_setups = 0, rows = PQntuples(res);
     trade trd;
@@ -456,7 +469,7 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
         if ((und != NULL) && (strlen(und) == 7) && isdigit(und[1]))
             *und = '\0';
         strcpy(trd.setup, "scored");
-        trd.cp = (trigger_score > 0)? 'c': 'p';
+        trd.cp = (trend_score > 0)? 'c': 'p';
         trd.triggered = 't';
         if (process_scored_trade(&trd, jl, trd_capital) != 0) {
             record_trade(fp, &trd, tag);
