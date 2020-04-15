@@ -434,7 +434,7 @@ int trd_scored_daily(FILE *fp, char *tag, char *trd_date, int daily_num,
     //         "ORDER BY ABS(trend_score) DESC LIMIT %d", 
     //         exp_date, max_spread, trd_date, min_score, 3 * daily_num);
     sprintf(sql_cmd, "select * from setup_scores where dt='%s' and stk in "
-            "(select stk from jl_setups where dt='%s' and setup='JL_P') and "
+            "(select stk from jl_setups where dt='%s' and setup='JL_P' and factor=100) and "
             "stk in (select stk from leaders where expiry='%s' and "
             "opt_spread < %d) order by abs(trigger_score + trend_score) desc "
             "limit %d",
