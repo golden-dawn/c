@@ -102,7 +102,7 @@ int trd_counter_trend(jl_data_ptr jl) {
 }
 
 
-int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
+int trd_get_option_old(trade_ptr trd, jl_data_ptr jl) {
     char sql_cmd[256];
     sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
             "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike", trd->und,
@@ -149,6 +149,53 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
     return 1;
 }
 
+
+int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
+    int sign = (trd->cp == 'c')? 1: -1;
+    char sql_cmd[256];
+    sprintf(sql_cmd, "SELECT strike, bid, ask FROM options WHERE und='%s' AND "
+            "dt='%s' AND expiry='%s' AND cp='%c' ORDER BY strike %s", trd->und,
+            trd->in_dt, trd->exp_dt, trd->cp, (trd->cp == 'c'? "": "DESC"));
+    PGresult *opt_res = db_query(sql_cmd);
+    int rows = PQntuples(opt_res), ix = 0;
+    if (rows == 0) {
+        LOGERROR("%s: no options data for %s (%s), skipping...\n",
+                 trd->in_dt, trd->und, trd->stk);
+        PQclear(opt_res);
+        return 0;
+    }
+    trd->in_spot = jl->data->data[jl->pos].close;
+    int strike = atoi(PQgetvalue(opt_res, ix, 0));
+    trd->strike = strike;
+    trd->in_ask = atoi(PQgetvalue(opt_res, ix, 2));
+    while((ix++ < rows - 1) && (sign * strike < sign * trd->in_spot)) {
+        strike = atoi(PQgetvalue(opt_res, ix, 0));
+        if (sign * strike < sign * trd->in_spot) {
+            trd->strike = strike;
+            trd->in_ask = atoi(PQgetvalue(opt_res, ix, 2));
+        }
+    }
+    PQclear(opt_res);
+    if (sign * trd->strike >= sign * trd->in_spot) {
+        LOGERROR("%s: no ITM %s strikes for %s: spot = %d, strike = %d), "
+                 "skipping ...\n",trd->in_dt, ((sign == 1)? "call": "put"),
+                 trd->stk, trd->in_spot, trd->strike);
+        return 0;
+    }
+    if (abs(trd->strike - trd->in_spot) > 4 * jl->recs[jl->pos - 1].rg) {
+        LOGERROR("%s: strike %d and spot %d too far apart for %s (rg = %d), "
+                 "skipping ...\n", trd->in_dt, trd->strike, trd->in_spot,
+                 trd->stk, jl->recs[jl->pos - 1].rg);
+        return 0;
+    }
+    trd->in_range = jl->recs[jl->pos - 1].rg;
+    if (trd->in_ask == 0) {
+        LOGERROR("%s: %s %s %c %d, ask price = 0, skipping ...\n", trd->in_dt,
+            trd->stk, trd->exp_dt, trd->cp, trd->strike);
+        return 0;
+    }
+    return 1;
+}
 
 int trd_size_position(trade_ptr trd, int trd_capital) {
     trd->num_contracts = trd_capital / trd->in_ask;
