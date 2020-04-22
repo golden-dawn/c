@@ -168,15 +168,17 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
     int strike = atoi(PQgetvalue(opt_res, ix, 0));
     trd->strike = strike;
     trd->in_ask = atoi(PQgetvalue(opt_res, ix, 2));
-    while((ix++ < rows - 1) && (sign * strike < sign * trd->in_spot)) {
+    trd->in_range = jl->recs[jl->pos - 1].rg;
+    while((ix++ < rows - 1) &&
+          (sign * strike < sign * (trd->in_spot - sign * trd->in_range))) {
         strike = atoi(PQgetvalue(opt_res, ix, 0));
-        if (sign * strike < sign * trd->in_spot) {
+        if (sign * strike < sign * (trd->in_spot - sign * trd->in_range)) {
             trd->strike = strike;
             trd->in_ask = atoi(PQgetvalue(opt_res, ix, 2));
         }
     }
     PQclear(opt_res);
-    if (sign * trd->strike >= sign * trd->in_spot) {
+    if (sign * trd->strike >= sign * (trd->in_spot - sign * trd->in_range)) {
         LOGERROR("%s: no ITM %s strikes for %s: spot = %d, strike = %d), "
                  "skipping ...\n",trd->in_dt, ((sign == 1)? "call": "put"),
                  trd->stk, trd->in_spot, trd->strike);
@@ -188,7 +190,6 @@ int trd_get_option(trade_ptr trd, jl_data_ptr jl) {
                  trd->stk, jl->recs[jl->pos - 1].rg);
         return 0;
     }
-    trd->in_range = jl->recs[jl->pos - 1].rg;
     if (trd->in_ask == 0) {
         LOGERROR("%s: %s %s %c %d, ask price = 0, skipping ...\n", trd->in_dt,
             trd->stk, trd->exp_dt, trd->cp, trd->strike);
