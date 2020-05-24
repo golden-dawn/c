@@ -1285,9 +1285,9 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     db_upload_file("eods", filename);
     fp = NULL;
     if (eod == true) {
-      sprintf(sql_cmd, "UPDATE eods SET oi=0 WHERE stk IN "
-              "('^GSPC', '^IXIC', '^DJI') AND dt='%s'", dt);
-      db_transaction(sql_cmd);
+        sprintf(sql_cmd, "UPDATE eods SET oi=0 WHERE stk IN "
+                "('^GSPC', '^IXIC', '^DJI') AND dt='%s'", dt);
+        db_transaction(sql_cmd);
     }
     curl_global_cleanup();
 }
