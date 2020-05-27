@@ -10,7 +10,7 @@
 
 int main(int argc, char** argv) {
     bool download_spots = false, download_options = false, rt_ana = false,
-        eod = false;
+        eod = false, no_rt = false;
     char ana_name[32], *ana_type = NULL, *start_date = cal_current_busdate(5),
         *end_date = cal_current_busdate(5);
     cJSON *stx = NULL;
@@ -57,10 +57,12 @@ int main(int argc, char** argv) {
             download_options = true;
             rt_ana = true;
             ana_type = argv[ix];
-        }
+        }  else if (!strcmp(argv[ix], "--no-rt"))
+            no_rt = true;
     }
     char* crt_busdate = cal_current_busdate(5);
-    if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate)) {
+    if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate) &&
+        !no_rt) {
         rt_ana = true;
         ana_type = "intraday";
         download_spots = true;
