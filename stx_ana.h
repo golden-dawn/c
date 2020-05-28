@@ -1422,6 +1422,7 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
     if (download_spots || download_options) {
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
+        /** TODO: update setup_dates and setup_scores tables */
     }
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_spots)
