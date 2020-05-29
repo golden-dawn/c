@@ -1412,9 +1412,12 @@ void ana_scored_setups(char* stk, char* ana_date) {
 
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                       bool download_options, bool eod) {
-    char *exp_date, *exp_date2;
-    int exp_ix = cal_expiry(cal_ix(ana_date) + (eod? 1: 0), &exp_date);
+    char *exp_date, *exp_date2, *prev_date;
+    int ana_ix = cal_ix(ana_date);
+    int exp_ix = cal_expiry(ana_ix + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
+    cal_prev_bday(ana_ix, &prev_date);
+
     cJSON *ldr = NULL, *leaders = stx;
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
@@ -1423,6 +1426,12 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
         /** TODO: update setup_dates and setup_scores tables */
+        sprintf(sql_cmd, "UPDATE setup_dates SET dt='%s' WHERE dt='%s'",
+                prev_date, ana_date);
+        db_transaction(sql_cmd);
+        sprintf(sql_cmd, "DELETE FROM setup_scores WHERE dt='%s'",
+                ana_date);
+        db_transaction(sql_cmd);
     }
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_spots)
