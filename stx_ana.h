@@ -1157,7 +1157,7 @@ void ana_candlesticks(jl_data_ptr jl) {
         eng_harami = -1;
 
     char *stk = jl->data->stk, *dt = r[0]->date;
-    if (engulfing[0] != 0)
+    if (engulfing[1] != 0)
         ana_add_to_setups(setups, NULL, "Engulfing", engulfing[0], NULL, true);
     if (piercing != 0)
         ana_add_to_setups(setups, NULL, "Piercing", piercing, NULL, true);
