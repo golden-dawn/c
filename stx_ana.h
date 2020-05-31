@@ -1418,7 +1418,7 @@ void ana_scored_setups(char* stk, char* ana_date) {
 }
 
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
-                      bool download_options, bool eod) {
+                      bool download_options, bool eod, bool run_analysis) {
     char *exp_date, *exp_date2, *prev_date;
     int ana_ix = cal_ix(ana_date);
     int exp_ix = cal_expiry(ana_ix + (eod? 1: 0), &exp_date);
@@ -1443,14 +1443,16 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
     int num = 0, total = cJSON_GetArraySize(leaders);
     if (download_spots)
         get_quotes(leaders, ana_date, exp_date, exp_date2, download_options);
-    cJSON_ArrayForEach(ldr, leaders) {
-        if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            ana_scored_setups(ldr->valuestring, ana_date);
-        num++;
-        if (num % 100 == 0)
-            LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
+    if (run_analysis) {
+        cJSON_ArrayForEach(ldr, leaders) {
+            if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
+                ana_scored_setups(ldr->valuestring, ana_date);
+            num++;
+            if (num % 100 == 0)
+                LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
+        }
+        LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
     }
-    LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
     if (stx == NULL)
        cJSON_Delete(leaders);
 }
