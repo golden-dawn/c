@@ -61,6 +61,20 @@ int main(int argc, char** argv) {
             no_rt = true;
     }
     char* crt_busdate = cal_current_busdate(5);
+
+    if (!strcmp(ana_type, "--intraday-expiry")) {
+        char *exp_date;
+        cal_expiry(cal_ix(crt_busdate), &exp_date);
+        if (!strcmp(crt_busdate, exp_date)) {
+            ana_stx_analysis(crt_busdate, stx, download_spots,
+                             download_options, eod, false);
+        } else
+            LOGINFO("%s not an expiration date.  Skip option download\n",
+                    crt_busdate );
+        if (stx != NULL)
+            cJSON_Delete(stx);
+        return 0;
+    }
     if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate) &&
         !no_rt) {
         rt_ana = true;
@@ -76,7 +90,8 @@ int main(int argc, char** argv) {
             if (!strcmp(crt_busdate, exp_date))
                 ana_expiry_analysis(crt_busdate, download_options);
         }
-        ana_stx_analysis(crt_busdate, stx, download_spots, download_options, eod);
+        ana_stx_analysis(crt_busdate, stx, download_spots, download_options,
+                         eod, true);
         curl_global_cleanup();
         if (stx != NULL)
             cJSON_Delete(stx);
@@ -113,7 +128,8 @@ int main(int argc, char** argv) {
             exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
             ana_expiry_analysis(crs_date, false);
         }
-        ana_stx_analysis(crs_date, stx, download_spots, download_options, eod);
+        ana_stx_analysis(crs_date, stx, download_spots, download_options, eod,
+                         true);
         ix = cal_next_bday(ix, &crs_date);
     }
     if (stx != NULL)
