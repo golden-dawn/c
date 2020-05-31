@@ -1261,6 +1261,13 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
                 else {
                     net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
                                         exp_date, cal_long_expiry(exp_date));
+                    fclose(opt_fp);
+                    db_upload_file("options", opt_filename);
+                }
+                opt_fp = fopen(opt_filename, "w");
+                if (opt_fp == NULL)
+                    LOGERROR("Failed to open %s file", opt_filename);
+                else {
                     net_get_option_data(NULL, opt_fp, ldr->valuestring, dt, 
                                         exp_date2, cal_long_expiry(exp_date2));
                     fclose(opt_fp);
