@@ -169,10 +169,14 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
         int o = net_number_from_json(quote, "regularMarketOpen", has_raw);
         int hi = net_number_from_json(quote, "regularMarketDayHigh", has_raw);
         int lo = net_number_from_json(quote, "regularMarketDayLow", has_raw);
-        if (o > 0 && hi > 0 && lo > 0 && v >= 0 && hi >= lo)
-            fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
-                    stk, dt, o, hi, lo, c, v);
-        else {
+        if (o > 0 && hi > 0 && lo > 0 && v >= 0 && hi >= lo) {
+            if(eod_fp != NULL)
+                fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
+                        stk, dt, o, hi, lo, c, v);
+            else {
+                /** if eod_fp is NULL, insert the quote directly in the database */
+            }
+        } else {
             sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
                     stk, v, o, hi, lo);
             net_print_json_err(quote, err_msg);
