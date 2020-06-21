@@ -1281,9 +1281,9 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     }
     LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
     LOGINFO("Getting the quotes for the indexes\n");
-    net_get_eod_data(fp, "^GSPC", dt);
-    net_get_eod_data(fp, "^IXIC", dt);
-    net_get_eod_data(fp, "^DJI", dt);
+    net_get_eod_data(NULL, "^GSPC", dt);
+    net_get_eod_data(NULL, "^IXIC", dt);
+    net_get_eod_data(NULL, "^DJI", dt);
     fclose(fp);
     
     char sql_cmd[256];
