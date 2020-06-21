@@ -175,6 +175,9 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
                         stk, dt, o, hi, lo, c, v);
             else {
                 /** if eod_fp is NULL, insert the quote directly in the database */
+                char sql_cmd[256];
+                sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, %d, %d, %d, 0)",
+                        stk, dt, o, hi, lo, c, v);
             }
         } else {
             sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
