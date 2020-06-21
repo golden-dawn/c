@@ -174,10 +174,13 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
                 fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
                         stk, dt, o, hi, lo, c, v);
             else {
-                /** if eod_fp is NULL, insert the quote directly in the database */
+                /** if eod_fp is NULL, insert quote directly in the database */
                 char sql_cmd[256];
-                sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, %d, %d, %d, 0)",
-                        stk, dt, o, hi, lo, c, v);
+                sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, "
+                        "%d, %d, %d, 0) ON CONFLICT ON CONSTRAINT eods_pkey "
+                        "DO UPDATE SET o=%d, hi= %d, lo=%d, c=%d, v=%d, oi=0",
+                        stk, dt, o, hi, lo, c, v, o, hi, lo, c, v);
+                db_transaction(sql_cmd);
             }
         } else {
             sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
