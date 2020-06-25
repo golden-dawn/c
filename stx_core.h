@@ -628,6 +628,23 @@ char* cal_current_busdate(int hr) {
     return res;
 }
 
+/** This function returns true if today is a business day.  It is used
+ * primarily to avoid running the cron jobs on holidays. If today is a
+ * holiday, the cron job will */
+bool cal_is_today_busday() {
+    time_t seconds;
+    struct timespec spec;
+    char *res;
+    clock_gettime(CLOCK_REALTIME, &spec);
+    seconds = spec.tv_sec;
+    struct tm *ts = localtime(&seconds);
+    int hours = ts->tm_hour;
+    char crt_date[12];
+    strftime(crt_date, 12, "%Y-%m-%d", ts);
+    int ix = cal_ix(crt_date);
+    return cal_get()->list[ix].val.cal->is_busday;
+}
+
 long cal_long_expiry(char* exp_dt) {
     char *month = NULL, *day = NULL, year[16];
     struct tm result;
