@@ -59,9 +59,13 @@ int main(int argc, char** argv) {
             ana_type = argv[ix];
         }  else if (!strcmp(argv[ix], "--no-rt"))
             no_rt = true;
+        else if (!strcmp(argv[ix], "--cron"))
+            if (!cal_is_today_busday()) {
+                LOGINFO("Will not run in batch mode on a holiday\n");
+                return 0;
+            }
     }
     char* crt_busdate = cal_current_busdate(5);
-
     if (!strcmp(ana_type, "--intraday-expiry")) {
         char *exp_date;
         cal_expiry(cal_ix(crt_busdate), &exp_date);
