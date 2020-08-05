@@ -1,5 +1,11 @@
 #!/bin/bash
 export START_DATE=$1
+echo -e "Remove any existing instances of the stx_test database"
+dropdb stx_test
+echo -e "Create the stx_test database"
+createdb stx_test
+echo -e "Create the tables and indexes in the stx_test database"
+./test.sh ./create_tables.exe
 echo -e "Start date is: ${START_DATE}"
 echo -e "Populate analyses test DB table"
 psql stx -c "COPY (SELECT * FROM analyses WHERE dt>'${START_DATE}') TO stdout WITH csv" | psql stx_test -c "COPY analyses FROM stdin csv"
