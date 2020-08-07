@@ -164,29 +164,27 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
         net_print_json_err(quote, err_msg);
         return -1;
     }
-    if (eod_fp) {
-        int v = net_number_from_json(quote, "regularMarketVolume", has_raw);
-        int o = net_number_from_json(quote, "regularMarketOpen", has_raw);
-        int hi = net_number_from_json(quote, "regularMarketDayHigh", has_raw);
-        int lo = net_number_from_json(quote, "regularMarketDayLow", has_raw);
-        if (o > 0 && hi > 0 && lo > 0 && v >= 0 && hi >= lo) {
-            if(eod_fp != NULL)
-                fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
-                        stk, dt, o, hi, lo, c, v);
-            else {
-                /** if eod_fp is NULL, insert quote directly in the database */
-                char sql_cmd[256];
-                sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, "
-                        "%d, %d, %d, 0) ON CONFLICT ON CONSTRAINT eods_pkey "
-                        "DO UPDATE SET o=%d, hi= %d, lo=%d, c=%d, v=%d, oi=0",
-                        stk, dt, o, hi, lo, c, v, o, hi, lo, c, v);
-                db_transaction(sql_cmd);
-            }
-        } else {
-            sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
-                    stk, v, o, hi, lo);
-            net_print_json_err(quote, err_msg);
+    int v = net_number_from_json(quote, "regularMarketVolume", has_raw);
+    int o = net_number_from_json(quote, "regularMarketOpen", has_raw);
+    int hi = net_number_from_json(quote, "regularMarketDayHigh", has_raw);
+    int lo = net_number_from_json(quote, "regularMarketDayLow", has_raw);
+    if (o > 0 && hi > 0 && lo > 0 && v >= 0 && hi >= lo) {
+        if(eod_fp != NULL)
+            fprintf(eod_fp, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t1\n",
+                    stk, dt, o, hi, lo, c, v);
+        else {
+            /** if eod_fp is NULL, insert quote directly in the database */
+            char sql_cmd[256];
+            sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, "
+                    "%d, %d, %d, 0) ON CONFLICT ON CONSTRAINT eods_pkey "
+                    "DO UPDATE SET o=%d, hi= %d, lo=%d, c=%d, v=%d, oi=0",
+                    stk, dt, o, hi, lo, c, v, o, hi, lo, c, v);
+            db_transaction(sql_cmd);
         }
+    } else {
+        sprintf(err_msg, "%s quote error: v=%d, o=%d, hi=%d, lo=%d\n", 
+                stk, v, o, hi, lo);
+        net_print_json_err(quote, err_msg);
     }
     return c;
 }
