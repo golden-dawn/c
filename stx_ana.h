@@ -1280,17 +1280,18 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
             LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
     }
     LOGINFO("%s: got quote for %4d / %4d leaders\n", dt, num, total);
-    LOGINFO("Getting the quotes for the indexes\n");
-    net_get_eod_data(NULL, "^GSPC", dt);
-    net_get_eod_data(NULL, "^IXIC", dt);
-    net_get_eod_data(NULL, "^DJI", dt);
     fclose(fp);
-    
+    fp = NULL;
     char sql_cmd[256];
     sprintf(sql_cmd, "DELETE FROM eods WHERE dt='%s' AND oi=1", dt);
     db_transaction(sql_cmd);
     db_upload_file("eods", filename);
-    fp = NULL;
+
+    LOGINFO("Getting the quotes for the indexes\n");
+    net_get_eod_data(NULL, "^GSPC", dt);
+    net_get_eod_data(NULL, "^IXIC", dt);
+    net_get_eod_data(NULL, "^DJI", dt);
+    
     if (eod == true) {
         sprintf(sql_cmd, "UPDATE eods SET oi=0 WHERE stk IN "
                 "('^GSPC', '^IXIC', '^DJI') AND dt='%s'", dt);
