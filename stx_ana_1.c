@@ -44,19 +44,19 @@ int main(int argc, char** argv) {
             download_spots = true;
             download_options = false;
             rt_ana = true;
-            ana_type = argv[ix];
+            ana_type = argv[ix] + 2;
         } else if (!strcmp(argv[ix], "--eod")) {
             eod = true;
             download_spots = true;
             download_options = true;
             rt_ana = true;
-            ana_type = argv[ix];
+            ana_type = argv[ix] + 2;
         } else if (!strcmp(argv[ix], "--intraday-expiry")) {
             eod = false;
             download_spots = true;
             download_options = true;
             rt_ana = true;
-            ana_type = argv[ix];
+            ana_type = argv[ix] + 2;
         }  else if (!strcmp(argv[ix], "--no-rt"))
             no_rt = true;
         else if (!strcmp(argv[ix], "--cron"))
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
             }
     }
     char* crt_busdate = cal_current_busdate(5);
-    if (!strcmp(ana_type, "--intraday-expiry")) {
+    if (!strcmp(ana_type, "intraday-expiry")) {
         char *exp_date;
         cal_expiry(cal_ix(crt_busdate), &exp_date);
         if (!strcmp(crt_busdate, exp_date)) {
@@ -82,8 +82,9 @@ int main(int argc, char** argv) {
     if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate) &&
         !no_rt) {
         rt_ana = true;
-        ana_type = "intraday";
         download_spots = true;
+        if (ana_type == NULL)
+            ana_type = eod? "eod": "intraday";
     }
     if (rt_ana) {
         LOGINFO("Running realtime %s analysis for %s\n", ana_type, crt_busdate);
