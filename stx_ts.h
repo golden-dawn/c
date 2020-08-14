@@ -29,6 +29,8 @@ int ts_true_range(stx_data_ptr data, int ix) {
 
 int ts_strong_close(daily_record_ptr dr) {
     int sc_dir = 0;
+    if (dr->high == dr->low)
+        return sc_dir;
     if ((SC + 1) * dr->close >= SC * dr->high + dr->low)
         sc_dir = 1;
     if ((SC + 1) * dr->close <= dr->high + SC * dr->low)
