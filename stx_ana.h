@@ -900,7 +900,7 @@ void ana_insert_candle_setup(char* stk, char* dt, char* stp_name, int dir) {
 void ana_insert_setups_in_database(cJSON *setups, char *dt, char *stk) {
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
-        /* LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt); */
+        LOGINFO("Inserting %d setups for %s on %s\n", num_setups, stk, dt);
         cJSON* setup;
         cJSON_ArrayForEach(setup, setups) {
             cJSON *info = cJSON_GetObjectItem(setup, "info");
@@ -931,6 +931,7 @@ void ana_daily_setups(jl_data_ptr jl) {
     int jlr_1_volume = (jlr[1]->volume == 0)? 1: jlr[1]->volume;
     int jlr_1_rg = (jlr[1]->rg == 0)? 1: jlr[1]->rg;
     char *stk = jl->data->stk, *dt = r[0]->date;
+    LOGINFO("ana_daily_setups(): stk = %s, dt = %s\n", stk, dt);
     /* Find strong closes up or down; rr/vr capture range/volume significance */
     int sc_dir = ts_strong_close(r[0]);
     if (sc_dir != 0) {
