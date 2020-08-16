@@ -801,7 +801,7 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
 /*     jl->pos++; */
-    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1))
+    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1))
         res = jl_next(jl);
     return jl;
 }
