@@ -9,6 +9,12 @@
 
 
 int main(int argc, char** argv) {
+    /**
+     * TODO: 
+     * 1. Why this dont pickup the right database(stx, instead of stx_test)
+     * 2. Why there are no setups for today, only for yesterday.
+     * 3. Uncomment SR setup retrievals
+    */
     bool download_spots = false, download_options = false, rt_ana = false,
         eod = false, no_rt = false;
     char ana_name[32], *ana_type = NULL, *start_date = cal_current_busdate(5),
