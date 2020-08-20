@@ -3,8 +3,6 @@ export START_DATE=$1
 echo -e "Start date is: ${START_DATE}"
 echo -e "Populate analyses test DB table"
 psql stx -c "COPY (SELECT * FROM analyses WHERE dt>'${START_DATE}') TO stdout WITH csv" | psql stx_test -c "COPY analyses FROM stdin csv"
-echo -e "Populate calendar test DB table"
-psql stx -c "COPY (SELECT * FROM calendar) TO stdout WITH csv" | psql stx_test -c "COPY calendar FROM stdin csv"
 echo -e "Populate dividends test DB table"
 psql stx -c "COPY (SELECT * FROM dividends WHERE dt>'${START_DATE}') TO stdout WITH csv" | psql stx_test -c "COPY dividends FROM stdin csv"
 echo -e "Populate eods test DB table"
