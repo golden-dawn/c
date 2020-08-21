@@ -19,11 +19,11 @@
 int ts_true_range(stx_data_ptr data, int ix) {
     int res = data->data[ix].high - data->data[ix].low;
     if(ix == 0) 
-	return res;
+        return res;
     if(res < data->data[ix].high - data->data[ix - 1].close)
-	res = data->data[ix].high - data->data[ix - 1].close;
+        res = data->data[ix].high - data->data[ix - 1].close;
     if(res < data->data[ix - 1].close - data->data[ix].low)
-	res = data->data[ix - 1].close - data->data[ix].low;
+        res = data->data[ix - 1].close - data->data[ix].low;
     return res;
 }
 
@@ -46,7 +46,7 @@ int ts_weighted_price(stx_data_ptr data, int ix) {
 hashtable_ptr ts_load_splits(char* stk) {
     char sql_cmd[80];
     sprintf(sql_cmd, "select ratio, dt from dividends where stk='%s' "
-	    "order by dt", stk);
+            "order by dt", stk);
     PGresult *res = db_query(sql_cmd);
 #ifdef DEBUG
     LOGDEBUG("Found %d splits for %s\n", PQntuples(res), stk);
@@ -71,10 +71,10 @@ stx_data_ptr ts_load_stk(char* stk) {
     data->last_adj = -1;
     char sql_cmd[128];
     sprintf(sql_cmd, "select o, hi, lo, c, v, dt from eods where stk='%s' "
-	    "and dt>'1985-01-01'order by dt", stk);
+            "and dt>'1985-01-01'order by dt", stk);
     PGresult *res = db_query(sql_cmd);
     if((data->num_recs = PQntuples(res)) <= 0) 
-	return data;
+        return data;
     int num = data->num_recs;
     char sd[16], ed[16];
     strcpy(sd, PQgetvalue(res, 0, 5));
@@ -90,33 +90,33 @@ stx_data_ptr ts_load_stk(char* stk) {
     char* dt;
     calix = cal_prev_bday(calix, &dt);
     for(int ix = 0; ix < num; ix++) {
-	calix = cal_next_bday(calix, &dt);
-	char* db_date = PQgetvalue(res, ix, 5);
-	if (strcmp(dt, db_date) > 0) {
-	    LOGERROR("%s: Something is very wrong: dt = %s, db_date = %s\n",
-		     stk, dt, db_date);
-	    return NULL;
-	}
-	while (strcmp(dt, db_date) < 0) {
+        calix = cal_next_bday(calix, &dt);
+        char* db_date = PQgetvalue(res, ix, 5);
+        if (strcmp(dt, db_date) > 0) {
+            LOGERROR("%s: Something is very wrong: dt = %s, db_date = %s\n",
+                     stk, dt, db_date);
+            return NULL;
+        }
+        while (strcmp(dt, db_date) < 0) {
 #ifdef DEBUG
-	    LOGDEBUG("Adding data for %s, not found in %s data\n", dt, stk);
+            LOGDEBUG("Adding data for %s, not found in %s data\n", dt, stk);
 #endif
-	    data->data[ts_idx].open = data->data[ts_idx - 1].close;
-	    data->data[ts_idx].high = data->data[ts_idx - 1].close;
-	    data->data[ts_idx].low = data->data[ts_idx - 1].close;
-	    data->data[ts_idx].close = data->data[ts_idx - 1].close;
-	    data->data[ts_idx].volume = 0;
-	    strcpy(data->data[ts_idx].date, dt); 
-	    calix = cal_next_bday(calix, &dt);
-	    ts_idx++;
-	}   
-	data->data[ts_idx].open = atoi(PQgetvalue(res, ix, 0));
-	data->data[ts_idx].high = atoi(PQgetvalue(res, ix, 1));
-	data->data[ts_idx].low = atoi(PQgetvalue(res, ix, 2));
-	data->data[ts_idx].close = atoi(PQgetvalue(res, ix, 3));
-	data->data[ts_idx].volume = atoi(PQgetvalue(res, ix, 4));
-	strcpy(data->data[ts_idx].date, PQgetvalue(res, ix, 5)); 
-	ts_idx++;
+            data->data[ts_idx].open = data->data[ts_idx - 1].close;
+            data->data[ts_idx].high = data->data[ts_idx - 1].close;
+            data->data[ts_idx].low = data->data[ts_idx - 1].close;
+            data->data[ts_idx].close = data->data[ts_idx - 1].close;
+            data->data[ts_idx].volume = 0;
+            strcpy(data->data[ts_idx].date, dt); 
+            calix = cal_next_bday(calix, &dt);
+            ts_idx++;
+        }   
+        data->data[ts_idx].open = atoi(PQgetvalue(res, ix, 0));
+        data->data[ts_idx].high = atoi(PQgetvalue(res, ix, 1));
+        data->data[ts_idx].low = atoi(PQgetvalue(res, ix, 2));
+        data->data[ts_idx].close = atoi(PQgetvalue(res, ix, 3));
+        data->data[ts_idx].volume = atoi(PQgetvalue(res, ix, 4));
+        strcpy(data->data[ts_idx].date, PQgetvalue(res, ix, 5)); 
+        ts_idx++;
     }
     data->pos = b_days - 1;
     PQclear(res);
@@ -140,40 +140,40 @@ int ts_find_date_record(stx_data_ptr data, char* date, int rel_pos) {
     char* first_date = data->data[0].date;
     int n = cal_num_busdays(first_date, date) - 1;
     if (n < 0) {
-	if (rel_pos > 0)
-	    return 0;
+        if (rel_pos > 0)
+            return 0;
     } else if (n >= data->num_recs) {
-	if (rel_pos < 0)
-	    return data->num_recs - 1;;
+        if (rel_pos < 0)
+            return data->num_recs - 1;;
     } else {
-	if (strcmp(data->data[n].date, date) == 0)
-	    return n;
-	else {
-	    if (rel_pos < 0)
-		return n - 1;
-	    if (rel_pos > 0)
-		return n;
-	}
+        if (strcmp(data->data[n].date, date) == 0)
+            return n;
+        else {
+            if (rel_pos < 0)
+                return n - 1;
+            if (rel_pos > 0)
+                return n;
+        }
     }
     return -1;
 }
 
 void ts_adjust_data(stx_data_ptr data, int split_ix) {
     if (split_ix < 0) 
-	return;
+        return;
     for(int ix = data->last_adj + 1; ix <= split_ix; ix++) {
-	char *date = data->splits->list[ix].key;
-	float ratio = data->splits->list[ix].val.ratio;
-	/* find the index for the date in the data->data */
-	/* adjust the data up to, and including that index */
-	int end = ts_find_date_record(data, date, 0);
-	for(int ixx = 0; ixx <= end; ++ixx) {
-	    data->data[ixx].open = (int)(ratio * data->data[ixx].open);
-	    data->data[ixx].high = (int)(ratio * data->data[ixx].high);
-	    data->data[ixx].low = (int)(ratio * data->data[ixx].low);
-	    data->data[ixx].close = (int)(ratio * data->data[ixx].close);
-	    data->data[ixx].volume = (int)(data->data[ixx].volume / ratio);
-	}
+        char *date = data->splits->list[ix].key;
+        float ratio = data->splits->list[ix].val.ratio;
+        /* find the index for the date in the data->data */
+        /* adjust the data up to, and including that index */
+        int end = ts_find_date_record(data, date, 0);
+        for(int ixx = 0; ixx <= end; ++ixx) {
+            data->data[ixx].open = (int)(ratio * data->data[ixx].open);
+            data->data[ixx].high = (int)(ratio * data->data[ixx].high);
+            data->data[ixx].low = (int)(ratio * data->data[ixx].low);
+            data->data[ixx].close = (int)(ratio * data->data[ixx].close);
+            data->data[ixx].volume = (int)(data->data[ixx].volume / ratio);
+        }
     }
     data->last_adj = split_ix;
 }
@@ -181,31 +181,31 @@ void ts_adjust_data(stx_data_ptr data, int split_ix) {
 void ts_set_day(stx_data_ptr data, char* date, int rel_pos) {
     data->pos = ts_find_date_record(data, date, rel_pos);
     if (data->pos == -1) {
-	LOGERROR("Could not set date to %s for %s\n", date, data->stk);
-	return;
+        LOGERROR("Could not set date to %s for %s\n", date, data->stk);
+        return;
     }
     int split_ix = ht_seq_index(data->splits, date);
     if (split_ix >= 0)
-	ts_adjust_data(data, split_ix);
+        ts_adjust_data(data, split_ix);
 }
 
 int ts_next(stx_data_ptr data) {
     if (data->pos >= data->num_recs - 1)
-	return -1;
+        return -1;
     data->pos++;
     ht_item_ptr split = ht_get(data->splits, data->data[data->pos].date);
     if (split != NULL)
-	ts_adjust_data(data, ht_seq_index(data->splits, 
-					  data->data[data->pos].date));
+        ts_adjust_data(data, ht_seq_index(data->splits, 
+                                          data->data[data->pos].date));
     return 0;
 }
 
 int ts_advance(stx_data_ptr data, char* end_date) {
     int res = 0, num_days = 0;
     while ((strcmp(data->data[data->pos].date, end_date) <= 0) &&
-	   (res != -1)) {
-	res = ts_next(data);
-	num_days++;
+           (res != -1)) {
+        res = ts_next(data);
+        num_days++;
     }
     return num_days;
 }
@@ -220,14 +220,14 @@ void ts_print(stx_data_ptr data, char* s_date, char* e_date) {
     int s_ix = ts_find_date_record(data, s_date, 1);
     int e_ix = ts_find_date_record(data, e_date, -1);
     for(int ix = s_ix; ix <= e_ix; ix++)
-	fprintf(stderr, "%s %7d %7d %7d %7d %7d\n", 
-		data->data[ix].date, data->data[ix].open, 
-		data->data[ix].high, data->data[ix].low, 
-		data->data[ix].close, data->data[ix].volume);
+        fprintf(stderr, "%s %7d %7d %7d %7d %7d\n", 
+                data->data[ix].date, data->data[ix].open, 
+                data->data[ix].high, data->data[ix].low, 
+                data->data[ix].close, data->data[ix].volume);
 }
 
 void ts_print_record(daily_record_ptr record) {
     fprintf(stderr, "%s %7d %7d %7d %7d %7d", record->date, record->open, 
-	    record->high, record->low, record->close, record->volume);
+            record->high, record->low, record->close, record->volume);
 }
 #endif
