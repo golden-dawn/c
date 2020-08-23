@@ -658,7 +658,7 @@ void ana_add_to_setups(cJSON *setups, jl_data_ptr jl, char *setup_name,
 
 void ana_check_for_breaks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
                           int ls_050) {
-    int i = jl->data->pos - 1, num = pivs->num;
+    int i = jl->data->pos, num = pivs->num;
     if (num < 5)
         return;
     jl_pivot_ptr pivots = pivs->pivots;
@@ -753,7 +753,7 @@ void ana_add_jl_pullback_setup(cJSON *setups, jl_data_ptr jl, int direction,
  */
 void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
                              jl_piv_ptr pivs_150, jl_piv_ptr pivs_200) {
-    int i = jl->data->pos - 1, num = pivs->num;
+    int i = jl->data->pos, num = pivs->num;
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
@@ -923,7 +923,7 @@ void ana_daily_setups(jl_data_ptr jl) {
     cJSON *setups = cJSON_CreateArray();
     daily_record_ptr r[2];
     jl_record_ptr jlr[2];
-    int ix_0 = jl->data->pos - 1;
+    int ix_0 = jl->data->pos;
     for(int ix = 0; ix < 2; ix++) {
         r[ix] = &(jl->data->data[ix_0 - ix]);
         jlr[ix] = &(jl->recs[ix_0 - ix]);
