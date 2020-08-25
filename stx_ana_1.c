@@ -9,12 +9,6 @@
 
 
 int main(int argc, char** argv) {
-    /**
-     * TODO: 
-     * 1. Why this dont pickup the right database(stx, instead of stx_test)
-     * 2. Why there are no setups for today, only for yesterday.
-     * 3. Uncomment SR setup retrievals
-    */
     bool download_spots = false, download_options = false, rt_ana = false,
         eod = false, no_rt = false;
     char ana_name[32], *ana_type = NULL, *start_date = cal_current_busdate(5),
@@ -114,16 +108,6 @@ int main(int argc, char** argv) {
     char *crs_date = start_date, *exp_date = "2002-02-16", *exp_bdate;
     if (strcmp(crs_date, "2002-02-15") < 0)
         crs_date = cal_move_to_bday("2002-02-15", false);
-    // char sql_cmd[128];
-    // strcpy(sql_cmd, "select max(dt) from eods");
-    // PGresult *res = db_query(sql_cmd);
-    // int num = PQntuples(res);
-    // if (num < 1) {
-    //     LOGERROR("No data in the 'eods' table. Exiting!\n");
-    //     exit(-1);
-    // }
-    // end_date = cal_move_to_bday(PQgetvalue(res, 0, 0), false);
-    // PQclear(res);
     LOGINFO("Running historical analysis %s from %s to %s\n", ana_name,
             start_date, end_date);
     if (stx == NULL) 
