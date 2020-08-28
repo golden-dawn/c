@@ -15,14 +15,23 @@
  *    'eod' modes.  First, code will download the spots (in 'intraday' mode),
  *    or the spots and the options (in 'intraday-expiry' or 'eod' modes).
  *    Then, it will run the daily analysis on the downloaded data.
- *    To launch the code in cron mode, specify the --cron parameter.
+ *    To launch the code in cron mode, specify the --cron parameter.  In 
+ *    addition, one of these parameters should be specified: --intraday,
+ *    --intraday-expiry, --eod.
  * 2. Real-time - same as cron, except that it will always run; if launched
  *    on a holiday, code will run for the previous business day.  It can run
  *    in intraday mode, where it will only download the spots and perform the
  *    analysis for today, in intraday-expiry mode, it will download the spots
  *    and the options.  In the eod mode, it will download the spots and the
- *    options, and it will run the analysis for today, and tomorrow.
+ *    options, and it will run the analysis for today, and tomorrow.  To run
+ *    the code without downloading any data, --no-rt parameter should be
+ *    specified.
  * 3. Analysis - this will not download any data, but it will run the analysis
+ *    for each date, in the interval between --start-date and --end-date
+ *    parameters.  In addition, the --stx parameter allows running the analysis
+ *    for a specific set of stocks (by default, the analysis runs for all the
+ *    leaders, as returned by the get_leaders() function). The --stx parameter
+ *    is a comma-separated list of stock names.
 */
 
 
