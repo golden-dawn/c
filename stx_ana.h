@@ -769,9 +769,9 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
     jl_pivot_ptr lns_150 = &(pivs_150->pivots[pivs_150->num - 1]);
     jl_pivot_ptr lns_200 = &(pivs_200->pivots[pivs_200->num - 1]);
     /** Record pullback if short-term pivots have changed from DOWNTREND to
-     * REACTION, DOWNTREND pivot matches last primary record from a long-term
-     * trend, and there are no volume anomalies.
-    */
+     *  REACTION, DOWNTREND pivot matches last primary record from a long-term
+     *  trend, and there are no volume anomalies.
+     */
     if (jl_up(last_ns) &&
         ((pivots[num - 2].state == REACTION) &&
          (pivots[num - 4].state == DOWNTREND) &&
@@ -781,8 +781,8 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         ana_add_jl_pullback_setup(setups, jl, 1, 4, false, pivs, pivs_150,
                                   pivs_200);
     /** Record pullback for the down direction, when short-term pivots change
-     * from UPTREND to RALLY, and under same conditions as above.
-    */
+     *  from UPTREND to RALLY, and under same conditions as above.
+     */
     if (jl_down(last_ns) &&
         (((pivots[num - 2].state == RALLY) &&
          (pivots[num - 4].state == UPTREND) &&
@@ -792,8 +792,8 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         ana_add_jl_pullback_setup(setups, jl, -1, 4, false, pivs, pivs_150,
                                   pivs_200);
     /** Record pullback if the stock is in a long-term uptrend, and it gets in
-     * a short-term pullback (REACTION), but the volume is still ok, and the
-     * up pivot coincides with the last long-term primary record.
+     *  a short-term pullback (REACTION), but the volume is still ok, and the
+     *  up pivot coincides with the last long-term primary record.
      */
     if ((((lns_200->state == UPTREND) &&
           (jl_same_pivot(&(pivots[num - 3]), lns_200) ||
@@ -806,8 +806,8 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         ana_add_jl_pullback_setup(setups, jl, 1, 3, false, pivs, pivs_150,
                                   pivs_200);
     /** Record pullback if the stock is in a long-term downtrend, and it gets in
-     * a short-term pullback (RALLY), but the volume is still ok, and the down
-     * pivot coincides with the last long-term primary record.
+     *  a short-term pullback (RALLY), but the volume is still ok, and the down
+     *  pivot coincides with the last long-term primary record.
      */
     if ((((lns_200->state == DOWNTREND) &&
           (jl_same_pivot(&(pivots[num - 3]), lns_200) ||
@@ -820,8 +820,8 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
         ana_add_jl_pullback_setup(setups, jl, -1, 3, false, pivs, pivs_150,
                                   pivs_200);
     /** Record pullback if short-term pivots have changed from DOWNTREND to
-     * REACTION, DOWNTREND pivot matches last pivot from a long-term
-     * trend, and there are no volume anomalies.
+     *  REACTION, DOWNTREND pivot matches last pivot from a long-term
+     *  trend, and there are no volume anomalies.
      */
     jl_pivot_ptr p1_150 = &(pivs_150->pivots[pivs_150->num - 2]);
     jl_pivot_ptr p1_200 = &(pivs_200->pivots[pivs_200->num - 2]);
@@ -932,7 +932,9 @@ void ana_daily_setups(jl_data_ptr jl) {
     int jlr_1_rg = (jlr[1]->rg == 0)? 1: jlr[1]->rg;
     char *stk = jl->data->stk, *dt = r[0]->date;
     LOGINFO("ana_daily_setups(): stk = %s, dt = %s\n", stk, dt);
-    /* Find strong closes up or down; rr/vr capture range/volume significance */
+    /** Find strong closes up or down; rr/vr capture range/volume
+     *  significance
+     */
     int sc_dir = ts_strong_close(r[0]);
     if (sc_dir != 0) {
         int rr = 100 * ts_true_range(jl->data, ix_0) / jlr_1_rg;
@@ -947,7 +949,7 @@ void ana_daily_setups(jl_data_ptr jl) {
         cJSON_AddNumberToObject(info, "rr", rr);
         ana_add_to_setups(setups, NULL, "SC", sc_dir, info, true);
     }
-    /* Find gaps */
+    /** Find gaps */
     int gap_dir = 0;
     if (r[0]->open > r[1]->high)
         gap_dir = 1;
@@ -968,7 +970,7 @@ void ana_daily_setups(jl_data_ptr jl) {
         cJSON_AddNumberToObject(info, "drawdown", 100 * drawdown / jlr_1_rg);
         ana_add_to_setups(setups, NULL, "Gap", gap_dir, info, true);
     }
-    /* Find reversal days */
+    /** Find reversal days */
     int rd_dir = 0, min_oc = MIN(r[0]->open, r[1]->close);
     int max_oc = MAX(r[0]->open, r[1]->close);
     if ((r[0]->low < r[1]->low) && (r[0]->low < min_oc - jlr[1]->rg) &&
@@ -993,13 +995,13 @@ void ana_daily_setups(jl_data_ptr jl) {
 }
 
 /** Implement these candlestick patterns:
- - hammer
- - engulfing
- - piercing/dark cloud cover/kicking
- - harami
- - star
- - engulfing harami
- - reversal day
+ *  hammer
+ *  engulfing
+ *  piercing/dark cloud cover/kicking
+ *  three white soldiers / black crows
+ *  star
+ *  CBS
+ *  engulfing harami
  */
 void ana_candlesticks(jl_data_ptr jl) {
     daily_record_ptr r[6];
@@ -1181,6 +1183,7 @@ void ana_candlesticks(jl_data_ptr jl) {
 
 int ana_jl_setups(char* stk, char* dt) {
     int res = 0;
+    /** Get, or calculate if not already there, JL trends for 4 factors. */
     jl_data_ptr jl_050 = ana_get_jl(stk, dt, JL_050, JLF_050);
     jl_data_ptr jl_100 = ana_get_jl(stk, dt, JL_100, JLF_100);
     jl_data_ptr jl_150 = ana_get_jl(stk, dt, JL_150, JLF_150);
@@ -1191,13 +1194,19 @@ int ana_jl_setups(char* stk, char* dt) {
     cJSON *setups = cJSON_CreateArray();
     jl_piv_ptr pivots_050 = NULL, pivots_100 = NULL, pivots_150 = NULL,
         pivots_200 = NULL;
+    /** Get last 4 pivots and the last non-secondary record for factors 1.5
+     *  and 2.0. Exit if there are less than 4 pivots.
+     */
     pivots_150 = jl_get_pivots(jl_150, 4);
     pivots_200 = jl_get_pivots(jl_200, 4);
     if ((pivots_150->num < 5) || (pivots_200->num < 5)) {
-        /* LOGERROR("Got %d %s pivots, needed 5\n", pivots_150->num, JL_150); */
-        /* LOGERROR("Got %d %s pivots, needed 5\n", pivots_200->num, JL_200); */
         goto end;
     }
+    /** For the factors 0.5 and 1.0, first see how many pivots are after the
+     *  last two pivots for factors 1.5 and 2.0.  If there are 4 pivots or
+     *  more, use those pivots.  Otherwise, just get the last 4 pivots for the
+     *  factors 0.5 and 1.0.
+     */
     char *lrdt_150 = pivots_150->pivots[pivots_150->num - 3].date,
         *lrdt_200 = pivots_200->pivots[pivots_200->num - 3].date;
     char *lrdt = (strcmp(lrdt_150, lrdt_200) >= 0)? lrdt_200: lrdt_150;
@@ -1215,13 +1224,18 @@ int ana_jl_setups(char* stk, char* dt) {
         pivots_050 = NULL;
         pivots_050 = jl_get_pivots(jl_050, 4);
     }
+    /** Check for breaks, for all the factors (0.5, 1.0, 1.5, 2.0) */
     int ls_050 = jl_050->last->state;
     ana_check_for_breaks(setups, jl_050, pivots_050, ls_050);
     ana_check_for_breaks(setups, jl_100, pivots_100, ls_050);
     ana_check_for_breaks(setups, jl_150, pivots_150, ls_050);
     ana_check_for_breaks(setups, jl_200, pivots_200, ls_050);
+    /** Check for candlestick and daily setups (strong close, reversal day,
+     *  gap)
+     */
     ana_candlesticks(jl_050);
     ana_daily_setups(jl_050);
+    /** Check for pullbacks for factors 0.5 and 1.0 */
     ana_check_for_pullbacks(setups, jl_050, pivots_050, pivots_150, pivots_200);
     ana_check_for_pullbacks(setups, jl_100, pivots_100, pivots_150, pivots_200);
     /* ana_check_for_support_resistance(setups, jl_100, pivots_100); */
