@@ -1371,10 +1371,10 @@ void ana_daily_analysis(char* dt, bool eod, bool download_data) {
 }
 
 void ana_scored_setups(char* stk, char* ana_date) {
-    /** calculate setups for a single stock (stk) up to ana_date. If ana_date
+    /**
+     * Calculate setups for a single stock (stk) up to ana_date. If ana_date
      * is NULL, setups (and their scores) will be calculated up to the current
-     * business date. If clear_db is set to true, this funtion will clear all
-     * the setup info in the DB, and will recalculate the setups for that stock.
+     * business date.
      */
     char sql_cmd[256];
     char *setup_date = NULL;
@@ -1382,8 +1382,10 @@ void ana_scored_setups(char* stk, char* ana_date) {
     PGresult* res = db_query(sql_cmd);
     int rows = PQntuples(res);
     if (rows == 0) {
-        /** Could not find a previous analysis date in the DB, will start
-         * from the first date from which EOD is available for the stock
+        /** If there is no last setup analysis date in the DB, find first date
+         *  (d1) when EOD is available for the stock.  Then move back a year
+         *  from the analysis date (d2).  Start analysis from the most recent
+         *  date among d1 and d2.
          */
         PQclear(res);
         sprintf(sql_cmd, "SELECT min(dt) FROM eods WHERE stk='%s'", stk);
@@ -1402,21 +1404,26 @@ void ana_scored_setups(char* stk, char* ana_date) {
             setup_date = setup_date_1;
     } else {
         /** Found last setup analysis date in DB. Start analysis from the next
-         * business day.
-        */
+         *  business day.
+         */
         setup_date = PQgetvalue(res, 0, 0);
         cal_next_bday(cal_ix(setup_date), &setup_date);
     }
     PQclear(res);
+    /** Run the setup analysis all the way to ana_date */
     int ana_res = 0;
     while((ana_res == 0) && (strcmp(setup_date, ana_date) <= 0)) {
-        // if (!strcmp(stk, "XOM") && !strcmp(setup_date, "2002-02-06"))
-        //     printf("Break\n");
         ana_res = ana_jl_setups(stk, setup_date);
         if (ana_res == 0)
             cal_next_bday(cal_ix(setup_date), &setup_date);
     }
+    /** Undo the last iteration of the while loop that moved setup_date one day
+     *  too far ahead
+     */
     cal_prev_bday(cal_ix(setup_date), &setup_date);
+    /** Update the setup_dates table with the last date when the analysis was
+     *  run for the given stock
+     */
     memset(sql_cmd, 0, 256 * sizeof(char));
     sprintf(sql_cmd, "INSERT INTO setup_dates VALUES ('%s', '%s') ON CONFLICT"
             " (stk) DO UPDATE SET dt='%s'", stk, setup_date, setup_date);
@@ -1425,20 +1432,25 @@ void ana_scored_setups(char* stk, char* ana_date) {
 
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                       bool download_options, bool eod, bool run_analysis) {
+    /** Get the first and second next expiry dates */
     char *exp_date, *exp_date2, *prev_date;
     int ana_ix = cal_ix(ana_date);
     int exp_ix = cal_expiry(ana_ix + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
     cal_prev_bday(ana_ix, &prev_date);
-
+    /** Get the list of leaders that we are going to analyze */
     cJSON *ldr = NULL, *leaders = stx;
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
     char sql_cmd[256];
+    /**
+     *  For real-time runs, update setup_dates and setup_scores tables.  Set
+     *  the setup date for a stock as the previous business day.  Also, delete
+     *  all the setups that were previously calculated for the current date.
+     */
     if (download_spots || download_options) {
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
-        /** TODO: update setup_dates and setup_scores tables */
         sprintf(sql_cmd, "UPDATE setup_dates SET dt='%s' WHERE dt='%s'",
                 prev_date, ana_date);
         db_transaction(sql_cmd);
@@ -1447,8 +1459,17 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         db_transaction(sql_cmd);
     }
     int num = 0, total = cJSON_GetArraySize(leaders);
+    /**
+     *  If required, get the spot and options quotes.
+     */
     if (download_spots)
         get_quotes(leaders, ana_date, exp_date, exp_date2, download_options);
+    /**
+     *  If required, run the analysis.  The only scenario where analysis dont
+     *  run is intraday-expiry, where the intention is to only download the
+     *  options quotes for the immediate expiry, before they are removed from
+     *  the source.
+     */
     if (run_analysis) {
         cJSON_ArrayForEach(ldr, leaders) {
             if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
