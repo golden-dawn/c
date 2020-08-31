@@ -851,10 +851,20 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
 void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
                                       jl_piv_ptr pivs, jl_piv_ptr pivs_150,
                                       jl_piv_ptr pivs_200) {
-    int i = jl->data->pos - 1, num_pivots = pivs->num;
+    int i = jl->data->pos, num = pivs->num;
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
-    jl_record_ptr jlr = &(jl->recs[i]);
+    jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
+    /** Return if the current record is not a primary record */
+    if (strcmp(pivots[num - 1].date, r->date))
+        return;
+    /** Return if the current record is not the first record in a new trend */
+    int last_ns = pivots[num - 1].state;
+    int prev_ns = jl_prev_ns(jl);
+    if ((jl_up(last_ns) && jl_up(prev_ns)) ||
+        (jl_down(last_ns) && jl_down(prev_ns)))
+        return;
+
     int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
     if (jl_primary(jlr->state)) {
         for(int ix = 0; ix < num_pivots - 1; ix++) {
