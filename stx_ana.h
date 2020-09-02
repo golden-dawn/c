@@ -851,43 +851,30 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
 void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
                                       jl_piv_ptr pivs, jl_piv_ptr pivs_150,
                                       jl_piv_ptr pivs_200) {
-    int i = jl->data->pos, num = pivs->num;
+    int i = jl->data->pos, num_pivots = pivs->num;
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
     jl_record_ptr jlr = &(jl->recs[i]), jlr_1 = &(jl->recs[i - 1]);
     /** Return if the current record is not a primary record */
-    if (strcmp(pivots[num - 1].date, r->date))
+    if (strcmp(pivots[num_pivots - 1].date, r->date))
         return;
     /** Return if the current record is not the first record in a new trend */
-    int last_ns = pivots[num - 1].state;
+    int last_ns = pivots[num_pivots - 1].state;
     int prev_ns = jl_prev_ns(jl);
     if ((jl_up(last_ns) && jl_up(prev_ns)) ||
         (jl_down(last_ns) && jl_down(prev_ns)))
         return;
-
+    /** Prevent division by zero in the volume ratio calculation */
+    jl_pivot_ptr last_pivot = pivots + num_pivots - 2;
     int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
-    if (jl_primary(jlr->state)) {
-        for(int ix = 0; ix < num_pivots - 1; ix++) {
-            if (abs(jlr->price - pivots[ix].price) < jlr->rg / 5) {
-                cJSON* info = cJSON_CreateObject();
-                int dir = jl_up(jlr->state)? -1: 1;
-                cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
-                cJSON_AddNumberToObject(info, "vr",
-                                        100 * r->volume / jlr_volume);
-                ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
-            }
-        }
-    }
-    if (jl_primary(jlr->state2)) {
-        for(int ix = 0; ix < num_pivots; ix++) {
-            if (abs(jlr->price2 - pivots[ix].price) < jlr->rg / 5) {
-                cJSON* info = cJSON_CreateObject();
-                int dir = jl_up(jlr->state2)? -1: 1;
-                cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
-                cJSON_AddNumberToObject(info, "vr",
-                                        100 * r->volume / jlr_volume);
-                ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
-            }
+    for(int ix = 0; ix < num_pivots - 3; ix++) {
+        if (abs(last_pivot->price - pivots[ix].price) < jlr->rg / 5) {
+            cJSON* info = cJSON_CreateObject();
+            int dir = jl_up(last_pivot->state)? -1: 1;
+            cJSON_AddNumberToObject(info, "sr", last_pivot->price);
+            cJSON_AddNumberToObject(info, "vr",
+                                    100 * r->volume / jlr_volume);
+            ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
         }
     }
 }
