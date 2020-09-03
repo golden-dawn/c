@@ -849,8 +849,7 @@ void ana_check_for_pullbacks(cJSON *setups, jl_data_ptr jl, jl_piv_ptr pivs,
  *  and whether it recovers after piercing or not.
  */
 void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
-                                      jl_piv_ptr pivs, jl_piv_ptr pivs_150,
-                                      jl_piv_ptr pivs_200) {
+                                      jl_piv_ptr pivs) {
     int i = jl->data->pos, num_pivots = pivs->num;
     jl_pivot_ptr pivots = pivs->pivots;
     daily_record_ptr r = &(jl->data->data[i]);
@@ -1235,10 +1234,8 @@ int ana_jl_setups(char* stk, char* dt) {
     /** Check for pullbacks for factors 0.5 and 1.0 */
     ana_check_for_pullbacks(setups, jl_050, pivots_050, pivots_150, pivots_200);
     ana_check_for_pullbacks(setups, jl_100, pivots_100, pivots_150, pivots_200);
-    ana_check_for_support_resistance(setups, jl_050, pivots_050, pivots_150,
-                                     pivots_200);
-    ana_check_for_support_resistance(setups, jl_100, pivots_100, pivots_150,
-                                     pivots_200);
+    ana_check_for_support_resistance(setups, jl_050, pivots_050);
+    ana_check_for_support_resistance(setups, jl_100, pivots_100);
     ana_insert_setups_in_database(setups, dt, stk);
  end:
     if (pivots_050 != NULL)
