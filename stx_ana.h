@@ -863,17 +863,21 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
     if ((jl_up(last_ns) && jl_up(prev_ns)) ||
         (jl_down(last_ns) && jl_down(prev_ns)))
         return;
-    /** Prevent division by zero in the volume ratio calculation */
     jl_pivot_ptr last_pivot = pivots + num_pivots - 2;
-    int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
+    /** For now, add the support/resistance setups without any info; will add
+     *  info later
+     */
+    /** Prevent division by zero in the volume ratio calculation */
+    // int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
     for(int ix = 0; ix < num_pivots - 3; ix++) {
         if (abs(last_pivot->price - pivots[ix].price) < jlr->rg / 5) {
-            cJSON* info = cJSON_CreateObject();
+            // cJSON* info = cJSON_CreateObject();
             int dir = jl_up(last_pivot->state)? -1: 1;
-            cJSON_AddNumberToObject(info, "sr", last_pivot->price);
-            cJSON_AddNumberToObject(info, "vr",
-                                    100 * r->volume / jlr_volume);
-            ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
+            // cJSON_AddNumberToObject(info, "sr", last_pivot->price);
+            // cJSON_AddNumberToObject(info, "vr",
+            //                         100 * r->volume / jlr_volume);
+            // ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
+            ana_add_to_setups(setups, jl, "JL_SR", dir, NULL, true);
         }
     }
 }
