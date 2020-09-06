@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
             }
     }
     char* crt_busdate = cal_current_busdate(5);
-    if (!strcmp(ana_type, "intraday-expiry")) {
+    if ((ana_type != NULL) && !strcmp(ana_type, "intraday-expiry")) {
         char *exp_date;
         cal_expiry(cal_ix(crt_busdate), &exp_date);
         if (!strcmp(crt_busdate, exp_date)) {
