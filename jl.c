@@ -40,23 +40,27 @@ int main(int argc, char** argv) {
     int num, ixx;
     jl_print_pivots(jl, num_pivots, &num);
 
-    jl_pivot_ptr pivots = jl_get_pivots(jl, 4, &num);
-    for(ixx = 0; ixx < num - 1; ixx++)
-        jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
-                     true, pivots[ixx].rg, pivots[ixx].obv);
-    jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
-                 false, pivots[ixx].rg, pivots[ixx].obv);
-    free(pivots);
-    pivots = NULL;
+    jl_piv_ptr p = jl_get_pivots(jl, 4);
+    for(ixx = 0; ixx < p->num - 1; ixx++)
+        jl_print_rec(p->pivots[ixx].date, p->pivots[ixx].state,
+                     p->pivots[ixx].price, true, p->pivots[ixx].rg,
+                     p->pivots[ixx].obv);
+    jl_print_rec(p->pivots[ixx].date, p->pivots[ixx].state,
+                 p->pivots[ixx].price, false, p->pivots[ixx].rg,
+                 p->pivots[ixx].obv);
+    free(p);
+    p = NULL;
 
-    pivots = jl_get_pivots_date(jl, "2018-01-01", &num);
-    for(ixx = 0; ixx < num - 1; ixx++)
-        jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
-                     true, pivots[ixx].rg, pivots[ixx].obv);
-    jl_print_rec(pivots[ixx].date, pivots[ixx].state, pivots[ixx].price, 
-                 false, pivots[ixx].rg, pivots[ixx].obv);
-    free(pivots);
-    pivots = NULL;
+    p = jl_get_pivots_date(jl, "2020-01-01");
+    for(ixx = 0; ixx < p->num - 1; ixx++)
+        jl_print_rec(p->pivots[ixx].date, p->pivots[ixx].state,
+                     p->pivots[ixx].price, true, p->pivots[ixx].rg,
+                     p->pivots[ixx].obv);
+    jl_print_rec(p->pivots[ixx].date, p->pivots[ixx].state,
+                 p->pivots[ixx].price, false, p->pivots[ixx].rg,
+                 p->pivots[ixx].obv);
+    free(p);
+    p = NULL;
 
     cJSON *json_jl = jl_pivots_json(jl, 4);
     char *string = cJSON_Print(json_jl);
