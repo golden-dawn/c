@@ -1,7 +1,11 @@
 #!/bin/bash
 export START_DATE=$1
 echo -e "Remove any existing instances of the stx_test database"
+psql stx_test -c "SELECT pid, pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()"
 dropdb stx_test
+# sleep for a little time here, so that we can see whether the database deletion was successful or not
+echo -e "After removing the stx_test database"
+sleep 20
 echo -e "Create the stx_test database"
 createdb stx_test
 echo -e "Create the tables and indexes in the stx_test database"
