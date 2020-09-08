@@ -486,7 +486,7 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
         if (jl_primary(upstate) || jl_primary(downstate))
             jl_update_lns_and_pivots(jl, ix);
     }
-    jl->pos++;
+    // jl->pos++;
 #ifdef DDEBUGG
         fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
                 jlr->lns, jlr->ls, jlr->rg);
@@ -539,9 +539,11 @@ jl_data_ptr jl_init(stx_data_ptr data, float factor, int window) {
             min_ix = ix;
         }
     }
-    for(int ix = 0; ix < window; ix++)
+    for(int ix = 0; ix < window; ix++) {
         jl_rec_day(jl, ix, (ix == max_ix)? RALLY: NONE,
                    (ix == min_ix)? REACTION: NONE);
+        jl->pos++;
+    }
     jl->lp[S_RALLY] = (jl->lp[RALLY] = 
                        (jl->lp[UPTREND] = 
                         (jl->lp[M_RALLY] = max)));
@@ -703,9 +705,12 @@ void jl_nre(jl_data_ptr jl, int factor) {
 }
 
 int jl_next(jl_data_ptr jl) {
-    if (jl->pos >= jl->size)
+    jl->pos++;
+    if (jl->pos >= jl->size) {
+        jl->pos--;
         return -1;
-    ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos].date);
+    }
+    ht_item_ptr split = ht_get(jl->data->splits, jl->data->data[jl->pos - 1].date);
     if (split != NULL) 
         jl_split_adjust(jl, split);
     int factor = (int) (jl->factor * jl->recs[jl->pos - 1].rg);
@@ -801,8 +806,11 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
 /*     jl->pos++; */
-    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1))
+    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1)) {
+        if (!strcmp(jl->data->data[jl->pos].date, "2020-09-03"))
+            LOGINFO("Here we go");
         res = jl_next(jl);
+    }
     return jl;
 }
 
@@ -831,7 +839,7 @@ void jl_print_pivots(jl_data_ptr jl, int num_pivs, int* piv_num) {
 
 void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
     int last_piv = ts_find_date_record(jl->data, jl->pivots->date, 0);
-    for(int ix = 0; ix < jl->pos; ix++) {
+    for(int ix = 0; ix <= jl->pos; ix++) {
         jl_record_ptr jlr = &(jl->recs[ix]);
         if (jlr->state == NONE && (!print_nils))
             continue;
