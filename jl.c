@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     stx_data_ptr data = ts_load_stk(stk);
     jl_data_ptr jl = jl_jl(data, ed, factor);
     jl_print(jl, print_pivots_only, print_nils);
-    for(int ix = jl->pos - num_lines; ix < jl->pos; ix++) {
+    for(int ix = jl->pos - num_lines; ix <= jl->pos; ix++) {
         ts_print_record(&(jl->data->data[ix]));
         fprintf(stderr, "\n");
     }
