@@ -274,10 +274,10 @@ jl_piv_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt) {
 }
 
 int jl_prev_ns(jl_data_ptr jl) {
-        jl_record_ptr jlr = &(jl->recs[jl->pos - 1]);
+        jl_record_ptr jlr = &(jl->recs[jl->pos]);
         if (jl_primary(jlr->state2) && jl_primary(jlr->state))
                 return jlr->state;
-        jl_record_ptr jlr_1 = &(jl->recs[jl->pos - 2]);
+        jl_record_ptr jlr_1 = &(jl->recs[jl->pos - 1]);
         jl_record_ptr jlr_pns = &(jl->recs[jlr_1->lns]);
     return jl_primary(jlr_pns->state2)? jlr_pns->state2: jlr_pns->state;
 }
