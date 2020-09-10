@@ -228,7 +228,7 @@ jl_piv_ptr jl_get_pivots(jl_data_ptr jl, int num_pivots) {
         res_crs++;
         crs = crs->prev;
     }
-    int last_lns = jl->recs[jl->pos - 1].lns;
+    int last_lns = jl->recs[jl->pos].lns;
     jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
     strcpy(res_crs->date, jl->data->data[last_lns].date);
     res_crs->state = jl_primary(jlr_lns->state2)? jlr_lns->state2:
@@ -260,7 +260,7 @@ jl_piv_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt) {
         res_crs++;
         crs = crs->prev;
     }
-    int last_lns = jl->recs[jl->pos - 1].lns;
+    int last_lns = jl->recs[jl->pos].lns;
     jl_record_ptr jlr_lns = &(jl->recs[last_lns]);
     strcpy(res_crs->date, jl->data->data[last_lns].date);
     res_crs->state = jl_primary(jlr_lns->state2)? jlr_lns->state2:
@@ -807,8 +807,8 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     int res = 0;
 /*     jl->pos++; */
     while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1)) {
-        if (!strcmp(jl->data->data[jl->pos].date, "2020-09-03"))
-            LOGINFO("Here we go");
+        // if (!strcmp(jl->data->data[jl->pos].date, "2020-09-03"))
+        //     LOGINFO("Here we go");
         res = jl_next(jl);
     }
     return jl;
