@@ -806,7 +806,7 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
 /*     jl->pos++; */
-    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) && (res != -1)) {
+    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1)) {
         // if (!strcmp(jl->data->data[jl->pos].date, "2020-09-03"))
         //     LOGINFO("Here we go");
         res = jl_next(jl);
@@ -816,7 +816,7 @@ jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
 
 int jl_advance(jl_data_ptr jl, char* end_date) {
     int res = 0, num_days = 0;
-    while((strcmp(jl->data->data[jl->pos].date, end_date) <= 0) &&
+    while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) &&
           (res != -1)) {
         res = jl_next(jl);
         num_days++;
