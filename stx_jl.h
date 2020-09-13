@@ -274,11 +274,11 @@ jl_piv_ptr jl_get_pivots_date(jl_data_ptr jl, char* dt) {
 }
 
 int jl_prev_ns(jl_data_ptr jl) {
-        jl_record_ptr jlr = &(jl->recs[jl->pos]);
-        if (jl_primary(jlr->state2) && jl_primary(jlr->state))
-                return jlr->state;
-        jl_record_ptr jlr_1 = &(jl->recs[jl->pos - 1]);
-        jl_record_ptr jlr_pns = &(jl->recs[jlr_1->lns]);
+    jl_record_ptr jlr = &(jl->recs[jl->pos]);
+    if (jl_primary(jlr->state2) && jl_primary(jlr->state))
+        return jlr->state;
+    jl_record_ptr jlr_1 = &(jl->recs[jl->pos - 1]);
+    jl_record_ptr jlr_pns = &(jl->recs[jlr_1->lns]);
     return jl_primary(jlr_pns->state2)? jlr_pns->state2: jlr_pns->state;
 }
 
@@ -488,25 +488,25 @@ void jl_rec_day(jl_data_ptr jl, int ix, int upstate, int downstate) {
     }
     // jl->pos++;
 #ifdef DDEBUGG
-        fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
-                jlr->lns, jlr->ls, jlr->rg);
-        for(int ixxx = 0; ixxx < jl->window; ixxx++)
-            fprintf(stderr, "%6d ", jl->rgs[ixxx]);
-        fprintf(stderr, "\n");
-        fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
-                jl->last->prim_price, 
-                jl_state_to_string(jl->last->prim_state), 
-                jl->last->price, jl_state_to_string(jl->last->state));
-        fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-                jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
-                jl_state_to_string(RALLY), jl->lp[RALLY],
-                jl_state_to_string(UPTREND), jl->lp[UPTREND],
-                jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
-        fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
-                jl_state_to_string(REACTION), jl->lp[REACTION],
-                jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
-                jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
-                jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
+    fprintf(stderr, "%8d lns = %5d, ls = %5d, rg = %6d\n", ix, 
+            jlr->lns, jlr->ls, jlr->rg);
+    for(int ixxx = 0; ixxx < jl->window; ixxx++)
+        fprintf(stderr, "%6d ", jl->rgs[ixxx]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  last: prim_px =%6d, prim_s = %s, px =%6d, s = %s\n",
+            jl->last->prim_price, 
+            jl_state_to_string(jl->last->prim_state), 
+            jl->last->price, jl_state_to_string(jl->last->state));
+    fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+            jl_state_to_string(S_RALLY), jl->lp[S_RALLY], 
+            jl_state_to_string(RALLY), jl->lp[RALLY],
+            jl_state_to_string(UPTREND), jl->lp[UPTREND],
+            jl_state_to_string(DOWNTREND), jl->lp[DOWNTREND]);
+    fprintf(stderr, "  lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d lp[%s] =%6d \n",
+            jl_state_to_string(REACTION), jl->lp[REACTION],
+            jl_state_to_string(S_REACTION), jl->lp[S_REACTION],
+            jl_state_to_string(M_RALLY), jl->lp[M_RALLY],
+            jl_state_to_string(M_REACTION), jl->lp[M_REACTION]);
 #endif
 }
 
@@ -805,7 +805,7 @@ void jl_print_rec(char* date, int state, int price, bool pivot, int rg,
 jl_data_ptr jl_jl(stx_data_ptr data, char* end_date, float factor) {
     jl_data_ptr jl = jl_init20(data, factor);
     int res = 0;
-/*     jl->pos++; */
+    /*     jl->pos++; */
     while((strcmp(jl->data->data[jl->pos].date, end_date) < 0) && (res != -1)) {
         // if (!strcmp(jl->data->data[jl->pos].date, "2020-09-03"))
         //     LOGINFO("Here we go");
@@ -858,7 +858,7 @@ void jl_print(jl_data_ptr jl, bool print_pivots_only, bool print_nils) {
 /** Return true if the pivots p1 and p2 have the same date and the same price.
  * This is used to identify that a pivot on a faster time scale is the same as a
  * pivot or last non-secondary record on a slower time scale.
-*/
+ */
 bool jl_same_pivot(jl_pivot_ptr p1, jl_pivot_ptr p2) {
     return (!strcmp(p1->date, p2->date) && (p1->price == p2->price));
 }
