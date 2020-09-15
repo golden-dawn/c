@@ -864,19 +864,24 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
         (jl_down(last_ns) && jl_down(prev_ns)))
         return;
     jl_pivot_ptr last_pivot = pivots + num_pivots - 2;
-    /** For now, add the support/resistance setups without any info; will add
-     *  info later
+    int last_pivot_ix = ts_find_date_record(jl->data, last_pivot->date, 0);
+    daily_record_ptr last_pivot_r = &(jl->data->data[last_pivot_ix]);
+    jl_record_ptr jlr_pivot = &(jl->recs[last_pivot_ix]);
+    /** For now, add the support/resistance setup with the following info:
+     *  - the price where support/resistance occur
+     *  - the ratio between the volume and the average volume on that day
      */
     /** Prevent division by zero in the volume ratio calculation */
-    // int jlr_volume = (jlr->volume == 0)? 1: jlr->volume;
+    int last_piv_volume = (last_pivot_r->volume == 0)? 1: last_pivot_r->volume;
+    int last_piv_avg_volume = (jlr_pivot->volume == 0)? 1: jlr_pivot->volume;
     for(int ix = 0; ix < num_pivots - 3; ix++) {
         if (abs(last_pivot->price - pivots[ix].price) < jlr->rg / 5) {
             cJSON* info = cJSON_CreateObject();
             int dir = jl_up(last_pivot->state)? -1: 1;
             cJSON_AddNumberToObject(info, "sr", pivots[ix].price);
-            // cJSON_AddNumberToObject(info, "vr",
-            //                         100 * r->volume / jlr_volume);
-            // ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
+            cJSON_AddNumberToObject(info, "vr",
+                                    100 * last_piv_volume /
+                                    last_piv_avg_volume);
             ana_add_to_setups(setups, jl, "JL_SR", dir, info, true);
         }
     }
