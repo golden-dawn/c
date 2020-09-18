@@ -1,4 +1,5 @@
 #!/bin/bash
+source ${HOME}/.env
 POSTGRES_CNX_0=${POSTGRES_CNX}
 POSTGRES_CNX=${POSTGRES_CNX/stx/stx_test}
 "$@"
