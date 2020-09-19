@@ -230,4 +230,34 @@ void ts_print_record(daily_record_ptr record) {
     fprintf(stderr, "%s %7d %7d %7d %7d %7d", record->date, record->open, 
             record->high, record->low, record->close, record->volume);
 }
+
+float rs_relative_strength(stx_data_ptr data, int ix, int rs_days) { 
+    int rsd1 = rs_days / 4, rsd2 = rs_days / 2;
+    float rs_1, rs_2, rs_3, res;
+    float cc = (float)data->data[ix].close;
+    float cc_0 = (float)data->data[0].close;
+    float cc_1 = (float)data->data[ix + 1 - rsd1].close;
+    float cc_2 = (float) data->data[ix + 1 - rsd2].close;
+    float cc_3 = (float)data->data[ix + 1 - rs_days].close;
+    if (ix >= rs_days - 1) {
+        rs_1 = (cc_1 == 0)? 0: cc / cc_1 - 1;
+        rs_2 = (cc_2 == 0)? 0: cc / cc_2 - 1;
+        rs_3 = (cc_3 == 0)? 0: cc / cc_3 - 1;
+    } else if (ix >= rsd2 - 1) {
+        rs_1 = (cc_1 == 0)? 0: cc / cc_1 - 1;
+        rs_2 = (cc_2 == 0)? 0: cc / cc_2 - 1;
+        rs_3 = (cc_0 == 0)? 0: cc / cc_0 - 1;
+    } else if (ix >= rsd1 - 1) {
+        rs_1 = (cc_1 == 0)? 0: cc / cc_1 - 1;
+        rs_2 = (cc_0 == 0)? 0: cc / cc_0 - 1;
+        rs_3 = rs_2;
+    } else {
+        rs_1 = (cc_0 == 0)? 0: cc / cc_0 - 1;
+        rs_2 = rs_1;
+        rs_3 = rs_1;
+    }
+    res = 40 * rs_1 + 30 * rs_2 + 30 * rs_3;
+    return (int) res;
+}
+
 #endif
