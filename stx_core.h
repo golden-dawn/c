@@ -664,4 +664,33 @@ long cal_long_expiry(char* exp_dt) {
     tt = mktime(&result) - timezone;
     return (long)tt;
 }
+
+/** Code to sort the stocks.  Initially used to calculate relative
+ *  strength, IBD style.
+ */
+
+typedef struct eq_value_t {
+    char name[16];
+    int value;
+} eq_value, *eq_value_ptr;
+
+void stock_shell_sort(eq_value_ptr selected, int nb_stocks) {
+    int ix, ixx, ixxx, ixxxx;
+    eq_value temp;
+    for(ixxx = nb_stocks / 2; ixxx > 0; ixxx /= 2) {
+        for(ixx = ixxx; ixx < nb_stocks; ixx++) {
+            for(ix = ixx - ixxx; ix >= 0; ix -= ixxx) {
+                if (selected[ix].value < selected[ix + ixxx].value) {
+                    memset(&temp, 0, sizeof(eq_value));
+                    strcpy(temp.name, selected[ix].name);
+                    temp.value= selected[ix].value;
+                    strcpy(selected[ix].name, selected[ix + ixxx].name);
+                    selected[ix].value = selected[ix + ixxx].value;
+                    strcpy(selected[ix + ixxx].name, temp.name);
+                    selected[ix + ixxx].value = temp.value;
+                }
+            }
+        }
+    }
+}
 #endif
