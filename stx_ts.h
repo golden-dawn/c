@@ -231,7 +231,7 @@ void ts_print_record(daily_record_ptr record) {
             record->high, record->low, record->close, record->volume);
 }
 
-float rs_relative_strength(stx_data_ptr data, int ix, int rs_days) { 
+float ts_relative_strength(stx_data_ptr data, int ix, int rs_days) { 
     int rsd1 = rs_days / 4, rsd2 = rs_days / 2;
     float rs_1, rs_2, rs_3, res;
     float cc = (float)data->data[ix].close;
