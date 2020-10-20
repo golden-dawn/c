@@ -1459,11 +1459,11 @@ void ana_calc_rs(char* stk, eq_value_ptr rs) {
     ht_item_ptr ht_data = ht_get(ana_data(), stk);
     stx_data_ptr data = NULL;
     if (ht_data == NULL) {
-	LOGERROR("No data for %s. Wont calc RS\n", stk);
-	rs->value = 0;
+        LOGERROR("No data for %s. Wont calc RS\n", stk);
+        rs->value = 0;
     } else {
-	data = (stx_data_ptr) ht_data->val.data;
-	rs->value = ts_relative_strength(data, data->pos, 252);
+        data = (stx_data_ptr) ht_data->val.data;
+        rs->value = ts_relative_strength(data, data->pos, 252);
     }
 }
 
@@ -1515,21 +1515,21 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
      *  the source.
      */
     if (run_analysis) {
-	eq_value_ptr rs = (eq_value_ptr) malloc(total * sizeof(eq_value));
-	memset(rs, 0, total * sizeof(eq_value));
+        eq_value_ptr rs = (eq_value_ptr) malloc(total * sizeof(eq_value));
+        memset(rs, 0, total * sizeof(eq_value));
         cJSON_ArrayForEach(ldr, leaders) {
             if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
                 ana_scored_setups(ldr->valuestring, ana_date);
-	    ana_calc_rs(ldr->valuestring, rs + num);
+            ana_calc_rs(ldr->valuestring, rs + num);
             num++;
             if (num % 100 == 0)
                 LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
         }
         LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
-	/** Calculate relative strength for all the leaders, for ana_date */
-	ana_relative_strength(rs, total);
-	free(rs);
-	rs = NULL;
+        /** Calculate relative strength for all the leaders, for ana_date */
+        ana_relative_strength(rs, total);
+        free(rs);
+        rs = NULL;
     }
     if (stx == NULL)
        cJSON_Delete(leaders);
