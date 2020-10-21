@@ -241,20 +241,16 @@ int main() {
         "PRIMARY KEY(stk))";
     create_table_if_missing(cnx, "setup_dates", create_setup_dates);
 
-    /** This table stores the trend (cumulative) setup score, calculated daily
-     * (score decreases by 7/8 each day), and the trigger score which only
-     * applies for the day where the setups occur.  Score are calculated using
-     * input from jl_setups table, and each tag has a different score
-     * calculation formula.
+    /** This table stores additional analytics about the stocks. Analysis is
+     *  stored in a JSONB field. To start, we have rs (relative strength) and
+     *  rs_rank (getting each stock in a bucket from 0 to 99).
      */
-    char* create_score_setups = "CREATE TABLE score_setups( "   \
-        "tag VARCHAR(16) NOT NULL, "                            \
-        "dt DATE NOT NULL, "                                    \
-        "stk VARCHAR(16) NOT NULL, "                            \
-        "trigger_score INTEGER NOT NULL, "                      \
-        "trend_score INTEGER NOT NULL, "                        \
-        "PRIMARY KEY(tag, dt, stk))";
-    create_table_if_missing(cnx, "score_setups", create_score_setups);
+    char* create_indicators = "CREATE TABLE indicators( "   \
+        "stk VARCHAR(16) NOT NULL, "                        \
+        "dt DATE NOT NULL, "                                \
+        "indicators JSONB NOT NULL, "                       \
+        "PRIMARY KEY(stk, dt))";
+    create_table_if_missing(cnx, "indicators", create_indicators);
     PQfinish(cnx);
     return 0;
 }
