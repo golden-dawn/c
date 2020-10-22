@@ -1469,8 +1469,16 @@ void ana_calc_rs(char* stk, eq_value_ptr rs) {
 
 void ana_relative_strength(eq_value_ptr rs, int num_stocks) {
     stock_shell_sort(rs, num_stocks);
-    for(int ix = 0; ix < num_stocks; ix++) {
-
+    int bucket_size = num_stocks / 100, unbucketed = num_stocks % 100;
+    int current_bucket_size = bucket_size, num_buckets = 100, total = 0, processed = 0;
+    for(int ix = 0; ix < num_buckets; ix++) {
+        printf("%d: (", ix);
+        current_bucket_size = (ix < unbucketed)? bucket_size + 1: bucket_size;
+        for(int ixx = 0; ixx < current_bucket_size; ixx++) {
+            printf("%s ", rs[ixx + processed)].name);
+        }
+        processed += current_bucket_size;
+        printf(")\n");
     }
 }
 
