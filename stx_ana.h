@@ -1475,7 +1475,7 @@ void ana_relative_strength(eq_value_ptr rs, int num_stocks) {
         printf("%d: (", ix);
         current_bucket_size = (ix < unbucketed)? bucket_size + 1: bucket_size;
         for(int ixx = 0; ixx < current_bucket_size; ixx++) {
-            printf("%s ", rs[ixx + processed)].name);
+            printf("%s ", rs[ixx + processed].name);
         }
         processed += current_bucket_size;
         printf(")\n");
