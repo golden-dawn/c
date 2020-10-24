@@ -1454,17 +1454,14 @@ void ana_scored_setups(char* stk, char* ana_date) {
     db_transaction(sql_cmd);
 }
 
-void ana_calc_rs(char* stk, eq_value_ptr rs) {
+void ana_calc_rs(char* stk, char* dt, eq_value_ptr rs) {
     strcpy(rs->name, stk);
-    ht_item_ptr ht_data = ht_get(ana_data(), stk);
-    stx_data_ptr data = NULL;
-    if (ht_data == NULL) {
+    jl_data_ptr jl = ana_get_jl(stk, dt, JL_050, JLF_050);
+    if (jl == NULL) {
         LOGERROR("No data for %s. Wont calc RS\n", stk);
         rs->value = 0;
-    } else {
-        data = (stx_data_ptr) ht_data->val.data;
-        rs->value = ts_relative_strength(data, data->pos, 252);
-    }
+    } else
+        rs->value = ts_relative_strength(jl->data, jl->data->pos, 252);
 }
 
 void ana_relative_strength(eq_value_ptr rs, int num_stocks) {
@@ -1528,7 +1525,7 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         cJSON_ArrayForEach(ldr, leaders) {
             if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
                 ana_scored_setups(ldr->valuestring, ana_date);
-            ana_calc_rs(ldr->valuestring, rs + num);
+            ana_calc_rs(ldr->valuestring, ana_date, rs + num);
             num++;
             if (num % 100 == 0)
                 LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
