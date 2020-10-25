@@ -1464,15 +1464,24 @@ void ana_calc_rs(char* stk, char* dt, eq_value_ptr rs) {
         rs->value = ts_relative_strength(jl->data, jl->data->pos, 252);
 }
 
-void ana_relative_strength(eq_value_ptr rs, int num_stocks) {
+void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
     stock_shell_sort(rs, num_stocks);
     int bucket_size = num_stocks / 100, unbucketed = num_stocks % 100;
     int current_bucket_size = bucket_size, num_buckets = 100, total = 0, processed = 0;
+
     for(int ix = 0; ix < num_buckets; ix++) {
         printf("%d: (", ix);
         current_bucket_size = (ix < unbucketed)? bucket_size + 1: bucket_size;
         for(int ixx = 0; ixx < current_bucket_size; ixx++) {
             printf("%s ", rs[ixx + processed].name);
+            cJSON* rs_info = cJSON_CreateObject();
+            cJSON_AddNumberToObject(rs_info, "rs", rs[ixx + processed].value);
+            cJSON_AddNumberToObject(rs_info, "rs_rank", num_buckets - 1 - ix);
+            char* rs_info_string = cJSON_Print(rs_info);
+            char sql_cmd[1024];
+            sprintf(sql_cmd, "insert into indicators values ('%s', '%s', '%s'",
+                    rs[ixx + processed].name, dt, rs_info_string);
+            db_transaction(sql_cmd);
         }
         processed += current_bucket_size;
         printf(")\n");
@@ -1532,7 +1541,7 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         }
         LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
         /** Calculate relative strength for all the leaders, for ana_date */
-        ana_relative_strength(rs, total);
+        ana_relative_strength(rs, ana_date, total);
         free(rs);
         rs = NULL;
     }
