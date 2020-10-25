@@ -1479,7 +1479,8 @@ void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
             cJSON_AddNumberToObject(rs_info, "rs_rank", num_buckets - 1 - ix);
             char* rs_info_string = cJSON_Print(rs_info);
             char sql_cmd[1024];
-            sprintf(sql_cmd, "insert into indicators values ('%s', '%s', '%s'",
+            sprintf(sql_cmd, "insert into indicators values ('%s', '%s', '%s') "
+                    "on conflict on constraint indicators_pkey do nothing",
                     rs[ixx + processed].name, dt, rs_info_string);
             db_transaction(sql_cmd);
         }
