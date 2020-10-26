@@ -1480,8 +1480,9 @@ void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
             char* rs_info_string = cJSON_Print(rs_info);
             char sql_cmd[1024];
             sprintf(sql_cmd, "insert into indicators values ('%s', '%s', '%s') "
-                    "on conflict on constraint indicators_pkey do nothing",
-                    rs[ixx + processed].name, dt, rs_info_string);
+                    "on conflict on constraint indicators_pkey do "
+                    "update set indicators=%s", rs[ixx + processed].name, dt,
+                    rs_info_string, rs_info_string);
             db_transaction(sql_cmd);
         }
         processed += current_bucket_size;
