@@ -175,6 +175,7 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
         else {
             /** if eod_fp is NULL, insert quote directly in the database */
             char sql_cmd[256];
+            LOGINFO("Will update oi = 0 for stock %s\n", stk);
             sprintf(sql_cmd, "INSERT INTO eods VALUES('%s', '%s', %d, %d, "
                     "%d, %d, %d, 1) ON CONFLICT ON CONSTRAINT eods_pkey "
                     "DO UPDATE SET o=%d, hi= %d, lo=%d, c=%d, v=%d, oi=0",
