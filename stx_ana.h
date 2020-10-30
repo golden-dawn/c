@@ -1308,7 +1308,8 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     fclose(fp);
     fp = NULL;
     char sql_cmd[256];
-    sprintf(sql_cmd, "DELETE FROM eods WHERE dt='%s' AND oi=1", dt);
+    sprintf(sql_cmd, "DELETE FROM eods WHERE dt='%s' AND oi=1 AND stk NOT IN "
+            "('^GSPC', '^IXIC', '^DJI')", dt);
     db_transaction(sql_cmd);
     db_upload_file("eods", filename);
 
