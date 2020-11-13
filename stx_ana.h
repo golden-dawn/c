@@ -1518,9 +1518,9 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         sprintf(sql_cmd, "DELETE FROM setup_scores WHERE dt='%s'",
                 ana_date);
         db_transaction(sql_cmd);
-	sprintf(sql_cmd, "DELETE FROM setups WHERE dt='%s' AND setup IN "
-		"('GAP', 'GAP_HV', 'STRONG_CLOSE')", ana_date);
-	db_transaction(sql_cmd);
+        sprintf(sql_cmd, "DELETE FROM setups WHERE dt='%s' AND setup IN "
+                "('GAP', 'GAP_HV', 'STRONG_CLOSE')", ana_date);
+        db_transaction(sql_cmd);
     }
     int num = 0, total = cJSON_GetArraySize(leaders);
     /**
@@ -1535,55 +1535,55 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
      *  the source.
      */
     if (run_analysis) {
-	FILE *fp = NULL;
-	char *filename = "/tmp/setups.csv";
-	if ((fp = fopen(filename, "w")) == NULL) {
-	    LOGERROR("Failed to open file %s for writing\n", filename);
-	    fp = stderr;
-	}
-	char* next_dt = NULL;
-	if (eod == true)
-	    cal_next_bday(cal_ix(ana_date), &next_dt);
+        FILE *fp = NULL;
+        char *filename = "/tmp/setups.csv";
+        if ((fp = fopen(filename, "w")) == NULL) {
+            LOGERROR("Failed to open file %s for writing\n", filename);
+            fp = stderr;
+        }
+        char* next_dt = NULL;
+        if (eod == true)
+            cal_next_bday(cal_ix(ana_date), &next_dt);
         eq_value_ptr rs = (eq_value_ptr) malloc(total * sizeof(eq_value));
         memset(rs, 0, total * sizeof(eq_value));
         cJSON_ArrayForEach(ldr, leaders) {
             if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
                 ana_scored_setups(ldr->valuestring, ana_date);
-		ana_setups(fp, ldr->valuestring, ana_date, next_dt, eod);
-	    }
+                ana_setups(fp, ldr->valuestring, ana_date, next_dt, eod);
+            }
             ana_calc_rs(ldr->valuestring, ana_date, rs + num);
             num++;
             if (num % 100 == 0)
                 LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
         }
         LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
-	fclose(fp);
-	LOGINFO("Closed fp\n");
-	if((fp = fopen(filename, "r")) == NULL) {
-	    LOGERROR("Failed to open file %s\n", filename);
-	} else {
-	    char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
-	    int triggered, num_triggered = 0, num_untriggered = 0;
-	    while(fgets(line, 80, fp)) {
-		sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
-		       &stp[0], &stp_dir, &triggered);
-		char *trigger_str = triggered? "true": "false";
-		sprintf(sql_cmd, "insert into setups values "
-			"('%s','%s','%s','%c',%s) on conflict on constraint "
-			"setups_pkey do update set triggered=%s",
-			stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
-		db_transaction(sql_cmd);
-		if (triggered == 1)
-		    num_triggered++;
-		else
-		    num_untriggered++;
-	    }
-	    LOGINFO("%s: inserted %d triggered setups\n", ana_date,
-		    num_triggered);
-	    LOGINFO("%s: inserted %d not-triggered setups\n", next_dt,
-		    num_untriggered);
-	    fclose(fp);
-	}
+        fclose(fp);
+        LOGINFO("Closed fp\n");
+        if((fp = fopen(filename, "r")) == NULL) {
+            LOGERROR("Failed to open file %s\n", filename);
+        } else {
+            char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
+            int triggered, num_triggered = 0, num_untriggered = 0;
+            while(fgets(line, 80, fp)) {
+                sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
+                       &stp[0], &stp_dir, &triggered);
+                char *trigger_str = triggered? "true": "false";
+                sprintf(sql_cmd, "insert into setups values "
+                        "('%s','%s','%s','%c',%s) on conflict on constraint "
+                        "setups_pkey do update set triggered=%s",
+                        stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
+                db_transaction(sql_cmd);
+                if (triggered == 1)
+                    num_triggered++;
+                else
+                    num_untriggered++;
+            }
+            LOGINFO("%s: inserted %d triggered setups\n", ana_date,
+                    num_triggered);
+            LOGINFO("%s: inserted %d not-triggered setups\n", next_dt,
+                    num_untriggered);
+            fclose(fp);
+        }
 
         /** Calculate relative strength for all the leaders, for ana_date */
         ana_relative_strength(rs, ana_date, total);
