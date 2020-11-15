@@ -892,21 +892,6 @@ void ana_check_for_support_resistance(cJSON *setups, jl_data_ptr jl,
     }
 }
 
-void ana_add_candle_setup(cJSON *candles, char* stp_name, int direction) {
-    cJSON *stp = cJSON_CreateObject();
-    cJSON_AddStringToObject(stp, "stp", stp_name);
-    cJSON_AddNumberToObject(stp, "dir", direction);
-    cJSON_AddItemToArray(candles, stp);
-}
-
-void ana_insert_candle_setup(char* stk, char* dt, char* stp_name, int dir) {
-    char sql_cmd[1024];
-        sprintf(sql_cmd, "insert into setups values ('%s','%s','%s','%c',"
-                "TRUE)", dt, stk, stp_name, (dir == 1)? 'U': 'D') ;
-        db_transaction(sql_cmd);
-
-}
-
 void ana_insert_setups_in_database(cJSON *setups, char *dt, char *stk) {
     int num_setups = cJSON_GetArraySize(setups);
     if (num_setups > 0) {
