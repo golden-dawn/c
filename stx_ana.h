@@ -354,28 +354,6 @@ void ana_pullbacks(FILE* fp, char* stk, char* dt, jl_data_ptr jl_recs) {
     }
 }
 
-void ana_gaps_8(FILE* fp, char* stk, char* dt, jl_data_ptr jl_recs) {
-    daily_record_ptr dr = jl_recs->data->data;
-    int ix = jl_recs->data->pos;
-    bool res;
-    char setup_name[16];
-    /* Find gaps */
-    if ((dr[ix].open > dr[ix - 1].high) || (dr[ix].open < dr[ix - 1].low)) {
-        strcpy(setup_name,  (dr[ix].volume > 1.1 * jl_recs->recs[ix].volume)? 
-               "GAP_HV": "GAP");
-        fprintf(fp, "%s\t%s\t%s\t%c\t1\n", dt, stk, setup_name, 
-                (dr[ix].open > dr[ix - 1].high)? UP: DOWN);
-    }
-    /* Find strong closes on significant range and volume */
-    if ((ts_true_range(jl_recs->data, ix) >= jl_recs->recs[ix].rg) && 
-        (dr[ix].volume >= jl_recs->recs[ix].volume)) {
-        if (4 * dr[ix].close >= 3 * dr[ix].high + dr[ix].low)
-            fprintf(fp, "%s\t%s\tSTRONG_CLOSE\t%c\t1\n", dt, stk, UP);
-        if (4 * dr[ix].close <= dr[ix].high + 3 * dr[ix].low)
-            fprintf(fp, "%s\t%s\tSTRONG_CLOSE\t%c\t1\n", dt, stk, DOWN);
-    }     
-}
-
 void ana_setups_tomorrow(FILE* fp, char* stk, char* dt, char* next_dt,
                          jl_data_ptr jl_recs) {
     daily_record_ptr dr = jl_recs->data->data;
@@ -413,7 +391,6 @@ void ana_setups(FILE* fp, char* stk, char* dt, char* next_dt, bool eod) {
         jl_advance(jl_recs, dt);
     }
     ana_pullbacks(fp, stk, dt, jl_recs);
-    ana_gaps_8(fp, stk, dt, jl_recs);
     if (eod == true)
         ana_setups_tomorrow(fp, stk, dt, next_dt, jl_recs);
 }
@@ -1313,71 +1290,6 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
         db_transaction(sql_cmd);
     }
     curl_global_cleanup();
-}
-
-void ana_daily_analysis(char* dt, bool eod, bool download_data) {
-    /** this can run during the trading day (eod is false), or at eod
-     * 1. Download price data only for option spread leaders
-     * 2. Determine which EOD setups were triggered today
-     * 3. Calculate intraday setups
-     **/
-    char *exp_date, *exp_date2;
-    int exp_ix = cal_expiry(cal_ix(dt) + (eod? 1: 0), &exp_date);
-    cal_expiry(exp_ix + 1, &exp_date2);
-    cJSON *ldr = NULL, *leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE,
-                                                  MAX_OPT_SPREAD, 0);
-    char sql_cmd[256];
-    sprintf(sql_cmd, "DELETE FROM setups WHERE dt='%s' AND setup IN "
-            "('GAP', 'GAP_HV', 'STRONG_CLOSE')", dt);
-    db_transaction(sql_cmd);
-    int num = 0, total = cJSON_GetArraySize(leaders);
-    if (download_data)
-        get_quotes(leaders, dt, exp_date, exp_date2, eod);
-    FILE *fp = NULL;
-    char *filename = "/tmp/setups.csv";
-    if ((fp = fopen(filename, "w")) == NULL) {
-        LOGERROR("Failed to open file %s for writing\n", filename);
-        fp = stderr;
-    }
-    num = 0;
-    char* next_dt = NULL;
-    if (eod == true)
-        cal_next_bday(cal_ix(dt), &next_dt);
-    cJSON_ArrayForEach(ldr, leaders) {
-        if (cJSON_IsString(ldr) && (ldr->valuestring != NULL))
-            ana_setups(fp, ldr->valuestring, dt, next_dt, eod);
-        num++;
-        if (num % 100 == 0)
-            LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-    }
-    LOGINFO("%s: analyzed %4d / %4d leaders\n", dt, num, total);
-    fclose(fp);
-    LOGINFO("Closed fp\n");
-    if((fp = fopen(filename, "r")) == NULL) {
-        LOGERROR("Failed to open file %s\n", filename);
-    } else {
-        char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
-        int triggered, num_triggered = 0, num_untriggered = 0;
-        while(fgets(line, 80, fp)) {
-            sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
-                   &stp[0], &stp_dir, &triggered);
-            char *trigger_str = triggered? "true": "false";
-            sprintf(sql_cmd, "insert into setups values "
-                    "('%s','%s','%s','%c',%s) on conflict on constraint "
-                    "setups_pkey do update set triggered=%s", 
-                    stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
-            db_transaction(sql_cmd);
-            if (triggered == 1) 
-                num_triggered++;
-            else
-                num_untriggered++;
-        }
-        LOGINFO("%s: inserted %d triggered setups\n", dt, num_triggered);
-        LOGINFO("%s: inserted %d not-triggered setups\n", next_dt, 
-                num_untriggered);
-        fclose(fp);
-    }
-    cJSON_Delete(leaders);
 }
 
 void ana_scored_setups(char* stk, char* ana_date) {
