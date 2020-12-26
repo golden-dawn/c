@@ -128,6 +128,24 @@ int main() {
     create_index_if_missing(cnx, "options", "options_und_dt_idx",
                             create_opts_und_dt_idx);
 
+    char* create_dloaded_opts = "CREATE TABLE downloaded_options( "         \
+        "expiry DATE NOT NULL, "                         \
+        "und VARCHAR(16) NOT NULL, "                     \
+        "cp VARCHAR(1) NOT NULL, "                       \
+        "strike INTEGER NOT NULL, "                      \
+        "dt DATE NOT NULL, "                             \
+        "bid INTEGER, "                                  \
+        "ask INTEGER, "                                  \
+        "v INTEGER, "                                    \
+        "oi INTEGER, "                                   \
+        "PRIMARY KEY(expiry, und, cp, strike, dt))";
+    create_table_if_missing(cnx, "downloaded_options", create_dloaded_opts);
+    char* create_dloaded_opts_und_dt_idx = "CREATE INDEX "\
+	"downloaded_options_und_dt_idx ON downloaded_options(und, dt)";
+    create_index_if_missing(cnx, "downloaded_options",
+			    "downloaded_options_und_dt_idx",
+                            create_dloaded_opts_und_dt_idx);
+
     char* create_ldrs = "CREATE TABLE leaders( "         \
         "expiry DATE NOT NULL, "                         \
         "stk VARCHAR(16) NOT NULL, "                     \
