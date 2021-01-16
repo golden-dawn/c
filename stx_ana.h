@@ -155,7 +155,7 @@ void ana_option_analysis(ldr_ptr leader, PGresult* sql_res, int spot) {
     leaders, or -1, if the stock is not a leader. 
 **/
 ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp, 
-                   bool realtime_analysis) {
+                   bool realtime_analysis, bool download_options) {
     /** 
         A stock is a leader at a given date if:
         1. Its average activity is above a threshold.
@@ -203,7 +203,7 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp,
     }
     int spot = atoi(PQgetvalue(res, 0, 0));
     PQclear(res);
-    if (realtime_analysis) {
+    if (download_options) {
         FILE *opt_fp = fopen("/tmp/options.csv", "w");
         if (opt_fp == NULL) {
             LOGERROR("Failed to open /tmp/options.csv file");
@@ -229,7 +229,8 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp,
     return leader;
 }
 
-int ana_expiry_analysis(char* dt, bool realtime_analysis) {
+int ana_expiry_analysis(char* dt, bool realtime_analysis, bool download_spots,
+                        bool download_options) {
     /** 
      * special case when the date is an option expiry date
      * if the data is NULL, only run for the most recent business day
@@ -275,7 +276,8 @@ int ana_expiry_analysis(char* dt, bool realtime_analysis) {
             ht_insert(ana_data(), ht_data);
         } else
             data = (stx_data_ptr) ht_data->val.data;
-        ldr_ptr leader = ana_leader(data, dt, exp, realtime_analysis);
+        ldr_ptr leader = ana_leader(data, dt, exp, realtime_analysis,
+                                    download_options);
         if (leader->is_ldr)
             fprintf(fp, "%s\t%s\t%d\t%d\t%d\t%d\n", exp, stk, leader->activity,
                     leader->range_ratio, leader->opt_spread, 
