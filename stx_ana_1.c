@@ -114,13 +114,19 @@ int main(int argc, char** argv) {
             ana_type = eod? "eod": "intraday";
     }
     if (rt_ana) {
-        LOGINFO("Running realtime %s analysis for %s\n", ana_type, crt_busdate);
+        LOGINFO("Running realtime %s analysis for %s\n", ana_type,
+                crt_busdate);
         curl_global_init(CURL_GLOBAL_ALL);
+        if (no_rt) {
+            download_spots = false;
+            download_options = false;
+        }
         if (eod) {
             char *exp_date;
             cal_expiry(cal_ix(crt_busdate), &exp_date);
             if (!strcmp(crt_busdate, exp_date))
-                ana_expiry_analysis(crt_busdate, download_options);
+                ana_expiry_analysis(crt_busdate, rt_ana, download_spots,
+                                    download_options);
         }
         ana_stx_analysis(crt_busdate, stx, download_spots, download_options,
                          eod, true);
@@ -148,7 +154,8 @@ int main(int argc, char** argv) {
         if (!strcmp(crs_date, exp_bdate)) {
             exp_ix = cal_expiry(ix + 1, &exp_date);
             exp_bix = cal_exp_bday(exp_ix, &exp_bdate);
-            ana_expiry_analysis(crs_date, false);
+            ana_expiry_analysis(crs_date, rt_ana, download_spots,
+                                download_options);
         }
         ana_stx_analysis(crs_date, stx, download_spots, download_options, eod,
                          true);
