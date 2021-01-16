@@ -192,7 +192,7 @@ ldr_ptr ana_leader(stx_data_ptr data, char* as_of_date, char* exp,
     bool current_analysis = !strcmp(as_of_date, cal_current_busdate(5));
     if (realtime_analysis) 
         sprintf(sql_cmd, "select c from eods where stk='%s' and dt='%s' "
-                "and oi=0", und, as_of_date);
+                "and oi in (0, 2)", und, as_of_date);
     else
         sprintf(sql_cmd, "select spot from opt_spots where stk='%s' and "
                 "dt='%s'", und, as_of_date);
@@ -250,8 +250,8 @@ int ana_expiry_analysis(char* dt, bool realtime_analysis) {
         return 0;
     }
     char *sql_1 = "select distinct stk from eods where dt='";
-    char *sql_2 = "' and stk not like '#%' and stk not like '^%' and oi=0 "
-        "and (c/100)*(v/100)>100";
+    char *sql_2 = "' and stk not like '#%' and stk not like '^%' and "
+        "oi in (0, 2) and (c/100)*(v/100)>100";
     sprintf(sql_cmd, "%s%s%s", sql_1, dt, sql_2);
     res = db_query(sql_cmd);
     rows = PQntuples(res);
