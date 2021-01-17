@@ -333,6 +333,7 @@ cJSON* ana_get_leaders(char* exp, int max_atm_price, int max_opt_spread,
         cJSON_AddItemToArray(leader_list, ldr_name);
     }
     PQclear(res);
+    LOGINFO("Generated JSON Array with leaders\n");
     return leader_list;    
 }
 
@@ -1367,7 +1368,8 @@ void ana_calc_rs(char* stk, char* dt, eq_value_ptr rs) {
 void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
     stock_shell_sort(rs, num_stocks);
     int bucket_size = num_stocks / 100, unbucketed = num_stocks % 100;
-    int current_bucket_size = bucket_size, num_buckets = 100, total = 0, processed = 0;
+    int current_bucket_size = bucket_size, num_buckets = 100, total = 0,
+        processed = 0;
 
     for(int ix = 0; ix < num_buckets; ix++) {
         printf("%d: (", ix);
@@ -1392,12 +1394,14 @@ void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
 
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                       bool download_options, bool eod, bool run_analysis) {
-    /** Get the first and second next expiry dates */
+    LOGINFO("Get the first and second next expiry dates\n");
     char *exp_date, *exp_date2, *prev_date;
     int ana_ix = cal_ix(ana_date);
     int exp_ix = cal_expiry(ana_ix + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
     cal_prev_bday(ana_ix, &prev_date);
+    LOGINFO("First expiry date: %s\n", exp_date);
+    LOGINFO("Second expiry date: %s\n", exp_date2);
     /** Get the list of leaders that we are going to analyze */
     cJSON *ldr = NULL, *leaders = stx;
     if (leaders == NULL)
@@ -1409,6 +1413,7 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
      *  all the setups that were previously calculated for the current date.
      */
     if (download_spots || download_options) {
+        /** TODO: for intraday expiry runs, do we need to delete the setups? */
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
         sprintf(sql_cmd, "UPDATE setup_dates SET dt='%s' WHERE dt='%s'",
@@ -1453,7 +1458,8 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
             ana_calc_rs(ldr->valuestring, ana_date, rs + num);
             num++;
             if (num % 100 == 0)
-                LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
+                LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num,
+                        total);
         }
         LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
         fclose(fp);
@@ -1470,7 +1476,8 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                 sprintf(sql_cmd, "insert into setups values "
                         "('%s','%s','%s','%c',%s) on conflict on constraint "
                         "setups_pkey do update set triggered=%s",
-                        stp_dt, stp_stk, stp, stp_dir, trigger_str, trigger_str);
+                        stp_dt, stp_stk, stp, stp_dir, trigger_str,
+                        trigger_str);
                 db_transaction(sql_cmd);
                 if (triggered == 1)
                     num_triggered++;
@@ -1484,7 +1491,8 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
             fclose(fp);
         }
 
-        /** Calculate relative strength for all the leaders, for ana_date */
+        LOGINFO("Calculating relative strength for all leaders, as of %s\n",
+                ana_date);
         ana_relative_strength(rs, ana_date, total);
         free(rs);
         rs = NULL;
