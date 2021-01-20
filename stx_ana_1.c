@@ -93,15 +93,17 @@ int main(int argc, char** argv) {
             }
     }
     char* crt_busdate = cal_current_busdate(5);
+    LOGINFO("Current business date is: %s\n", crt_busdate);
     if ((ana_type != NULL) && !strcmp(ana_type, "intraday-expiry")) {
         char *exp_date;
         cal_expiry(cal_ix(crt_busdate), &exp_date);
         if (!strcmp(crt_busdate, exp_date)) {
+	    LOGINFO("%s is an expiry. Download expiring options\n",
+		    crt_busdate);
             ana_stx_analysis(crt_busdate, stx, download_spots,
                              download_options, eod, false);
         } else
-            LOGINFO("%s not an expiration date.  Skip option download\n",
-                    crt_busdate );
+            LOGINFO("%s not an expiry.  Skip option download\n", crt_busdate);
         if (stx != NULL)
             cJSON_Delete(stx);
         return 0;
