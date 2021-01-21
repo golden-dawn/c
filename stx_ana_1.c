@@ -95,17 +95,8 @@ int main(int argc, char** argv) {
     char* crt_busdate = cal_current_busdate(5);
     LOGINFO("Current business date is: %s\n", crt_busdate);
     if ((ana_type != NULL) && !strcmp(ana_type, "intraday-expiry")) {
-        char *exp_date;
-        cal_expiry(cal_ix(crt_busdate), &exp_date);
-        if (!strcmp(crt_busdate, exp_date)) {
-	    LOGINFO("%s is an expiry. Download expiring options\n",
-		    crt_busdate);
-            ana_stx_analysis(crt_busdate, stx, download_spots,
-                             download_options, eod, false);
-        } else
-            LOGINFO("%s not an expiry.  Skip option download\n", crt_busdate);
-        if (stx != NULL)
-            cJSON_Delete(stx);
+	LOGINFO("Running intraday expiry for %s\n", crt_busdate);
+	ana_intraday_expiry(crt_busdate);
         return 0;
     }
     if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate) &&
@@ -131,7 +122,7 @@ int main(int argc, char** argv) {
                                     download_options);
         }
         ana_stx_analysis(crt_busdate, stx, download_spots, download_options,
-                         eod, true);
+                         eod);
         curl_global_cleanup();
         if (stx != NULL)
             cJSON_Delete(stx);
@@ -159,8 +150,7 @@ int main(int argc, char** argv) {
             ana_expiry_analysis(crs_date, rt_ana, download_spots,
                                 download_options);
         }
-        ana_stx_analysis(crs_date, stx, download_spots, download_options, eod,
-                         true);
+        ana_stx_analysis(crs_date, stx, download_spots, download_options, eod);
         ix = cal_next_bday(ix, &crs_date);
     }
     if (stx != NULL)
