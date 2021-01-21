@@ -1392,28 +1392,49 @@ void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
     }
 }
 
+void ana_intraday_expiry(char *ana_date) {
+    char *exp_date, *exp_date2;
+    int ana_ix = cal_ix(ana_date), exp_ix = cal_expiry(ana_ix, &exp_date);
+    cal_expiry(exp_ix + 1, &exp_date2);
+    LOGINFO("ana_intraday_expiry() upcoming expiries: %s, %s\n",
+	    exp_date, exp_date2);
+    if (strcmp(ana_date, exp_date) != 0) {
+	LOGINFO("%s not an expiry.  Skip option download\n", ana_date);
+	return;
+    }
+    LOGINFO("%s is an expiry. Downloading options for expiries %s and %s\n",
+	    ana_date, exp_date, exp_date2);
+    bool download_options = true;
+    cJSON *ldrs = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
+    get_quotes(ldrs, ana_date, exp_date, exp_date2, download_options);
+    LOGINFO("Downloaded options for expiries %s, %s\n", exp_date, exp_date2);
+}
+
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
-                      bool download_options, bool eod, bool run_analysis) {
-    LOGINFO("Get the first and second next expiry dates\n");
+                      bool download_options, bool eod) {
     char *exp_date, *exp_date2, *prev_date;
     int ana_ix = cal_ix(ana_date);
     int exp_ix = cal_expiry(ana_ix + (eod? 1: 0), &exp_date);
     cal_expiry(exp_ix + 1, &exp_date2);
     cal_prev_bday(ana_ix, &prev_date);
-    LOGINFO("First expiry date: %s\n", exp_date);
-    LOGINFO("Second expiry date: %s\n", exp_date2);
-    /** Get the list of leaders that we are going to analyze */
     cJSON *ldr = NULL, *leaders = stx;
     if (leaders == NULL)
         leaders = ana_get_leaders(exp_date, MAX_ATM_PRICE, MAX_OPT_SPREAD, 0);
+    int num = 0, total = cJSON_GetArraySize(leaders);
+    LOGINFO("ana_stx_analysis() will analyze %d leaders as of %s\n", total,
+	    ana_date);
+    LOGINFO("Upcoming expiries: %s and %s\n", exp_date, exp_date2);
     char sql_cmd[256];
     /**
      *  For real-time runs, update setup_dates and setup_scores tables.  Set
      *  the setup date for a stock as the previous business day.  Also, delete
      *  all the setups that were previously calculated for the current date.
      */
-    if (download_spots || download_options) {
-        /** TODO: for intraday expiry runs, do we need to delete the setups? */
+    if (download_spots) {
+	LOGINFO("For real-time runs, update setup_dates and setup_scores "
+		"tables.  Set setup date for stocks to previous business day."
+		"  Also, delete all setups previously calculated for "
+		"current date.\n");
         sprintf(sql_cmd, "DELETE FROM jl_setups WHERE dt='%s'", ana_date);
         db_transaction(sql_cmd);
         sprintf(sql_cmd, "UPDATE setup_dates SET dt='%s' WHERE dt='%s'",
@@ -1425,80 +1446,74 @@ void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
         sprintf(sql_cmd, "DELETE FROM setups WHERE dt='%s' AND setup IN "
                 "('GAP', 'GAP_HV', 'STRONG_CLOSE')", ana_date);
         db_transaction(sql_cmd);
-    }
-    int num = 0, total = cJSON_GetArraySize(leaders);
-    /**
-     *  If required, get the spot and options quotes.
-     */
-    if (download_spots)
+	LOGINFO("Downloading spots%s quotes\n",
+		download_options? " and options": ""); 
         get_quotes(leaders, ana_date, exp_date, exp_date2, download_options);
-    /**
-     *  If required, run the analysis.  The only scenario where analysis dont
-     *  run is intraday-expiry, where the intention is to only download the
-     *  options quotes for the immediate expiry, before they are removed from
-     *  the source.
-     */
-    if (run_analysis) {
-        FILE *fp = NULL;
-        char *filename = "/tmp/setups.csv";
-        if ((fp = fopen(filename, "w")) == NULL) {
-            LOGERROR("Failed to open file %s for writing\n", filename);
-            fp = stderr;
-        }
-        char* next_dt = NULL;
-        if (eod == true)
-            cal_next_bday(cal_ix(ana_date), &next_dt);
-        eq_value_ptr rs = (eq_value_ptr) malloc(total * sizeof(eq_value));
-        memset(rs, 0, total * sizeof(eq_value));
-        cJSON_ArrayForEach(ldr, leaders) {
-            if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
-                ana_scored_setups(ldr->valuestring, ana_date);
-                ana_setups(fp, ldr->valuestring, ana_date, next_dt, eod);
-            }
-            ana_calc_rs(ldr->valuestring, ana_date, rs + num);
-            num++;
-            if (num % 100 == 0)
-                LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num,
-                        total);
-        }
-        LOGINFO("%s: analyzed %4d / %4d leaders\n", ana_date, num, total);
-        fclose(fp);
-        LOGINFO("Closed fp\n");
-        if((fp = fopen(filename, "r")) == NULL) {
-            LOGERROR("Failed to open file %s\n", filename);
-        } else {
-            char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
-            int triggered, num_triggered = 0, num_untriggered = 0;
-            while(fgets(line, 80, fp)) {
-                sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
-                       &stp[0], &stp_dir, &triggered);
-                char *trigger_str = triggered? "true": "false";
-                sprintf(sql_cmd, "insert into setups values "
-                        "('%s','%s','%s','%c',%s) on conflict on constraint "
-                        "setups_pkey do update set triggered=%s",
-                        stp_dt, stp_stk, stp, stp_dir, trigger_str,
-                        trigger_str);
-                db_transaction(sql_cmd);
-                if (triggered == 1)
-                    num_triggered++;
-                else
-                    num_untriggered++;
-            }
-            LOGINFO("%s: inserted %d triggered setups\n", ana_date,
-                    num_triggered);
-            LOGINFO("%s: inserted %d not-triggered setups\n", next_dt,
-                    num_untriggered);
-            fclose(fp);
-        }
-
-        LOGINFO("Calculating relative strength for all leaders, as of %s\n",
-                ana_date);
-        ana_relative_strength(rs, ana_date, total);
-        free(rs);
-        rs = NULL;
     }
+    LOGINFO("Running the %s analysis for %s\n", eod? "eod": "intraday",
+	    ana_date);
+    LOGINFO("Calculating scored setups, setups and relative strength for "
+	    "%d stocks\n", total);
+    FILE *fp = NULL;
+    char *filename = "/tmp/setups.csv";
+    if ((fp = fopen(filename, "w")) == NULL) {
+	LOGERROR("Failed to open file %s for writing\n", filename);
+	fp = stderr;
+    }
+    char* next_dt = NULL;
+    if (eod == true)
+	cal_next_bday(cal_ix(ana_date), &next_dt);
+    eq_value_ptr rs = (eq_value_ptr) malloc(total * sizeof(eq_value));
+    memset(rs, 0, total * sizeof(eq_value));
+    cJSON_ArrayForEach(ldr, leaders) {
+	if (cJSON_IsString(ldr) && (ldr->valuestring != NULL)) {
+	    ana_scored_setups(ldr->valuestring, ana_date);
+	    ana_setups(fp, ldr->valuestring, ana_date, next_dt, eod);
+	}
+	ana_calc_rs(ldr->valuestring, ana_date, rs + num);
+	num++;
+	if (num % 100 == 0)
+	    LOGINFO("%s: analyzed %4d / %4d stocks\n", ana_date, num,
+		    total);
+    }
+    LOGINFO("%s: analyzed %4d / %4d stocks\n", ana_date, num, total);
+    fclose(fp);
+    LOGINFO("Closed %s\n", filename);
+    if((fp = fopen(filename, "r")) == NULL) {
+	LOGERROR("Failed to open file %s\n", filename);
+    } else {
+	char line[80], stp_dir, stp_dt[16], stp[16], stp_stk[16];
+	int triggered, num_triggered = 0, num_untriggered = 0;
+	while(fgets(line, 80, fp)) {
+	    sscanf(line, "%s\t%s\t%s\t%c\t%d\n", &stp_dt[0], &stp_stk[0],
+		   &stp[0], &stp_dir, &triggered);
+	    char *trigger_str = triggered? "true": "false";
+	    sprintf(sql_cmd, "insert into setups values "
+		    "('%s','%s','%s','%c',%s) on conflict on constraint "
+		    "setups_pkey do update set triggered=%s",
+		    stp_dt, stp_stk, stp, stp_dir, trigger_str,
+		    trigger_str);
+	    db_transaction(sql_cmd);
+	    if (triggered == 1)
+		num_triggered++;
+	    else
+		num_untriggered++;
+	}
+	LOGINFO("%s: inserted %d triggered setups\n", ana_date,	num_triggered);
+	LOGINFO("%s: inserted %d not-triggered setups\n", next_dt,
+		num_untriggered);
+	fclose(fp);
+    }
+    LOGINFO("Calculating relative strength for %d stocks, as of %s\n", total,
+	    ana_date);
+    ana_relative_strength(rs, ana_date, total);
+    LOGINFO("Freeing the memory\n");
+    free(rs);
+    rs = NULL;
+
     if (stx == NULL)
        cJSON_Delete(leaders);
+    LOGINFO("ana_stx_analysis(): done\n");
 }
 
 #endif
