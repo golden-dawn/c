@@ -1156,6 +1156,12 @@ void ana_candlesticks(jl_data_ptr jl) {
     ana_insert_setups_in_database(setups, dt, stk);
 }
 
+
+/** This method calculates for a given stock, as of a certain date:
+ *  - JL setups (breakouts, pullbacks, support/resistance),
+ *  - Candlestick setups
+ *  - Daily setups (strong closes, gaps, and reversal days)
+ **/
 int ana_jl_setups(char* stk, char* dt) {
     int res = 0;
     /** Get, or calculate if not already there, JL trends for 4 factors. */
@@ -1295,6 +1301,9 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     curl_global_cleanup();
 }
 
+/**
+ * This method is a wrapper around ana_jl_setups
+ */
 void ana_scored_setups(char* stk, char* ana_date) {
     /**
      * Calculate setups for a single stock (stk) up to ana_date. If ana_date
@@ -1392,6 +1401,11 @@ void ana_relative_strength(eq_value_ptr rs, char* dt, int num_stocks) {
     }
 }
 
+/**
+ * Separate implementation of daily analysis for the case when it is
+ * running in intraday-expiry mode, when all it needs to do is
+ * download the option prices
+ */
 void ana_intraday_expiry(char *ana_date) {
     char *exp_date, *exp_date2;
     int ana_ix = cal_ix(ana_date), exp_ix = cal_expiry(ana_ix, &exp_date);
@@ -1410,6 +1424,9 @@ void ana_intraday_expiry(char *ana_date) {
     LOGINFO("Downloaded options for expiries %s, %s\n", exp_date, exp_date2);
 }
 
+/**
+ * Main daily analysis method
+ */
 void ana_stx_analysis(char *ana_date, cJSON *stx, bool download_spots,
                       bool download_options, bool eod) {
     char *exp_date, *exp_date2, *prev_date;
