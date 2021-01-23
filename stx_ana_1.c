@@ -95,8 +95,8 @@ int main(int argc, char** argv) {
     char* crt_busdate = cal_current_busdate(5);
     LOGINFO("Current business date is: %s\n", crt_busdate);
     if ((ana_type != NULL) && !strcmp(ana_type, "intraday-expiry")) {
-	LOGINFO("Running intraday expiry for %s\n", crt_busdate);
-	ana_intraday_expiry(crt_busdate);
+        LOGINFO("Running intraday expiry for %s\n", crt_busdate);
+        ana_intraday_expiry(crt_busdate);
         return 0;
     }
     if (!strcmp(start_date, crt_busdate) && !strcmp(end_date, crt_busdate) &&
