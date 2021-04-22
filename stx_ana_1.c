@@ -37,7 +37,7 @@
 
 int main(int argc, char** argv) {
     bool download_spots = false, download_options = false, rt_ana = false,
-        eod = false, no_rt = false;
+      eod = false, no_rt = false, run_expiry = false;
     char ana_name[32], *ana_type = NULL, *start_date = cal_current_busdate(5),
         *end_date = cal_current_busdate(5);
     cJSON *stx = NULL;
@@ -86,6 +86,8 @@ int main(int argc, char** argv) {
             ana_type = argv[ix] + 2;
         }  else if (!strcmp(argv[ix], "--no-rt"))
             no_rt = true;
+	else if (!strcmp(argv[ix], "--run-expiry"))
+            run_expiry = true;
         else if (!strcmp(argv[ix], "--cron"))
             if (!cal_is_today_busday()) {
                 LOGINFO("Will not run in batch mode on a holiday\n");
@@ -117,7 +119,7 @@ int main(int argc, char** argv) {
         if (eod) {
             char *exp_date;
             cal_expiry(cal_ix(crt_busdate), &exp_date);
-            if (!strcmp(crt_busdate, exp_date))
+            if (!strcmp(crt_busdate, exp_date) || run_expiry)
                 ana_expiry_analysis(crt_busdate, rt_ana, download_spots,
                                     download_options);
         }
