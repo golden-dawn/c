@@ -9,9 +9,11 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include "stx_core.h"
+#include <unistd.h>
 
 #define Y_1 "https://query1.finance.yahoo.com/v7/finance"
-#define Y_2 "?formatted=true&crumb=BfPVqc7QhCQ&lang=en-US&region=US"
+#define Y_2 "?formatted=true&crumb=O/i8PwIGbik&lang=en-US&region=US"
+/* #define Y_2 "?formatted=true&crumb=BfPVqc7QhCQ&lang=en-US&region=US" */
 #define Y_3 "?formatted=true&crumb=SCD1VzLlKv0&lang=en-US&region=US"
 #define Y_4 "&fields=regularMarketPrice,regularMarketVolume,regularMarketDayLow,regularMarketDayHigh,regularMarketOpen,"
 #define Y_5 "&corsDomain=finance.yahoo.com"
@@ -20,6 +22,15 @@ typedef struct net_mem_t {
     char *memory;
     size_t size;
 } net_mem, *net_mem_ptr;
+
+const char *crumbs[] = {"O/i8PwIGbik", "BfPVqc7QhCQ", "SCD1VzLlKv0",
+			"oR3NevVYWcy", "jstZELRFx8V", "J7aZIXTgLUo",
+			"NxDe4fGmzi2", "OoVtl06acwG", "pE8DCX52aQi",
+			"4U3x00rtYlB", "UPTkoKHMTl3", "bKPyxS0phIJ",
+			"be2VPW.MaQx", "odlL1WG4ELq", "HbBfT52A14U",
+			"SY9gzmAjf8k", "VxjD4XfuoOU", "/oZ0l34Wowu",
+			"3XqX7vkip0y", "VsFXKKqMkjv", "fxqwWS2xAOb"};
+
 
 static size_t
 WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -116,6 +127,11 @@ cJSON* net_parse_quote(char* buffer) {
         else
             LOGERROR("Failed to parse:\n%s\n", buffer);
     }
+#ifdef DEBUG_NET_QUOTE
+    char* s_json = cJSON_Print(json);
+    LOGINFO("%s\n", s_json);
+    free(s_json);
+#endif
     return json;
 }
 
@@ -256,8 +272,12 @@ void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
 void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt, 
                          char* exp, long exp_ms) {
     LOGINFO("%s: Getting %s option data for expiry %s\n", dt, und, exp);
+    sleep(0.1);
     char url[256];
     sprintf(url, "%s/options/%s%s&date=%ld%s", Y_1, und, Y_2, exp_ms, Y_5);
+#ifdef DEBUG_NET_QUOTE
+    LOGINFO("URL = %s\n", url);
+#endif
     net_mem_ptr chunk = net_get_quote(url);
     if (chunk == NULL)
         return;
