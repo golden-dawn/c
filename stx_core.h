@@ -26,7 +26,7 @@ char* crt_timestamp() {
     }
     static char _retval[24];
     strftime(buff, 20, "%Y-%m-%d %H:%M:%S", localtime(&seconds));
-    sprintf(_retval, "%s.%03ld", buff, milliseconds);
+    snprintf(_retval, 24, "%s.%03ld", buff, milliseconds);
     return _retval;
 }
 
