@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 #define Y_1 "https://query1.finance.yahoo.com/v7/finance"
-#define Y_2 "?formatted=true&crumb=O/i8PwIGbik&lang=en-US&region=US"
-/* #define Y_2 "?formatted=true&crumb=BfPVqc7QhCQ&lang=en-US&region=US" */
+#define Y_21 "?formatted=true&crumb="
+#define Y_22 "&lang=en-US&region=US"
 #define Y_3 "?formatted=true&crumb=SCD1VzLlKv0&lang=en-US&region=US"
 #define Y_4 "&fields=regularMarketPrice,regularMarketVolume,regularMarketDayLow,regularMarketDayHigh,regularMarketOpen,"
 #define Y_5 "&corsDomain=finance.yahoo.com"
@@ -206,8 +206,9 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
     return c;
 }
 
-void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
-                       char* exp, char* und, char* dt) {
+int net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
+		      char* exp, char* und, char* dt) {
+    int res = 0;
     cJSON *opts = cJSON_GetObjectItemCaseSensitive(options, opt_type);
     char err_msg[80];
     if (opts == NULL) {
@@ -235,9 +236,11 @@ void net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
         ask = net_number_from_json(opt, "ask", true);
         if ((ask == -1) || (ask == 0))
             continue;
+	res++;
         fprintf(opt_fp, "%s\t%s\t%c\t%d\t%s\t%d\t%d\t%d\t1\n",
                 exp, und, opt_type[0], strike, dt, bid, ask, volume / 100);
     }
+    return res;
 }
 
 void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
@@ -271,13 +274,22 @@ void net_get_eod_data(FILE *eod_fp, char* stk, char* dt) {
 
 void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt, 
                          char* exp, long exp_ms) {
-    LOGINFO("%s: Getting %s option data for expiry %s\n", dt, und, exp);
-    sleep(0.1);
-    char url[256];
-    sprintf(url, "%s/options/%s%s&date=%ld%s", Y_1, und, Y_2, exp_ms, Y_5);
+    static int num = 0;
+    LOGINFO("%d %s: Get %s option data for expiry %s\n", num, dt, und, exp);
+    sleep(1);
+    char url[512];
+    int crumb_ix = num / 250;
+    sprintf(url, "%s/options/%s%s%s%s&date=%ld%s", Y_1, und, Y_21,
+	    crumbs[crumb_ix], Y_22, exp_ms, Y_5);
 #ifdef DEBUG_NET_QUOTE
-    LOGINFO("URL = %s\n", url);
+    LOGINFO("%d: URL = %s\n", num, url);
 #endif
+    num++;
+    if (num % 300 == 0) {
+	LOGINFO("%d will sleep for 600 seconds\n", num);
+	sleep(600);
+	LOGINFO("%d woke up from 600 seconds sleep\n", num);
+    }
     net_mem_ptr chunk = net_get_quote(url);
     if (chunk == NULL)
         return;
@@ -306,8 +318,10 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
         goto end;
     }
     cJSON *options = cJSON_GetArrayItem(opt_arr, 0);
-    net_parse_options(opt_fp, options, "calls", exp, und, dt);
-    net_parse_options(opt_fp, options, "puts", exp, und, dt);
+    int num_calls = net_parse_options(opt_fp, options, "calls", exp, und, dt);
+    int num_puts = net_parse_options(opt_fp, options, "puts", exp, und, dt);
+    LOGINFO("%d %s: %s expiry %s got %d calls and %d puts\n", num, dt, und,
+	    exp, num_calls, num_puts);
  end:
     cJSON_Delete(json);
     free(chunk->memory);
