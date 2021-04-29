@@ -269,6 +269,24 @@ int main() {
         "indicators JSONB NOT NULL, "                       \
         "PRIMARY KEY(stk, dt))";
     create_table_if_missing(cnx, "indicators", create_indicators);
+
+    /** This table stores ETFs: ticker, name, and category
+     */
+    char* create_etfs = "CREATE TABLE etfs( "   \
+        "ticker VARCHAR(16) NOT NULL, "         \
+        "name VARCHAR, "                        \
+        "category VARCHAR, "                    \
+        "PRIMARY KEY(ticker))";
+    create_table_if_missing(cnx, "etfs", create_etfs);
+
+    /** This table stores stock to ETFs mappings
+     */
+    char* create_stk_etfs = "CREATE TABLE stk_etfs( "   \
+        "stk VARCHAR(16) NOT NULL, "                    \
+        "etf VARCHAR(16) NOT NULL, "                    \
+        "PRIMARY KEY(stk, etf))";
+    create_table_if_missing(cnx, "stk_etfs", create_stk_etfs);
+
     PQfinish(cnx);
     return 0;
 }
