@@ -285,7 +285,7 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
     LOGINFO("%d: URL = %s\n", num, url);
 #endif
     num++;
-    if (num % 300 == 0) {
+    if (num % 250 == 0) {
 	LOGINFO("%d will sleep for 600 seconds\n", num);
 	sleep(600);
 	LOGINFO("%d woke up from 600 seconds sleep\n", num);
