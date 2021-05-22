@@ -1284,14 +1284,14 @@ void get_quotes(cJSON *leaders, char *dt, char *exp_date, char *exp_date2,
     db_transaction(sql_cmd);
     db_upload_file("eods", filename);
 
-    LOGINFO("%s: Getting the quotes for the indexes: ", dt);
+    LOGINFO("%s: Getting the quotes for the indexes: \n", dt);
     net_get_eod_data(NULL, "^GSPC", dt);
-    LOGINFO("S&P500 ");
+    LOGINFO("S&P500 \n");
     net_get_eod_data(NULL, "^IXIC", dt);
-    LOGINFO("Nasdaq ");
+    LOGINFO("Nasdaq \n");
     net_get_eod_data(NULL, "^DJI", dt);
-    LOGINFO("Dow Jones");
-    LOGINFO("\n%s: Got the quotes for the indexes\n", dt);
+    LOGINFO("Dow Jones\n");
+    LOGINFO("%s: Got the quotes for the indexes\n", dt);
     
     if (eod == true) {
         sprintf(sql_cmd, "UPDATE eods SET oi=0 WHERE stk IN "
