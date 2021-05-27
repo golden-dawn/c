@@ -24,12 +24,12 @@ typedef struct net_mem_t {
 } net_mem, *net_mem_ptr;
 
 const char *crumbs[] = {"O/i8PwIGbik", "BfPVqc7QhCQ", "SCD1VzLlKv0",
-			"oR3NevVYWcy", "jstZELRFx8V", "J7aZIXTgLUo",
-			"NxDe4fGmzi2", "OoVtl06acwG", "pE8DCX52aQi",
-			"4U3x00rtYlB", "UPTkoKHMTl3", "bKPyxS0phIJ",
-			"be2VPW.MaQx", "odlL1WG4ELq", "HbBfT52A14U",
-			"SY9gzmAjf8k", "VxjD4XfuoOU", "/oZ0l34Wowu",
-			"3XqX7vkip0y", "VsFXKKqMkjv", "fxqwWS2xAOb"};
+                        "oR3NevVYWcy", "jstZELRFx8V", "J7aZIXTgLUo",
+                        "NxDe4fGmzi2", "OoVtl06acwG", "pE8DCX52aQi",
+                        "4U3x00rtYlB", "UPTkoKHMTl3", "bKPyxS0phIJ",
+                        "be2VPW.MaQx", "odlL1WG4ELq", "HbBfT52A14U",
+                        "SY9gzmAjf8k", "VxjD4XfuoOU", "/oZ0l34Wowu",
+                        "3XqX7vkip0y", "VsFXKKqMkjv", "fxqwWS2xAOb"};
 
 
 static size_t
@@ -207,7 +207,7 @@ int net_parse_eod(FILE *eod_fp, cJSON* quote, char* stk, char* dt,
 }
 
 int net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
-		      char* exp, char* und, char* dt) {
+                      char* exp, char* und, char* dt) {
     int res = 0;
     cJSON *opts = cJSON_GetObjectItemCaseSensitive(options, opt_type);
     char err_msg[80];
@@ -236,7 +236,7 @@ int net_parse_options(FILE* opt_fp, cJSON* options, char* opt_type,
         ask = net_number_from_json(opt, "ask", true);
         if ((ask == -1) || (ask == 0))
             continue;
-	res++;
+        res++;
         fprintf(opt_fp, "%s\t%s\t%c\t%d\t%s\t%d\t%d\t%d\t1\n",
                 exp, und, opt_type[0], strike, dt, bid, ask, volume / 100);
     }
@@ -280,15 +280,15 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
     char url[512];
     int crumb_ix = num / 250;
     sprintf(url, "%s/options/%s%s%s%s&date=%ld%s", Y_1, und, Y_21,
-	    crumbs[crumb_ix], Y_22, exp_ms, Y_5);
+            crumbs[crumb_ix], Y_22, exp_ms, Y_5);
 #ifdef DEBUG_NET_QUOTE
     LOGINFO("%d: URL = %s\n", num, url);
 #endif
     num++;
     if (num % 250 == 0) {
-	LOGINFO("%d will sleep for 600 seconds\n", num);
-	sleep(600);
-	LOGINFO("%d woke up from 600 seconds sleep\n", num);
+        LOGINFO("%d will sleep for 600 seconds\n", num);
+        sleep(600);
+        LOGINFO("%d woke up from 600 seconds sleep\n", num);
     }
     net_mem_ptr chunk = net_get_quote(url);
     if (chunk == NULL)
@@ -321,7 +321,7 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
     int num_calls = net_parse_options(opt_fp, options, "calls", exp, und, dt);
     int num_puts = net_parse_options(opt_fp, options, "puts", exp, und, dt);
     LOGINFO("%d %s: %s expiry %s got %d calls and %d puts\n", num, dt, und,
-	    exp, num_calls, num_puts);
+            exp, num_calls, num_puts);
  end:
     cJSON_Delete(json);
     free(chunk->memory);
