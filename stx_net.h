@@ -286,9 +286,9 @@ void net_get_option_data(FILE *eod_fp, FILE *opt_fp, char* und, char* dt,
 #endif
     num++;
     if (num % 250 == 0) {
-        LOGINFO("%d will sleep for 600 seconds\n", num);
-        sleep(600);
-        LOGINFO("%d woke up from 600 seconds sleep\n", num);
+        /* LOGINFO("%d will sleep for 600 seconds\n", num); */
+        /* sleep(600); */
+        /* LOGINFO("%d woke up from 600 seconds sleep\n", num); */
     }
     net_mem_ptr chunk = net_get_quote(url);
     if (chunk == NULL)
