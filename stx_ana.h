@@ -18,7 +18,7 @@
 #define MIN_ACT 8
 #define MIN_RCR 15
 #define MAX_OPT_SPREAD 33
-#define MAX_ATM_PRICE 500
+#define MAX_ATM_PRICE 1000
 #define UP 'U'
 #define DOWN 'D'
 #define JL_FACTOR 2.00
